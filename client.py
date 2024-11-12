@@ -9,6 +9,7 @@ import multiprocessing as mp
 import os
 
 import requests
+from brunos_addition import compute_entry_new
 
 
 BOHR = 0.52917721067
@@ -28,7 +29,6 @@ PERIODIC_TABLE = ["Dummy"] + PERIODIC_TABLE_STR.strip().split()
 PERIODIC_TABLE_REV_IDX = {s: i for i, s in enumerate(PERIODIC_TABLE)}
 
 print_flush = partial(print, flush=True)
-
 
 def compute_entry(record, num_threads=1, maxiter=150):
     conformation = record["conformation"]
@@ -188,7 +188,7 @@ def main():
         # entry = compute_entry(record, args.num_threads, args.maxiter)
         # compute entry in a separate process asynchronously
         pool = mp.Pool(1)
-        res = pool.apply_async(compute_entry, args=(record, args.num_threads, args.maxiter))
+        res = pool.apply_async(compute_entry_new, args=(record, args.num_threads, args.maxiter))
         job_already_done = False
         while not job_already_done:
             try:
