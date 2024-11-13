@@ -5,8 +5,10 @@ import psi4
 
 BOHR_TO_ANGSTROM=.52917721067
 
-def hardware_settings(memory='4GB'):
-    content=[f"memory {memory}"]
+def set_hardware(memory='4GB', num_threads=4):
+    content=[f"# Hardware settings "]
+    content=[f"set_memory( \"{memory}\" )"]
+    content=[f"set_num_threads( {num_threads} )"]
     content=''.join([ f"{line}\n" for line in content])
     return content
 
@@ -77,7 +79,7 @@ def grac_shift(E_ion, E_neut, wfn_neut, verbose=True):
     return string
 
 def psi4_settings(output_file):
-    local_content=[]
+    local_content=['# Non-hardware related psi4 settings']
     local_content.append(f"set_output_file(\"{output_file}\")")
     return '\n'.join(local_content)
 
@@ -96,11 +98,19 @@ def psi4_exit_ana(output_file):
     }
 
                     
-def complete_calc(atom_types, coordinates,dft_functional='PBE0', basis_set='aug-cc-pVTZ', jobname='test', units=None):
-    content=[]
+def complete_calc(
+    atom_types, coordinates, charge=0, multiplicity=1, # structure
+    dft_functional='PBE0', basis_set='aug-cc-pVTZ', do_grac=True, # calculation
+    jobname='test', units=None,
+    hardware_settings={'memory':'4GB', 'num_threads':4}
+):
+    # Comment
+    the_time=f"{time.strftime('%Y-%M-%D_%H:%M:%S', time.localtime())} (Zone: {time.tzname})"
+    comment_string=f"# Psi4 calculation for job {jobname} input file generated at {the_time}"
+    content=[comment_string]
 
     #Set the hardware
-    hardware_string=hardware_settings()
+    hardware_string=set_hardware(**hardware_settings)
     content.append(hardware_string)
 
     # Set psi4 settings
@@ -111,17 +121,26 @@ def complete_calc(atom_types, coordinates,dft_functional='PBE0', basis_set='aug-
     ## Set the molecule data
     dat_monomer={
         'name':'monomer',
-        'charge':0,
-        'multiplicity':1,
-    }
-    dat_monomer_ion={
-        'name':         'monomer_ion',
-        'charge':       1,
-        'multiplicity': 2,
+        'charge':charge,
+        'multiplicity':multiplicity,
     }
     string=molecule_input(atom_types, coordinates, **dat_monomer, units=units)
-    string_ion=molecule_input(atom_types, coordinates, **dat_monomer_ion, units=units)
-    content+=[string+string_ion]
+    content+=[string]
+    if do_grac:
+        # Shift charge and multiplicity
+        charge_ion=charge+1
+        if multiplicity!=1:
+            raise Exception(f"Can only handle multiplicty of 1 for GRAC at the moment!")
+        else:
+            multiplicity_ion=2
+
+        dat_monomer_ion={
+            'name':         'monomer_ion',
+            'charge':       charge_ion,
+            'multiplicity': multiplicity_ion,
+        }
+        string_ion=molecule_input(atom_types, coordinates, **dat_monomer_ion, units=units)
+        content+=[string_ion]
 
     #### Calculations
     calc_neut={
@@ -130,34 +149,41 @@ def complete_calc(atom_types, coordinates,dft_functional='PBE0', basis_set='aug-
         'en_var':'E_neut',
         'wfn_var':'wfn_neut'
     }
-    calc_ion={
-        'molecule':'monomer_ion',
-        'reference':'uks',
-        'en_var':'E_ion',
-        'wfn_var':'wfn_ion'
-    }
-    calc_grac={
-        'molecule':'monomer',
-        'reference':'rks',
-        'en_var':'E_grac',
-        'wfn_var':'wfn_grac'
-    }
     string_calc_neut = calc_string(dft_functional, basis_set, **calc_neut)
-    string_calc_ion = calc_string(dft_functional, basis_set, **calc_ion)
-    content+=[string_calc_neut, string_calc_ion]
-    # Set acs
-    ac_string = grac_shift( E_ion=calc_ion['en_var'], E_neut=calc_neut['en_var'], wfn_neut=calc_neut['wfn_var'])
-    string_calc_grac = calc_string(dft_functional, basis_set, **calc_grac)
-    content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"# GRAC CORRECTED SCF\n"+string_calc_grac]
+    content+=[string_calc_neut]
+    if do_grac:
+        calc_ion={
+            'molecule':'monomer_ion',
+            'reference':'uks',
+            'en_var':'E_ion',
+            'wfn_var':'wfn_ion'
+        }
+        string_calc_ion = calc_string(dft_functional, basis_set, **calc_ion)
+        content+=[string_calc_ion]
+        calc_grac={
+            'molecule':'monomer',
+            'reference':'rks',
+            'en_var':'E_grac',
+            'wfn_var':'wfn_grac'
+        }
+        # Set acs
+        ac_string = grac_shift( E_ion=calc_ion['en_var'], E_neut=calc_neut['en_var'], wfn_neut=calc_neut['wfn_var'])
+        string_calc_grac = calc_string(dft_functional, basis_set, **calc_grac)
+        content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"# GRAC CORRECTED SCF\n"+string_calc_grac]
 
+    ### Save wave function
     wfn_file=f"{jobname}.wfn.npy"
-    content+=[f"{calc_grac['wfn_var']}.to_file(\"{wfn_file}\")"]
+    if do_grac:
+        wfn_var=calc_grac['wfn_var']
+    else:
+        wfn_var=calc_neut['wfn_var']
+    content+=[f"{wfn_var}.to_file(\"{wfn_file}\")"]
 
-    content='\n'.join(content)
-
+    ### Print file
     psi4_path=f"{jobname}.psi4"
+    content='\n'.join(content)
     with open(psi4_path,'w') as wr:
-        wr.write(content) 
+        wr.write(content)
 
     return {
         'psi4_input_file': os.path.realpath(psi4_path),

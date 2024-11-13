@@ -9,6 +9,7 @@ import psi4
 import numpy as np
 from functools import partial
 
+# Replacers for Thomas script
 PERIODIC_TABLE_STR = """
 H                                                                                                                           He
 Li  Be                                                                                                  B   C   N   O   F   Ne
@@ -23,53 +24,106 @@ ANGSTROM_TO_BOHR=1./0.52917721067
 print_flush = partial(print, flush=True)
 
 def atomic_charge_to_atom_type(Z):
+    """ Return atom type when given an atomic Number """
     atom_types=PERIODIC_TABLE_STR.split()
     Z_to_atty_di=dict([ (i+1, at_ty) for i, at_ty in enumerate(atom_types)])
     assert Z in Z_to_atty_di.keys()
     return Z_to_atty_di[Z]
 
-def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test'):
-    psi4_start_time=time.time()
-    psi4_dict=complete_calc(atom_types, coordinates, dft_functional=dft_functional, basis_set=basis_set, jobname=jobname, units={'LENGTH':'BOHR'})  
-    psi4_input_file=psi4_dict['psi4_input_file']
-    psi4_wafe_function=psi4_dict['wfn_file']
+def switch_script(record):
+    """ Run either my our the original entry calculation script"""
+    method=record['method']
+    if method.upper()=='PBE0-GRAC':
+        return 'bruno'
+    else:
+        return 'original'
 
-    subprocess.run(["psi4", psi4_input_file]) 
-    psi4_dict.update({'exit_ana': psi4_exit_ana(psi4_dict['output_file']),
+
+def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test', hardware_settings=None):
+    """ Interface between this data and my generic run script """
+    psi4_start_time=time.time()
+
+    # Generate the input file
+    psi4_dict=complete_calc(atom_types, coordinates, dft_functional=dft_functional, basis_set=basis_set, jobname=jobname, units={'LENGTH':'BOHR'},
+        hardware_settings=hardware_settings)  
+    psi4_input_file=psi4_dict['psi4_input_file']
+
+    # Run the process
+    process = subprocess.Popen(
+        ['psi4', psi4_input_file],
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE
+    )
+    stdout, stderr = process.communicate()
+    error_code =process.returncode
+
+    # Recover the data
+    psi4_dict.update({
+        'exit_ana': psi4_exit_ana(psi4_dict['output_file']),
         'real_time':time.time()-psi4_start_time,
-        'time_unit':'s'})
+        'time_unit':'s',
+        'error_code':error_code,
+        'stdout':stdout,
+        'stderr': stderr})
 
     return psi4_dict
     
 def extract_psi4_info(wfn_file, method, basis):
+    """ Interface with generic run script """
     psi4_dict=property_calc(wfn_file, method, basis)
+    return psi4_dict
 
+def process_method(record):
+    """ Read the method tag """
 
-
-def compute_entry_new(record, num_threads=1, maxiter=150):
+    method=record['method']
+    basis_set=record['basis']
     
+    # Parse the method for GRAC key
+    method_components=method.split('-')
+    if len(method_components)==1:
+        dft_functional=method
+        do_GRAC=False
+    elif len(method_components)==2:
+        assert method_components[1].upper()=='GRAC'
+        dft_functional=method_components[0]
+        do_GRAC=True
+    else: 
+        raise Exception()
+    
+    return dft_functional, do_GRAC, basis_set
+
+def compute_entry_bruno(record, num_threads=1, maxiter=150):
+    """ Cal psi4 calculation """
     start_time = time.time()
 
     conformation = record["conformation"]
-    conformation={'species':[1,1], 'coordinates':[[0,0,0],[0,0,1]]}
-    method='PBE0'
-    basis='aug-cc-pVTZ'
-    restricted=True
-    id = record["id"]
-    jobname=f"{id}"
-    #try:
-
-    dft_functional='PBE0'
-    basis_set='aug-cc-pVTZ'
-
     atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
     coordinates=np.array(conformation['coordinates'])*ANGSTROM_TO_BOHR
 
-    try:
-        psi4_dict = run_psi4(atom_types, coordinates, jobname=jobname, dft_functional=dft_functional, basis_set=basis_set)
+    id = record["id"]
+    jobname=f"{id}"
 
+    dft_functional, do_GRAC, basis_set=process_method(record)
+
+    hardware_settings=dict(
+        num_threads=4,
+        memory='8GB',
+    )
+
+    try:
+        # Get the wave function
+        psi4_dict = run_psi4(
+            atom_types, coordinates, 
+            dft_functional=dft_functional, basis_set=basis_set, do_grac=do_GRAC,
+            jobname=jobname, hardware_settings=hardware_settings)
+        if psi4_dict['errorcode']!=0:
+            raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
+
+        # Get derived information
         output_conformation=extract_psi4_info(psi4_dict['wfn_file'], dft_functional, basis_set)
 
+        # Get some basis data in
         output_conformation.update(dict(
             species=record['species'],
             coordinates=record['coordinates'],
@@ -90,8 +144,8 @@ def compute_entry_new(record, num_threads=1, maxiter=150):
         conformation=output_conformation,
         elapsed_time=elapsed_time,
         converged=converged,
-        method=method,
-        basis=basis,
+        method=dft_functional,
+        basis=basis_set,
         error=error,
     )
     return output

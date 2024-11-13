@@ -9,7 +9,7 @@ import multiprocessing as mp
 import os
 
 import requests
-from brunos_addition import compute_entry_new
+from brunos_addition import compute_entry_bruno, switch_script
 
 
 BOHR = 0.52917721067
@@ -188,7 +188,14 @@ def main():
         # entry = compute_entry(record, args.num_threads, args.maxiter)
         # compute entry in a separate process asynchronously
         pool = mp.Pool(1)
-        res = pool.apply_async(compute_entry_new, args=(record, args.num_threads, args.maxiter))
+        mode=switch_script(record)
+        if mode=='bruno':
+            script=compute_entry_bruno
+        elif mode=='original':
+            script=compute_entry
+        else:
+            raise Exception(f"Switch function failure (invalid return): {mode}")
+        res = pool.apply_async(script, args=(record, args.num_threads, args.maxiter))
         job_already_done = False
         while not job_already_done:
             try:
