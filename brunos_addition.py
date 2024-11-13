@@ -39,13 +39,16 @@ def switch_script(record):
         return 'original'
 
 
-def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test', hardware_settings=None):
+def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test', hardware_settings=None, do_grac=False):
     """ Interface between this data and my generic run script """
     psi4_start_time=time.time()
 
     # Generate the input file
-    psi4_dict=complete_calc(atom_types, coordinates, dft_functional=dft_functional, basis_set=basis_set, jobname=jobname, units={'LENGTH':'BOHR'},
-        hardware_settings=hardware_settings)  
+    psi4_dict=complete_calc(
+        atom_types, coordinates, 
+        dft_functional=dft_functional, do_grac=do_grac, basis_set=basis_set, 
+        jobname=jobname, units={'LENGTH':'BOHR'}, hardware_settings=hardware_settings
+    )  
     psi4_input_file=psi4_dict['psi4_input_file']
 
     # Run the process
