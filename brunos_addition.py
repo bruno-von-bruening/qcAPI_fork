@@ -103,6 +103,8 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
     conformation = record["conformation"]
     atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
     coordinates=np.array(conformation['coordinates'])*ANGSTROM_TO_BOHR
+    # atom_types=['H', 'H']
+    # coordinates=[ [0, 0, 0],[1, 0, 0] ]
 
     id = record["id"]
     jobname=f"{id}"
@@ -120,7 +122,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
             atom_types, coordinates, 
             dft_functional=dft_functional, basis_set=basis_set, do_grac=do_GRAC,
             jobname=jobname, hardware_settings=hardware_settings)
-        if psi4_dict['errorcode']!=0:
+        if psi4_dict['error_code']!=0:
             raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
 
         # Get derived information
@@ -152,21 +154,3 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
         error=error,
     )
     return output
-
-
-    #except Exception as ex:
-    #    print_flush(f"Error computing entry: {ex}")
-    #    elapsed_time = time.time() - start_time
-    #    output = dict(
-    #        id=record.get("id", None),
-    #        conformation=conformation,
-    #        elapsed_time=elapsed_time,
-    #        converged=0,
-    #        method=method,
-    #        basis=basis,
-    #        error=str(ex),
-    #    )
-
-
-    return output
-
