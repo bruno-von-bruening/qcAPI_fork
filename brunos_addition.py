@@ -47,7 +47,7 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test',
     psi4_dict=complete_calc(
         atom_types, coordinates, 
         dft_functional=dft_functional, do_grac=do_grac, basis_set=basis_set, 
-        jobname=jobname, units={'LENGTH':'BOHR'}, hardware_settings=hardware_settings
+        jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
     )  
     psi4_input_file=psi4_dict['psi4_input_file']
 
@@ -102,7 +102,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
 
     conformation = record["conformation"]
     atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
-    coordinates=np.array(conformation['coordinates'])*ANGSTROM_TO_BOHR
+    coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
     # atom_types=['H', 'H']
     # coordinates=[ [0, 0, 0],[1, 0, 0] ]
 
