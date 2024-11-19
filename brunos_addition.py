@@ -52,12 +52,6 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
         jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
     )  
     psi4_input_file=psi4_dict['psi4_input_file']
-    if not isinstance(target_dir, type(None)):
-        files=[ psi4_dict[x] for x in [ 'psi4_input_file', 'wfn_file', 'fchk_file', 'output_file',] ]
-        for fi in files:
-            print(f"Copying {fi} to {target_dir}")
-            if not os.path.dirname(os.path.realpath(fi))==os.path.realpath(target_dir):
-                shutil.copy(fi,target_dir)
 
     # Run the process
     process = subprocess.Popen(
@@ -67,6 +61,12 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
     )
     stdout, stderr = process.communicate()
     error_code =process.returncode
+    if not isinstance(target_dir, type(None)):
+        files=[ psi4_dict[x] for x in [ 'psi4_input_file', 'wfn_file', 'fchk_file', 'output_file',] ]
+        for fi in files:
+            print(f"Copying {fi} to {target_dir}")
+            if not os.path.dirname(os.path.realpath(fi))==os.path.realpath(target_dir):
+                shutil.copy(fi,target_dir)
 
     # Recover the data
     psi4_dict.update({
