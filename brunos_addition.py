@@ -55,7 +55,7 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
     if not isinstance(target_dir, type(None)):
         files=[ psi4_dict[x] for x in [ 'psi4_input_file', 'wfn_file', 'fchk_file', 'output_file',] ]
         for fi in files:
-            print(f"Copying {fi} to {dir_nam}")
+            print(f"Copying {fi} to {target_dir}")
             if not os.path.dirname(os.path.realpath(fi))==os.path.realpath(target_dir):
                 shutil.copy(fi,target_dir)
 
