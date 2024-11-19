@@ -121,7 +121,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
     multiplicity=1
     total_charge=conformation['total_charge']
     # If test is selected calculate hydrogen
-    test=True
+    test=False
     if test:
         coordinates=[ [0,0,0],[1,0,0] ]
         atom_types=[ 'H', 'H' ]
