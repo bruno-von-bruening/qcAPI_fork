@@ -188,6 +188,8 @@ def main():
         # entry = compute_entry(record, args.num_threads, args.maxiter)
         # compute entry in a separate process asynchronously
         pool = mp.Pool(1)
+
+        # Decide which function to use
         mode=switch_script(record)
         if mode=='bruno':
             script=compute_entry_bruno

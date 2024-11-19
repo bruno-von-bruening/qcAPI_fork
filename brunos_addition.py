@@ -39,13 +39,15 @@ def switch_script(record):
         return 'original'
 
 
-def run_psi4(atom_types, coordinates, dft_functional, basis_set, jobname='test', hardware_settings=None, do_grac=False):
+def run_psi4(atom_types, coordinates, dft_functional, basis_set,
+            charge=0, multiplicity=1,
+            jobname='test', hardware_settings=None, do_grac=False):
     """ Interface between this data and my generic run script """
     psi4_start_time=time.time()
 
     # Generate the input file
     psi4_dict=complete_calc(
-        atom_types, coordinates, 
+        atom_types, coordinates, charge=charge, multiplicity=multiplicity,
         dft_functional=dft_functional, do_grac=do_grac, basis_set=basis_set, 
         jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
     )  
@@ -101,18 +103,19 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
     start_time = time.time()
 
     conformation = record["conformation"]
-    # atom_types=['H', 'H']
-    # coordinates=[ [0, 0, 0],[1, 0, 0] ]
-    test=True
+    assert 'id' in record.keys()
+    jobname=f"{record['id']}"
+
+    # Get atom types and coordinates
+    atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
+    coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
+    multiplicity=1
+    total_charge=conformation['total_charge']
+    # If test is selected calculate hydrogen
+    test=False
     if test:
         coordinates=[ [0,0,0],[1,0,0] ]
         atom_types=[ 'H', 'H' ]
-    else:
-        atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
-        coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
-
-    id = record["id"]
-    jobname=f"{id}"
 
     dft_functional, do_GRAC, basis_set=process_method(record)
 
@@ -121,41 +124,45 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
         memory='8GB',
     )
 
+    assert 'total_charge' in conformation.keys(), conformation.keys()
+    # Immutable information from the input that needs to be passed back
+    output_conformation=dict(
+        species=conformation['species'],
+        coordinates=conformation['coordinates'],
+        total_charge=conformation['total_charge'],
+    )
     try:
         # Get the wave function
         psi4_dict = run_psi4(
-            atom_types, coordinates, 
+            atom_types, coordinates, charge=total_charge, multiplicity=multiplicity,
             dft_functional=dft_functional, basis_set=basis_set, do_grac=do_GRAC,
             jobname=jobname, hardware_settings=hardware_settings)
         if psi4_dict['error_code']!=0:
             raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
 
-        # Get derived information
-        output_conformation=extract_psi4_info(psi4_dict['wfn_file'], dft_functional, basis_set)
-
-        # Get some basis data in
-        output_conformation=dict(
-            species=conformation['species'],
-            coordinates=conformation['coordinates'],
-            total_charge=0,
-        )
+        # Get derived information (atm this is not read in)
+        output_conformation_add=extract_psi4_info(psi4_dict['wfn_file'], dft_functional, basis_set)
 
         converged=1
         error=None
     except Exception as ex:
         print_flush(f"Error computing entry: {ex}")
+        output_conformation=conformation
         converged=0
         error=str(ex)
-        output_conformation=conformation
 
     elapsed_time=time.time()-start_time
-    output = dict(
+    # Immutable information
+    output=dict(
+        basis=record['basis'],
+        method=record['method'],
         id=record.get("id", None),
+    )
+    # Variable information
+    output.update(dict(
         conformation=output_conformation,
         elapsed_time=elapsed_time,
         converged=converged,
-        method=record['method'],
-        basis=basis_set,
         error=error,
-    )
+    ))
     return output
