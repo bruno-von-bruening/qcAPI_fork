@@ -1,7 +1,6 @@
 
 # NEW
-import os
-import sys
+import os, sys, shutil
 from run_psi4_2 import complete_calc, psi4_exit_ana, property_calc
 import subprocess
 import time
@@ -41,7 +40,8 @@ def switch_script(record):
 
 def run_psi4(atom_types, coordinates, dft_functional, basis_set,
             charge=0, multiplicity=1,
-            jobname='test', hardware_settings=None, do_grac=False):
+            jobname='test', hardware_settings=None, do_grac=False,
+            target_dir=None):
     """ Interface between this data and my generic run script """
     psi4_start_time=time.time()
 
@@ -52,6 +52,11 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
         jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
     )  
     psi4_input_file=psi4_dict['psi4_input_file']
+    if not isinstance(target_dir, type(None)):
+        files=[ psi4_dict[x] for x in [ 'psi4_input_file', 'wfn_file', 'fchk_file', 'output_file',] ]
+        for fi in files:
+            if not os.path.dirname(os.path.realpath(fi))==os.path.realpath(target_dir):
+                shutil.copy(fi,target_dir)
 
     # Run the process
     process = subprocess.Popen(
@@ -98,9 +103,12 @@ def process_method(record):
     
     return dft_functional, do_GRAC, basis_set
 
-def compute_entry_bruno(record, num_threads=1, maxiter=150):
+def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
     """ Cal psi4 calculation """
     start_time = time.time()
+
+    if isinstance(target_dir,type(None)):
+        target_dir=os.getcwd()
 
     conformation = record["conformation"]
     assert 'id' in record.keys()
@@ -112,7 +120,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
     multiplicity=1
     total_charge=conformation['total_charge']
     # If test is selected calculate hydrogen
-    test=False
+    test=True
     if test:
         coordinates=[ [0,0,0],[1,0,0] ]
         atom_types=[ 'H', 'H' ]
@@ -136,7 +144,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
         psi4_dict = run_psi4(
             atom_types, coordinates, charge=total_charge, multiplicity=multiplicity,
             dft_functional=dft_functional, basis_set=basis_set, do_grac=do_GRAC,
-            jobname=jobname, hardware_settings=hardware_settings)
+            jobname=jobname, hardware_settings=hardware_settings, target_dir=target_dir)
         if psi4_dict['error_code']!=0:
             raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
 

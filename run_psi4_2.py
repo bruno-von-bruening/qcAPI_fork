@@ -213,6 +213,7 @@ def complete_calc(
     return {
         'psi4_input_file': os.path.realpath(psi4_path),
         'wfn_file': os.path.realpath(wfn_file),
+        'fchk_file': os.path.realpath(fchk_file),
         'output_file': os.path.realpath(output_file)
     }
 
