@@ -30,7 +30,7 @@ PERIODIC_TABLE_REV_IDX = {s: i for i, s in enumerate(PERIODIC_TABLE)}
 
 print_flush = partial(print, flush=True)
 
-def compute_entry(record, num_threads=1, maxiter=150):
+def compute_entry(record, num_threads=1, maxiter=150, target_dir=None):
     conformation = record["conformation"]
     method = record["method"]
     basis = record["basis"]
@@ -163,10 +163,14 @@ def main():
     parser.add_argument(
         "--delay", "-d", type=float, default=60, help="Ping frequency in seconds"
     )
+    parser.add_argument(
+        '--target_dir', type=str, help='where to save file'
+    )
 
     args = parser.parse_args()
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
+    target_dir=args.target_dir
 
     mp.set_start_method("spawn")
 
@@ -197,7 +201,7 @@ def main():
             script=compute_entry
         else:
             raise Exception(f"Switch function failure (invalid return): {mode}")
-        res = pool.apply_async(script, args=(record, args.num_threads, args.maxiter))
+        res = pool.apply_async(script, args=(record, args.num_threads, args.maxiter, target_dir))
         job_already_done = False
         while not job_already_done:
             try:
