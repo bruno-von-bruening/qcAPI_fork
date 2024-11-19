@@ -101,10 +101,15 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
     start_time = time.time()
 
     conformation = record["conformation"]
-    atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
-    coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
     # atom_types=['H', 'H']
     # coordinates=[ [0, 0, 0],[1, 0, 0] ]
+    test=True
+    if test:
+        coordinates=[ [0,0,0],[1,0,0] ]
+        atom_types=[ 'H', 'H' ]
+    else:
+        atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
+        coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
 
     id = record["id"]
     jobname=f"{id}"
@@ -129,11 +134,11 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
         output_conformation=extract_psi4_info(psi4_dict['wfn_file'], dft_functional, basis_set)
 
         # Get some basis data in
-        output_conformation.update(dict(
-            species=record['species'],
-            coordinates=record['coordinates'],
+        output_conformation=dict(
+            species=conformation['species'],
+            coordinates=conformation['coordinates'],
             total_charge=0,
-        ))
+        )
 
         converged=1
         error=None
@@ -149,7 +154,7 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150):
         conformation=output_conformation,
         elapsed_time=elapsed_time,
         converged=converged,
-        method=dft_functional,
+        method=record['method'],
         basis=basis_set,
         error=error,
     )

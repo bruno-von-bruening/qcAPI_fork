@@ -60,7 +60,7 @@ def calc_string(dft_functional, basis, molecule, reference='rks', en_var='E', wf
         f"set freeze_core {freeze_core}",
     ]
     content+=[ f"{en_var}, {wfn_var} = energy(\"{dft_functional}\", molecule={molecule}, return_wfn=True)" ]
-    identifier=f"TIMING {marker:<10}"
+    identifier=f"TIMING {marker:<15}"
     content+=[ 
         f'duration=time()-start' ,
         f"""psi4.print_out(f\"\"\"
@@ -219,17 +219,20 @@ def complete_calc(
 
 def property_calc(wfn_file, method, basis, grac_shift=None):
     start_time=time.time()
+    assert os.path.isfile(wfn_file)
 
     wfn=psi4.core.Wavefunction.from_file(wfn_file)
     mol=wfn.molecule()
 
     # We need to calculate that with GRAC shift
     if not isinstance(grac_shift, type(None)):
-        raise Exception(grac_shift)
         psi4.set_options({ 'dft_grac_shift': grac_shift })
-    #de, wfn = psi4.gradient(f"{method}/{basis}", molecule=mol, return_wfn=True)
-    #forces = -de.np/BOHR_TO_ANGSTROM
-    # e = wfn.energy()
+    if do_gradient:
+        de, wfn = psi4.gradient(f"{method}/{basis}", molecule=mol, return_wfn=True)
+        forces = -de.np/BOHR_TO_ANGSTROM
+        e = wfn.energy()
+    else:
+        e, wfn = psi4.energy(f"{method}/{basis}", molecule=mol, return_wfn=True)
     
     props = [
         "dipole",
