@@ -227,6 +227,7 @@ def property_calc(wfn_file, method, basis, grac_shift=None):
     # We need to calculate that with GRAC shift
     if not isinstance(grac_shift, type(None)):
         psi4.set_options({ 'dft_grac_shift': grac_shift })
+    do_gradient=True
     if do_gradient:
         de, wfn = psi4.gradient(f"{method}/{basis}", molecule=mol, return_wfn=True)
         forces = -de.np/BOHR_TO_ANGSTROM
