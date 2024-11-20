@@ -204,8 +204,11 @@ def complete_calc(
     content+=[f"{wfn_var}.to_file(\"{wfn_file}\")"]
     content+=[f"fchk({wfn_var},\"{fchk_file}\")"]
 
+    # Remove temporary files
+    content+=['clean()']
+
     ### Print file
-    psi4_path=f"{jobname}.psi4"
+    psi4_path=f"{jobname}.psi4inp"
     content='\n'.join(content)
     with open(psi4_path,'w') as wr:
         wr.write(content)

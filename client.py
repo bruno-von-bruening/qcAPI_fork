@@ -166,11 +166,15 @@ def main():
     parser.add_argument(
         '--target_dir', type=str, help='where to save file'
     )
+    parser.add_argument(
+        '--test', action='store_true'
+    )
 
     args = parser.parse_args()
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
     target_dir=args.target_dir
+    do_test=args.test
 
     mp.set_start_method("spawn")
 
