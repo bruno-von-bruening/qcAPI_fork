@@ -10,7 +10,7 @@ def set_hardware(memory='4GB', num_threads=4):
     content+=[f"# Hardware settings "]
     content+=[f"set_memory( \"{memory}\" )"]
     content+=[f"set_num_threads( {num_threads} )"]
-    content=''.join([ f"{line}\n" for line in content])
+    content='\n'.join([ f"{line}" for line in content])
     return content
 
 def molecule_input(atom_types, coordinates, units=None, charge=0, multiplicity=1, name='monomer'):
@@ -48,26 +48,38 @@ def molecule_input(atom_types, coordinates, units=None, charge=0, multiplicity=1
     string=box.replace('__REP__', content)
     return string
 
-def calc_string(dft_functional, basis, molecule, reference='rks', en_var='E', wfn_var='wfn', marker='NO_MARKER'):
+def calc_string(dft_functional, basis, molecule, reference='rks', en_var='E', wfn_var='wfn', marker='NO_MARKER', do_timing=True,
+                #save_wfn=False, jobname=None, tag=None
+    ):
+    
+    #if save_wfn:
+    #    assert not isinstance(jobname,type(None)), f"Save wave function requested but jobname not provided!"
+
     freeze_core=True
     content=[]
-    content+=[
-        f"start=time()",
-    ]
+    if do_timing:
+        content+=[
+            f"start=time()",
+        ]
     content+=[
         f"set reference {reference}",
         f"set basis {basis}",
         f"set freeze_core {freeze_core}",
     ]
     content+=[ f"{en_var}, {wfn_var} = energy(\"{dft_functional}\", molecule={molecule}, return_wfn=True)" ]
-    identifier=f"TIMING {marker:<15}"
-    content+=[ 
-        f'duration=time()-start' ,
-        f"""psi4.print_out(f\"\"\"
-{identifier} {'[in seconds]':<15} : {{duration}}
-{identifier} {'[in H:M:S]':<15} : {{int(duration//3600)}}-{{int(duration%3600//60):02d}}-{{duration%60}}
-        \"\"\")"""
-    ]
+
+    if do_timing:
+        identifier=f"TIMING {marker:<15}"
+        content+=[
+            f'# TIMING,',
+            f'duration=time()-start' ,
+            f"psi4.print_out(  \'\\n\'.join([",
+                f"f\"{identifier} {'[in seconds]':<15} : {{duration}}\",",
+                f"f\"{identifier} {'[in H:M:S]':<15} : {{int(duration//3600)}}-{{int(duration%3600//60):02d}}-{{duration%60}}\",",
+            '])  )'
+        ]
+    #if save_wfn:
+    #    content+=save_wfn_string(wfn_var=wfn_var, jobname=jobname, tag=tag)
 
 
     string=''.join([f"{x}\n"  for x in content])
@@ -83,17 +95,21 @@ def grac_shift(E_ion, E_neut, wfn_neut, verbose=True):
         ,f"{ac_var} = IP + {homo_var}"
         ,f"set dft_grac_shift {ac_var}"
     ]
-    string='\n'.join(string)
 
     if verbose:
-        information_string=[f"Information about GRAC calculation"]
-        information_string+=[
+        ind=4*' '
+        information_string=[f"Information about GRAC calculation",
             f"IP {{IP}}",
             f"E_homo {{{homo_var}}}",
             f"GRAC_shift {{{ac_var}}}",
         ]
-        information_string='\n'.join(information_string)
-        string+=f"\npsi4.print_out(f\"\"\"{information_string}\"\"\")\n"
+        information_string='\n'.join(
+            [f"\npsi4.print_out(  \'\\n\'.join([",]+
+            [ind+'\"'+x+'\",' for x in information_string]+
+            ["])  )",]
+        )
+        string+=[ information_string ]
+    string='\n'.join(string)
     return string
 
 def psi4_settings(output_file):
@@ -115,6 +131,28 @@ def psi4_exit_ana(output_file):
         'exit_status': exit_status
     }
 
+def save_wfn_string(wfn_var, jobname, tag, save_fchk=True, save_npy=False):
+    """ Return strings that saves wave function corresponding to provided variable name """
+    local_content=[f"# Save wave function to file"]
+    ### Save wave function
+    if isinstance(tag, type(None)):
+       tag=''
+    else:
+        tag=f"_{tag}" 
+
+    if save_npy:
+        wfn_file=f"{jobname}{tag}.wfn.npy"
+        local_content+=[f"{wfn_var}.to_file(\"{wfn_file}\")"]
+    else:
+        wfn_file=None
+
+    if save_fchk:
+        fchk_file=f"{jobname}{tag}.fchk"
+        local_content+=[f"fchk({wfn_var},\"{fchk_file}\")"]
+    else:
+        fchk_file=None
+
+    return local_content, wfn_file, fchk_file
                     
 def complete_calc(
     atom_types, coordinates, charge=0, multiplicity=1, # structure
@@ -122,6 +160,9 @@ def complete_calc(
     jobname='test', units=None,
     hardware_settings={'memory':'4GB', 'num_threads':4}
 ):
+    params=dict(
+        save_standard_wfn=True,
+    )
     content=[]
 
     # Comment
@@ -148,6 +189,8 @@ def complete_calc(
     }
     string=molecule_input(atom_types, coordinates, **dat_monomer, units=units)
     content+=[string]
+    
+
     if do_grac:
         # Shift charge and multiplicity
         charge_ion=charge+1
@@ -172,7 +215,9 @@ def complete_calc(
         'wfn_var':'wfn_neut'
     }
     string_calc_neut = calc_string(dft_functional, basis_set, **calc_neut, marker='SCF_NEUTRAL')
-    content+=[f"#Calculate neutral molecule", string_calc_neut]
+    save_calc_neut, wfn_neut_file, fchk_neut_file= save_wfn_string(calc_neut['wfn_var'], jobname=jobname, tag='neut', save_npy=True) 
+    content+=[f"#Calculate neutral molecule", string_calc_neut, *save_calc_neut]
+
     if do_grac:
         calc_ion={
             'molecule':'monomer_ion',
@@ -182,42 +227,38 @@ def complete_calc(
         }
         string_calc_ion = calc_string(dft_functional, basis_set, **calc_ion, marker='SCF_ION')
         content+=[f"#Calculate ion", string_calc_ion]
+
+        # Set acs
+        ac_string = grac_shift( E_ion=calc_ion['en_var'], E_neut=calc_neut['en_var'], wfn_neut=calc_neut['wfn_var'])
+
         calc_grac={
             'molecule':'monomer',
             'reference':'rks',
             'en_var':'E_grac',
             'wfn_var':'wfn_grac'
         }
-        # Set acs
-        ac_string = grac_shift( E_ion=calc_ion['en_var'], E_neut=calc_neut['en_var'], wfn_neut=calc_neut['wfn_var'])
         string_calc_grac = calc_string(dft_functional, basis_set, **calc_grac, marker='SCF_GRAC')
-        content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"# GRAC CORRECTED SCF\n"+string_calc_grac]
+        save_calc_grac, wfn_grac_file, fchk_grac_file= save_wfn_string(wfn_var=calc_grac['wfn_var'], jobname=jobname, tag='grac', save_npy=True) 
+        content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"\n# GRAC CORRECTED SCF\n"+string_calc_grac, *save_calc_grac]
 
-    ### Save wave function
-    wfn_file=f"{jobname}.wfn.npy"
-    fchk_file=f"{jobname}.fchk"
-    if do_grac:
-        wfn_var=calc_grac['wfn_var']
-    else:
-        wfn_var=calc_neut['wfn_var']
-    content+=[f"# Save wave function to file"]
-    content+=[f"{wfn_var}.to_file(\"{wfn_file}\")"]
-    content+=[f"fchk({wfn_var},\"{fchk_file}\")"]
 
     # Remove temporary files
     content+=['clean()']
 
     ### Print file
-    psi4_path=f"{jobname}.psi4inp"
+    psi4inp_path=f"{jobname}.psi4inp"
     content='\n'.join(content)
-    with open(psi4_path,'w') as wr:
+    with open(psi4inp_path,'w') as wr:
         wr.write(content)
 
     return {
-        'psi4_input_file': os.path.realpath(psi4_path),
-        'wfn_file': os.path.realpath(wfn_file),
-        'fchk_file': os.path.realpath(fchk_file),
-        'output_file': os.path.realpath(output_file)
+        'psi4inp_file': os.path.realpath(psi4inp_path),
+        'psi4out_file': os.path.realpath(output_file),
+        #
+        'wfn_neut_file': os.path.realpath(wfn_neut_file),
+        'fchk_neut_file': os.path.realpath(fchk_neut_file),
+        'wfn_grac_file': os.path.realpath(wfn_grac_file),
+        'fchk_grac_file': os.path.realpath(fchk_grac_file),
     }
 
 

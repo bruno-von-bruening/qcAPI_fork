@@ -50,7 +50,6 @@ def psi4_copy(file, target_dir=None):
             except Exception as ex:
                 print(f"Problem when trying to copy file: {ex}")
 
-
 def make_size_entry(file,format='MB'):
     def bytes_to_mb(bytes):
         conversion=1024
@@ -64,29 +63,82 @@ def make_size_entry(file,format='MB'):
         'size':size,
     }
 
-def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
+def decompress_file(file):
+    assert os.path.isfile(file), f'Not a file: {file}'
 
-    def zip_file(file, do_gzip=True):
-        """ Zip file return file path """
-        if not isinstance(file, type(None)):
-            dic={}
-            entry=make_size_entry(file)
-            dic.update({'regular':entry})
-            if do_gzip:
-                file_gz=file+'.gz'
-                os.system(f"gzip -f {file}")
-                if not os.path.isfile(file_gz):
-                    print(f"There should be gzipped file: {file_gz}")
-                entry=make_size_entry(file_gz)
-                dic.update({'gzipped':entry})
-            return dic
+    extension_to_command={
+        'gz': 'gunzip -f',
+        '7z': '7za x -aoa',
+        'xz': 'xz --decompress',
+    }
+    extension=file.split('.')[-1]
+    extension_lower=extension.lower()
+    if not extension_lower in list(extension_to_command.keys()):
+        print(f"I do not know extension of file {file}")
+        return
+    else:
+        try:
+            command=f"{extension_to_command[extension_lower]} {file}"
+            os.system(command)
+            new_file=file.replace(f'.{extension}', '')
+            if not os.path.isfile(new_file):
+                raise Exception(f"There should be gzipped file: {new_file} (after running {command})")
+        except Exception as ex:
+            print(f"Could not decompress: {ex} (for {file})")
+
+
+def compress_file(file, format='MB', encoding=None, decompress=False):
+    
+    assert os.path.isfile(file), f'Not a file: {file}'
+
+    dic={}
+    if encoding=='regular' or encoding==None:
+        entry=make_size_entry(file)
+        dic.update({'regular':entry})
+    else:
+        ar=encoding.split('|')
+        encoding_type=ar[0]
+        if len(ar)==1:
+            encoding_level=''
+        elif len(ar)==2:
+            encoding_level=ar[1]
         else:
-            return None
+            raise Exception()
+        
+        if encoding_type.startswith('gz'):
+            extension='.gz'
+            compressed_file=file+extension
+            command=f'gzip -f{encoding_level} {file}'
+        elif encoding_type.startswith('7z'):
+            extension='.7z'
+            compressed_file=file+extension
+            command=f'7za a {compressed_file} {file} -mx{encoding_level}'
+        elif encoding_type.startswith('xz'):
+            extension='.xz'
+            compressed_file=file+extension
+            command=f'xz {file} -{encoding_level}'
+        else:
+            raise Exception()
+
+        try:
+            os.system(command)
+            if not os.path.isfile(compressed_file):
+                raise Exception(f"There should be gzipped file: {compressed_file}")
+            entry=make_size_entry(compressed_file)
+            entry.update({'compression_command':command})
+            dic.update({encoding:entry})
+        except Exception as ex:
+            print(f"Could not compress: {ex}")
+            dic.update({encoding:None})
+    return dic
+
+
+
+
+def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
     
     # Store the results here
     info_dic={'size':{},'timing':{}}
-    input_file, wfn_file, fchk_file, output_file=[ 
-            psi4_dict[x] for x in [ 'psi4_input_file', 'wfn_file', 'fchk_file', 'output_file',] ]
     ##### Anaylse length
     ####################
     def get_timings(output_file):
@@ -109,45 +161,50 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
                     raise Exception(f"On line {line}: {ex}")
                 di.update({tag:num})
             return di
+    output_file=psi4_dict['psi4out_file']
     timings=get_timings(output_file)
     info_dic['timing'].update(timings)
     
     ##### Get size, gzip, copy
     ######################
-    if gzip:
-        gzip_dos=[True, True, False, False]
-    else:
-        gzip_dos=[False]*4
+    n=['regular'] ; a=['regular', 'gz|3','gz|9','gz|6' , '7z|3','7z|9', '7z|6' , 'xz|3','xz|9', 'xz|6']
+    zip_switch={ # one is false zero is true
+        'psi4inp_file'      : n,
+        'psi4out_file'      : n,
+        'wfn_grac_file'     : a,
+        'fchk_grac_file'    : a,
+        'wfn_neut_file'     : a,
+        'fchk_neut_file'    : a,
+    }
+    for tag in ['psi4inp_file', 'psi4out_file', 'fchk_grac_file','wfn_grac_file',  'fchk_neut_file', 'wfn_neut_file']:
+        # Get the associated keys
+        assert tag in psi4_dict.keys() and zip_switch.keys()
+        file=psi4_dict[tag]
 
-    # Gzip and copy files
-    for tag,file,do_gzip in zip(
-        ['fchk','wfn','psi4out','psi4inp'],
-        [fchk_file, wfn_file, output_file, input_file],
-        gzip_dos
-    ):
-        if not isinstance(file,str):
-            raise Exception(file)
-        # get the size of the files and gzip them if reqeuested
-        dic=zip_file(file, do_gzip=do_gzip)
-        info_dic['size'].update(dict([
-            (f"{tag}_{k}",v) for k,v in dic.items()
-        ]))
-        # Unzip the gzipped file in case gzip was requested
-        if do_gzip:
-            # copy the gzipped file
-            try:
-                file=dic['gzipped']['file_name']
-            except:
-                print(f"Cannot find key \'gzipped\' in dic, available keys: {dic.keys()}")
-        if not isinstance(target_dir, type(None)):
-            psi4_copy(file, target_dir=target_dir)
-        if delete:
-            try:
-                os.remove(file)
-            except Exception as ex:
-                print(f'Could not remove file {file}:\n {ex}')
-        elif do_gzip:
-            os.system(f"gunzip -f {file}")
+        if not isinstance(file, type(None)):
+            requested_encodings=zip_switch[tag]
+            tag=tag.replace('_file','')
+
+            for encoding in requested_encodings:
+                dic=compress_file(file, encoding=encoding)
+                info_dic['size'].update(dict([
+                    (f"{tag}_{k}",v) for k,v in dic.items()
+                ]))
+                if encoding in ['regular']:
+                    new_file=dic[encoding]['file_name']
+                    assert isinstance(new_file,str), f"file {new_file} not valid"
+                    if not isinstance(target_dir, type(None)):
+                        psi4_copy(new_file, target_dir=target_dir)
+                if not isinstance(dic[encoding], type(None)):
+                    decompress_file(dic[encoding]['file_name'])
+            for key in info_dic['size'].keys():
+                if delete:
+                    try:
+                        file=info_dic['size'][key]['file_name']
+                        if os.path.isfile(file):
+                            os.system(f"rm {file} -r")
+                    except Exception as ex:
+                        print(f"Could not delete file {file}")
 
     return info_dic
 
@@ -164,7 +221,7 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
         dft_functional=dft_functional, do_grac=do_grac, basis_set=basis_set, 
         jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
     )  
-    psi4_input_file=psi4_dict['psi4_input_file']
+    psi4_input_file=psi4_dict['psi4inp_file']
 
     # Run the process
     process = subprocess.Popen(
@@ -179,7 +236,7 @@ def run_psi4(atom_types, coordinates, dft_functional, basis_set,
 
     # Recover the data
     psi4_dict.update({
-        'exit_ana': psi4_exit_ana(psi4_dict['output_file']),
+        'exit_ana': psi4_exit_ana(psi4_dict['psi4out_file']),
         'real_time':time.time()-psi4_start_time,
         'time_unit':'s',
         'error_code':error_code,
@@ -221,13 +278,6 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
     conformation = record["conformation"]
     assert 'id' in record.keys()
     jobname=f"{record['id']}"
-    if isinstance(target_dir,type(None)):
-        target_dir=os.getcwd()
-    target_dir=os.path.join(target_dir,jobname)
-    if os.path.isdir(target_dir):
-        print(f"Removing directory {target_dir}")
-        shutil.rmtree(target_dir)
-    os.mkdir(target_dir)
 
 
     # Get atom types and coordinates
@@ -255,7 +305,17 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
         coordinates=conformation['coordinates'],
         total_charge=conformation['total_charge'],
     )
-    try:
+    if True:
+    #try:
+        # Make the directory
+        if isinstance(target_dir,type(None)):
+            target_dir=os.getcwd()
+        target_dir=os.path.join(target_dir,jobname)
+        if os.path.isdir(target_dir):
+            print(f"Removing directory {target_dir}")
+            os.system(f"rm -r {target_dir}")
+        os.mkdir(target_dir)
+
         # Get the wave function
         psi4_dict = run_psi4(
             atom_types, coordinates, charge=total_charge, multiplicity=multiplicity,
@@ -265,11 +325,14 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
             raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
 
         # Get derived information (atm this is not read in)
-        output_conformation_add=extract_psi4_info(psi4_dict['wfn_file'], dft_functional, basis_set)
+        do_properties=False
+        if do_properties:
+            output_conformation_add=extract_psi4_info(psi4_dict['wfn_grac_file'], dft_functional, basis_set)
 
         # Check sizes, copy files
         run_analysis=psi4_after_run(psi4_dict,target_dir=target_dir, gzip=True, delete=True)
         psi4_dict.update(run_analysis)
+
         # Drop dictionary
         try:
             info_json=jobname+'_ana.json'
@@ -280,9 +343,15 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
         except Exception as ex:
             print(f"Json file for job {jobname} could not be generated:\n{ex}")
 
+        try:
+            os.system(f"cd $(dirname {os.path.realpath(target_dir)}) ; tar -zcf {os.path.realpath(target_dir)}.tar.gz {os.path.basename(target_dir)}  --remove-files; cd -")
+        except Exception as ex:
+            print(f"Could not compress results directory: {ex}")
+
         converged=1
         error=None
-    except Exception as ex:
+    else:
+    #except Exception as ex:
         print_flush(f"Error computing entry: {ex}")
         output_conformation=conformation
         converged=0
