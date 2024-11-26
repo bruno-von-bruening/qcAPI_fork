@@ -136,6 +136,25 @@ def compress_file(file, format='MB', encoding=None, decompress=False):
 
 
 
+def get_system_data():
+    import socket
+    hostname=os.popen("hostname").read().strip()
+    nprocs=os.popen("nproc --all").read().strip()
+    avail_mem_gb=os.popen("awk \'/MemFree/ { printf \"%.3f \\n\", $2/1024/1024 }\' /proc/meminfo").read().strip()
+    mem_info=os.popen("cat /proc/meminfo").read()
+    usage_info=os.popen("top -bn1 | head -n20").read()
+    cpu_info=os.popen("lscpu").read()
+
+    system_data=dict(
+        hostname=hostname,
+        number_of_threads=nprocs,
+        total_memory_in_gb=avail_mem_gb,
+        mem_info=mem_info,
+        processes_info=usage_info,
+        cpu_info=cpu_info
+    )
+
+    return system_data
 def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
     
     # Store the results here
@@ -287,7 +306,7 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
     multiplicity=1
     total_charge=conformation['total_charge']
     # If test is selected calculate hydrogen
-    test=False
+    test=True
     if test:
         coordinates=[ [0,0,0],[1,0,0] ]
         atom_types=[ 'H', 'H' ]
@@ -342,7 +361,19 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
             if not isinstance(target_dir, type(None)):
                 psi4_copy(info_json, target_dir=target_dir)
         except Exception as ex:
-            print(f"Json file for job {jobname} could not be generated:\n{ex}")
+            print(f"Json file for performance analysis of job {jobname} could not be generated:\n{ex}")
+
+        # Drop system info
+        try:
+            system_json=jobname+'_sysinfo.json'
+            system_dic=get_system_data()
+            with open(system_json,'w') as wr:
+                json.dump(system_dic, wr)
+            if not isinstance(target_dir, type(None)):
+                psi4_copy(system_json, target_dir=target_dir)
+        except Exception as ex:
+            print(f"Json file for system info of job {jobname} could not be generated:\n{ex}")
+
 
         try:
             os.system(f"cd $(dirname {os.path.realpath(target_dir)}) ; tar -zcf {os.path.realpath(target_dir)}.tar.gz {os.path.basename(target_dir)}  --remove-files; cd -")
