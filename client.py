@@ -30,7 +30,7 @@ PERIODIC_TABLE_REV_IDX = {s: i for i, s in enumerate(PERIODIC_TABLE)}
 
 print_flush = partial(print, flush=True)
 
-def compute_entry(record, num_threads=1, maxiter=150, target_dir=None):
+def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None):
     conformation = record["conformation"]
     method = record["method"]
     basis = record["basis"]
@@ -205,7 +205,7 @@ def main():
             script=compute_entry
         else:
             raise Exception(f"Switch function failure (invalid return): {mode}")
-        res = pool.apply_async(script, args=(record, args.num_threads, args.maxiter, target_dir))
+        res = pool.apply_async(script, args=(record, worker_id, args.num_threads, args.maxiter, target_dir))
         job_already_done = False
         while not job_already_done:
             try:

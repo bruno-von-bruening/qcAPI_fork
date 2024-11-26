@@ -66,10 +66,11 @@ def make_size_entry(file,format='MB'):
 def decompress_file(file):
     assert os.path.isfile(file), f'Not a file: {file}'
 
+
     extension_to_command={
-        'gz': 'gunzip -f',
-        '7z': '7za x -aoa',
-        'xz': 'xz --decompress',
+        'gz': '/usr/bin/gunzip -f',
+        '7z': '/usr/bin/7za x -aoa',
+        'xz': '/usr/bin/xz --decompress',
     }
     extension=file.split('.')[-1]
     extension_lower=extension.lower()
@@ -271,13 +272,13 @@ def process_method(record):
     
     return dft_functional, do_GRAC, basis_set
 
-def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
+def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_dir=None):
     """ Cal psi4 calculation """
     start_time = time.time()
 
     conformation = record["conformation"]
     assert 'id' in record.keys()
-    jobname=f"{record['id']}"
+    jobname=f"{record['id']}_wid-{workder_id}"
 
 
     # Get atom types and coordinates
@@ -305,8 +306,8 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
         coordinates=conformation['coordinates'],
         total_charge=conformation['total_charge'],
     )
-    if True:
-    #try:
+    #if True:
+    try:
         # Make the directory
         if isinstance(target_dir,type(None)):
             target_dir=os.getcwd()
@@ -350,8 +351,8 @@ def compute_entry_bruno(record, num_threads=1, maxiter=150, target_dir=None):
 
         converged=1
         error=None
-    else:
-    #except Exception as ex:
+    #else:
+    except Exception as ex:
         print_flush(f"Error computing entry: {ex}")
         output_conformation=conformation
         converged=0

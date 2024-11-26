@@ -51,6 +51,11 @@ def get_conformation_id(conformation: Conformation) -> str:
     h = (coordinates, species, total_charge)
 
     b64 = base64.urlsafe_b64encode(hashlib.sha3_256(str(h).encode()).digest()).decode("utf-8")
+
+    # the euqal sign is part of the byte encoding to generate unique encoding (see fastapi)
+    # The equal sign hinders when reading the file and is hence replaced
+    if b64[-1]=='=':
+        b64=b64[:-1]+'-EQUAL'
     return b64
 
 def get_record_id(conformation: Conformation, method: str, basis:str) -> str:

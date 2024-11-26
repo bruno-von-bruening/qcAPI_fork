@@ -21,8 +21,7 @@ def main():
         with open(filename, 'rb') as f:
             conformations += pickle.load(f)
     conformations = jsonable_encoder(conformations,custom_encoder={np.ndarray: lambda x: x.tolist()})
-    print(len(conformations))
-    print(conformations[0])
+    print(f"Supplied {len(conformations)} conformations")
 
     response = requests.post(f"http://{url}:{port}/populate/{args.method}/{args.basis}", json=conformations).json()
     print(response["message"])
