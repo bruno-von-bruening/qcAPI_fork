@@ -30,7 +30,7 @@ PERIODIC_TABLE_REV_IDX = {s: i for i, s in enumerate(PERIODIC_TABLE)}
 
 print_flush = partial(print, flush=True)
 
-def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None):
+def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     conformation = record["conformation"]
     method = record["method"]
     basis = record["basis"]
@@ -167,7 +167,7 @@ def main():
         '--target_dir', type=str, help='where to save file'
     )
     parser.add_argument(
-        '--test', action='store_true'
+        '--test', action='store_true', help='run test using hydrogen molecule and excepting when error is encountered in psi4 run'
     )
 
     args = parser.parse_args()
@@ -205,7 +205,11 @@ def main():
             script=compute_entry
         else:
             raise Exception(f"Switch function failure (invalid return): {mode}")
-        res = pool.apply_async(script, args=(record, worker_id, args.num_threads, args.maxiter, target_dir))
+        # If test is requested run hydrogen molecule
+        if do_test:
+            record['conformation']['coordinates']=[[0,0,0],[0,0,1]]
+            record['conformation']['species']=[1,1]
+        res = pool.apply_async(script, args=(record, worker_id, args.num_threads, args.maxiter, target_dir, do_test))
         job_already_done = False
         while not job_already_done:
             try:

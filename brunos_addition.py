@@ -291,7 +291,7 @@ def process_method(record):
     
     return dft_functional, do_GRAC, basis_set
 
-def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_dir=None):
+def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     """ Cal psi4 calculation """
     start_time = time.time()
 
@@ -306,10 +306,6 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
     multiplicity=1
     total_charge=conformation['total_charge']
     # If test is selected calculate hydrogen
-    test=True
-    if test:
-        coordinates=[ [0,0,0],[1,0,0] ]
-        atom_types=[ 'H', 'H' ]
 
     dft_functional, do_GRAC, basis_set=process_method(record)
 
@@ -345,9 +341,9 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
             raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
 
         # Get derived information (atm this is not read in)
-        do_properties=False
-        if do_properties:
-            output_conformation_add=extract_psi4_info(psi4_dict['wfn_grac_file'], dft_functional, basis_set)
+        # do_properties=False
+        # if do_properties:
+        #     output_conformation_add=extract_psi4_info(psi4_dict['wfn_grac_file'], dft_functional, basis_set)
 
         # Check sizes, copy files
         run_analysis=psi4_after_run(psi4_dict,target_dir=target_dir, gzip=True, delete=True)
@@ -384,6 +380,8 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         error=None
     #else:
     except Exception as ex:
+        if do_test:
+            raise Exception(f"Test was requested hence terminating:\n{ex}")
         print_flush(f"Error computing entry: {ex}")
         output_conformation=conformation
         converged=0
