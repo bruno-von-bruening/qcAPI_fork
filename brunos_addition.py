@@ -218,7 +218,7 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
                     info_dic['size'].update(dict([
                         (f"{tag}_{k}",v) for k,v in dic.items()
                     ]))
-                    if encoding in ['regular']:
+                    if encoding in ['regular', None]:
                         new_file=dic[encoding]['file_name']
                         assert isinstance(new_file,str), f"file {new_file} not valid"
                         if not isinstance(target_dir, type(None)):
