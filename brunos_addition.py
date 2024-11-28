@@ -1,6 +1,6 @@
 
 # NEW
-import os, sys, shutil, json, re
+import os, sys, shutil, json, re, copy
 from run_psi4_2 import complete_calc, psi4_exit_ana, property_calc
 import subprocess
 import time
