@@ -163,6 +163,7 @@ def complete_calc(
     params=dict(
         save_standard_wfn=True,
     )
+    save_npy=False
     content=[]
 
     # Comment
@@ -215,7 +216,7 @@ def complete_calc(
         'wfn_var':'wfn_neut'
     }
     string_calc_neut = calc_string(dft_functional, basis_set, **calc_neut, marker='SCF_NEUTRAL')
-    save_calc_neut, wfn_neut_file, fchk_neut_file= save_wfn_string(calc_neut['wfn_var'], jobname=jobname, tag='neut', save_npy=True) 
+    save_calc_neut, wfn_neut_file, fchk_neut_file= save_wfn_string(calc_neut['wfn_var'], jobname=jobname, tag='neut', save_npy=save_npy) 
     content+=[f"#Calculate neutral molecule", string_calc_neut, *save_calc_neut]
 
     if do_grac:
@@ -238,7 +239,7 @@ def complete_calc(
             'wfn_var':'wfn_grac'
         }
         string_calc_grac = calc_string(dft_functional, basis_set, **calc_grac, marker='SCF_GRAC')
-        save_calc_grac, wfn_grac_file, fchk_grac_file= save_wfn_string(wfn_var=calc_grac['wfn_var'], jobname=jobname, tag='grac', save_npy=True) 
+        save_calc_grac, wfn_grac_file, fchk_grac_file= save_wfn_string(wfn_var=calc_grac['wfn_var'], jobname=jobname, tag='grac', save_npy=save_npy) 
         content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"\n# GRAC CORRECTED SCF\n"+string_calc_grac, *save_calc_grac]
 
 
@@ -255,9 +256,9 @@ def complete_calc(
         'psi4inp_file': os.path.realpath(psi4inp_path),
         'psi4out_file': os.path.realpath(output_file),
         #
-        'wfn_neut_file': os.path.realpath(wfn_neut_file),
+        #'wfn_neut_file': os.path.realpath(wfn_neut_file),
         'fchk_neut_file': os.path.realpath(fchk_neut_file),
-        'wfn_grac_file': os.path.realpath(wfn_grac_file),
+       #'wfn_grac_file': os.path.realpath(wfn_grac_file),
         'fchk_grac_file': os.path.realpath(fchk_grac_file),
     }
 

@@ -187,7 +187,12 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
     
     ##### Get size, gzip, copy
     ######################
-    n=['regular'] ; a=['regular', 'gz|3','gz|9','gz|6' , '7z|3','7z|9', '7z|6' , 'xz|3','xz|9', 'xz|6']
+    test_compression=False
+    n=['regular'] ; 
+    if test_compression:
+        a=['regular', 'gz|3','gz|9','gz|6' , '7z|3','7z|9', '7z|6' , 'xz|3','xz|9', 'xz|6']
+    else:
+        a=copy.deepcopy(n)
     zip_switch={ # one is false zero is true
         'psi4inp_file'      : n,
         'psi4out_file'      : n,
@@ -196,35 +201,38 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
         'wfn_neut_file'     : a,
         'fchk_neut_file'    : a,
     }
-    for tag in ['psi4inp_file', 'psi4out_file', 'fchk_grac_file','wfn_grac_file',  'fchk_neut_file', 'wfn_neut_file']:
+    for tag in ['psi4inp_file', 'psi4out_file', 'fchk_grac_file',  'fchk_neut_file']:#,'wfn_grac_file', 'wfn_neut_file']:
         # Get the associated keys
         assert tag in psi4_dict.keys() and zip_switch.keys()
         file=psi4_dict[tag]
 
-        if not isinstance(file, type(None)):
-            requested_encodings=zip_switch[tag]
-            tag=tag.replace('_file','')
+        if tag in [ 'wfn_grac_file', 'wfn_neut_file' ]:
+            os.system(f"rm {file}")
+        else:
+            if not isinstance(file, type(None)):
+                requested_encodings=zip_switch[tag]
+                tag=tag.replace('_file','')
 
-            for encoding in requested_encodings:
-                dic=compress_file(file, encoding=encoding)
-                info_dic['size'].update(dict([
-                    (f"{tag}_{k}",v) for k,v in dic.items()
-                ]))
-                if encoding in ['regular']:
-                    new_file=dic[encoding]['file_name']
-                    assert isinstance(new_file,str), f"file {new_file} not valid"
-                    if not isinstance(target_dir, type(None)):
-                        psi4_copy(new_file, target_dir=target_dir)
-                if not isinstance(dic[encoding], type(None)):
-                    decompress_file(dic[encoding]['file_name'])
-            for key in info_dic['size'].keys():
-                if delete:
-                    try:
-                        file=info_dic['size'][key]['file_name']
-                        if os.path.isfile(file):
-                            os.system(f"rm {file} -r")
-                    except Exception as ex:
-                        print(f"Could not delete file {file}")
+                for encoding in requested_encodings:
+                    dic=compress_file(file, encoding=encoding)
+                    info_dic['size'].update(dict([
+                        (f"{tag}_{k}",v) for k,v in dic.items()
+                    ]))
+                    if encoding in ['regular']:
+                        new_file=dic[encoding]['file_name']
+                        assert isinstance(new_file,str), f"file {new_file} not valid"
+                        if not isinstance(target_dir, type(None)):
+                            psi4_copy(new_file, target_dir=target_dir)
+                    if not isinstance(dic[encoding], type(None)):
+                        decompress_file(dic[encoding]['file_name'])
+                for key in info_dic['size'].keys():
+                    if delete:
+                        try:
+                            file=info_dic['size'][key]['file_name']
+                            if os.path.isfile(file):
+                                os.system(f"rm {file} -r")
+                        except Exception as ex:
+                            print(f"Could not delete file {file}")
 
     return info_dic
 
