@@ -51,8 +51,13 @@ def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None
         psi4.set_num_threads(num_threads)
         # psi4.core.be_quiet()
 
-        coordinates = conformation["coordinates"]
-        species = conformation["species"]
+        # If test is requested run hydrogen molecule
+        if do_test:
+            coordinates=[[0,0,0],[0,0,1]]
+            species=[1,1]
+        else:
+            coordinates = conformation["coordinates"]
+            species = conformation["species"]
         symbols = [PERIODIC_TABLE[s] for s in species]
         total_charge = round(conformation.get("total_charge", 0))
         total_atomic_number = np.sum(species)
@@ -205,10 +210,6 @@ def main():
             script=compute_entry
         else:
             raise Exception(f"Switch function failure (invalid return): {mode}")
-        # If test is requested run hydrogen molecule
-        if do_test:
-            record['conformation']['coordinates']=[[0,0,0],[0,0,1]]
-            record['conformation']['species']=[1,1]
         res = pool.apply_async(script, args=(record, worker_id, args.num_threads, args.maxiter, target_dir, do_test))
         job_already_done = False
         while not job_already_done:

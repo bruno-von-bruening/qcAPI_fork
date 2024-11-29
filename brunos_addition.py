@@ -3,7 +3,7 @@
 import os, sys, shutil, json, re, copy
 from run_psi4_2 import complete_calc, psi4_exit_ana, property_calc
 import subprocess
-import time
+import time, datetime
 import psi4
 import numpy as np
 from functools import partial
@@ -218,13 +218,14 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
                     info_dic['size'].update(dict([
                         (f"{tag}_{k}",v) for k,v in dic.items()
                     ]))
-                    if encoding in ['regular', None]:
-                        new_file=dic[encoding]['file_name']
-                        assert isinstance(new_file,str), f"file {new_file} not valid"
-                        if not isinstance(target_dir, type(None)):
-                            psi4_copy(new_file, target_dir=target_dir)
-                    if not isinstance(dic[encoding], type(None)):
-                        decompress_file(dic[encoding]['file_name'])
+                    # Copy the file to results dir
+                    new_file=dic[encoding]['file_name']
+                    assert isinstance(new_file,str), f"file {new_file} not valid"
+                    if not isinstance(target_dir, type(None)):
+                        psi4_copy(new_file, target_dir=target_dir)
+                    # Decompress the file in case it has been compresssed
+                    if not encoding in ['regular', None]:
+                        decompress_file(new_file)
                 for key in info_dic['size'].keys():
                     if delete:
                         try:
@@ -301,44 +302,55 @@ def process_method(record):
 
 def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     """ Cal psi4 calculation """
+    # create ID
     start_time = time.time()
-
-    conformation = record["conformation"]
-    assert 'id' in record.keys()
     jobname=f"{record['id']}_wid-{workder_id}"
+    def my_sep(message, sep, info_line=None, sep_times=1):
+        sep*=60
+        lines= [sep]*sep_times + [message + f" ({datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}):"] + [' '*4+jobname]
+        if info_line!=None:
+            lines+=[' '*4+info_line]
+        lines+=[sep]*sep_times 
+        print_flush('\n'.join(lines))
+    my_sep('START psi4 calculation','+')
 
 
-    # Get atom types and coordinates
-    atom_types=[ atomic_charge_to_atom_type(x) for x in conformation['species']]
-    coordinates=np.array(conformation['coordinates'])#*ANGSTROM_TO_BOHR
+    # Conformation data
+    conformation = record["conformation"]
+    if do_test:
+        coordinates=[[0,0,0],[0,0,1]]
+        species=[1,1]
+    else:
+        coordinates = conformation["coordinates"]
+        species = conformation["species"]
+    atom_types=[ atomic_charge_to_atom_type(x) for x in species ]
     multiplicity=1
     total_charge=conformation['total_charge']
-    # If test is selected calculate hydrogen
+    assert 'total_charge' in conformation.keys(), f"At the moment the charge needs to be defined unambigious by providing it in conformation, found {conformation.keys()}"
 
+    ### Psi4 Data
+    # Method to be run on conformation
     dft_functional, do_GRAC, basis_set=process_method(record)
-
+    # Hardware settings
     hardware_settings=dict(
         num_threads=4,
         memory='8GB',
     )
 
-    assert 'total_charge' in conformation.keys(), conformation.keys()
-    # Immutable information from the input that needs to be passed back
-    output_conformation=dict(
-        species=conformation['species'],
-        coordinates=conformation['coordinates'],
-        total_charge=conformation['total_charge'],
-    )
-    #if True:
     try:
-        # Make the directory
-        if isinstance(target_dir,type(None)):
-            target_dir=os.getcwd()
-        target_dir=os.path.join(target_dir,jobname)
-        if os.path.isdir(target_dir):
-            print(f"Removing directory {target_dir}")
-            os.system(f"rm -r {target_dir}")
-        os.mkdir(target_dir)
+        def make_dir(base_dir):
+            # Make a directory (designated by job name) to run the changes within
+            if isinstance(base_dir,type(None)):
+                base_dir=os.getcwd()
+            assert os.path.isdir(base_dir), f"The chosen target directory does not exist: {base_dir}"
+            target_dir=os.path.join(base_dir,jobname)
+            # over write if already exists
+            if os.path.isdir(target_dir):
+                print(f"Removing directory {target_dir} in order to create a new one")
+                os.popen(f"rm -r {target_dir}")
+            os.mkdir(target_dir)
+            return target_dir
+        target_dir=make_dir(target_dir)
 
         # Get the wave function
         psi4_dict = run_psi4(
@@ -384,21 +396,17 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         except Exception as ex:
             print(f"Could not compress results directory: {ex}")
 
+        # If everything gone well return positive error code
         converged=1
         error=None
-    #else:
+        my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
-        if do_test:
-            raise Exception(f"Test was requested hence terminating:\n{ex}")
-        print_flush(f"Error computing entry: {ex}")
-        output_conformation=conformation
+        # In case of a test we want errors to kill the job so we notice them immediately
         converged=0
         error=str(ex)
-
-        # Delete the traces
-        #debug=False
-        #if not debug:
-        #   os.system('rm /scracth/bvbruening/*')
+        my_sep('FAILURE in  psi4 calculation','!',info_line=f"ERROR: {error}", sep_times=2)
+        if do_test:
+            raise Exception(f"Test was requested hence terminating:\n{ex}")
 
     elapsed_time=time.time()-start_time
     # Immutable information
@@ -406,10 +414,10 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         basis=record['basis'],
         method=record['method'],
         id=record.get("id", None),
+        conformation=record['conformation'],
     )
-    # Variable information
+    # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
     output.update(dict(
-        conformation=output_conformation,
         elapsed_time=elapsed_time,
         converged=converged,
         error=error,
