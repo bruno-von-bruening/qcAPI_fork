@@ -55,7 +55,7 @@ def get_conformation_id(conformation: Conformation) -> str:
     # the euqal sign is part of the byte encoding to generate unique encoding (see fastapi)
     # The equal sign hinders when reading the file and is hence replaced
     if b64[-1]=='=':
-        b64=b64[:-1]+'0'
+        b64=b64[:-1]+''
     return b64
 
 def get_record_id(conformation: Conformation, method: str, basis:str) -> str:

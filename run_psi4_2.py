@@ -13,7 +13,7 @@ def set_hardware(memory='4GB', num_threads=4):
     content='\n'.join([ f"{line}" for line in content])
     return content
 
-def molecule_input(atom_types, coordinates, units=None, charge=0, multiplicity=1, name='monomer'):
+def molecule_input(atom_types, coordinates, units=None, total_charge=0, multiplicity=1, name='monomer'):
 
     if isinstance(units, type(None)):
         units={'LENGTH':'BOHR'}
@@ -23,7 +23,7 @@ def molecule_input(atom_types, coordinates, units=None, charge=0, multiplicity=1
     content+=[f"# Number of nuclei: {len(coordinates)}"]
 
     # Charge and multiplicity
-    content+=[f"{charge} {multiplicity} # Charge and Multiplicity"]
+    content+=[f"{total_charge} {multiplicity} # Charge and Multiplicity"]
     
     # Make geometry
     geometry=[]
@@ -155,8 +155,8 @@ def save_wfn_string(wfn_var, jobname, tag, save_fchk=True, save_npy=False):
     return local_content, wfn_file, fchk_file
                     
 def complete_calc(
-    atom_types, coordinates, charge=0, multiplicity=1, # structure
-    dft_functional='PBE0', basis_set='aug-cc-pVTZ', do_grac=True, # calculation
+    atom_types, coordinates, total_charge=0, multiplicity=1, # structure
+    dft_functional='PBE0', basis_set='aug-cc-pVTZ', do_GRAC=True, # calculation
     jobname='test', units=None,
     hardware_settings={'memory':'4GB', 'num_threads':4}
 ):
@@ -185,16 +185,16 @@ def complete_calc(
     ## Set the molecule data
     dat_monomer={
         'name':'monomer',
-        'charge':charge,
+        'total_charge':total_charge,
         'multiplicity':multiplicity,
     }
     string=molecule_input(atom_types, coordinates, **dat_monomer, units=units)
     content+=[string]
     
 
-    if do_grac:
+    if do_GRAC:
         # Shift charge and multiplicity
-        charge_ion=charge+1
+        charge_ion=total_charge+1
         if multiplicity!=1:
             raise Exception(f"Can only handle multiplicty of 1 for GRAC at the moment!")
         else:
@@ -202,7 +202,7 @@ def complete_calc(
 
         dat_monomer_ion={
             'name':         'monomer_ion',
-            'charge':       charge_ion,
+            'total_charge':       charge_ion,
             'multiplicity': multiplicity_ion,
         }
         string_ion=molecule_input(atom_types, coordinates, **dat_monomer_ion, units=units)
@@ -219,7 +219,7 @@ def complete_calc(
     save_calc_neut, wfn_neut_file, fchk_neut_file= save_wfn_string(calc_neut['wfn_var'], jobname=jobname, tag='neut', save_npy=save_npy) 
     content+=[f"#Calculate neutral molecule", string_calc_neut, *save_calc_neut]
 
-    if do_grac:
+    if do_GRAC:
         calc_ion={
             'molecule':'monomer_ion',
             'reference':'uks',
