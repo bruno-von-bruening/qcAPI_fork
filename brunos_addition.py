@@ -39,17 +39,18 @@ def switch_script(record):
 
 def psi4_copy(file, target_dir=None):
     if not isinstance(file, str):
-        print(f"You did not provide string: {file}")
+        raise Exception(f"You did not provide string: {file}")
     elif not os.path.isfile(file):
-        print(f"Requested to copy {file}, but is not a file.")
+        raise Exception(f"Requested to copy {file}, but is not a file.")
     elif not isinstance(target_dir, type(None)):
         print(f"Copying {file} to {target_dir}")
         if not os.path.dirname(os.path.realpath(file))==os.path.realpath(target_dir):
             try:
                 p=subprocess.Popen(f"cp {file} {target_dir}", shell=True)
                 p.communicate()
+                return  os.path.join(target_dir, os.path.basename(file))
             except Exception as ex:
-                print(f"Problem when trying to copy file: {ex}")
+                raise Exception(f"Problem when trying to copy file: {ex}")
 
 def make_size_entry(file,format='MB'):
     def bytes_to_mb(bytes):
@@ -204,6 +205,7 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
         'wfn_neut_file'     : a,
         'fchk_neut_file'    : a,
     }
+    new_files={}
     for tag in ['psi4inp_file', 'psi4out_file', 'fchk_grac_file',  'fchk_neut_file']:#,'wfn_grac_file', 'wfn_neut_file']:
         # Get the associated keys
         assert tag in psi4_dict.keys() and zip_switch.keys()
@@ -215,18 +217,19 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
         else:
             if not isinstance(file, type(None)):
                 requested_encodings=zip_switch[tag]
-                tag=tag.replace('_file','')
+                short_tag=tag.replace('_file','')
 
                 for encoding in requested_encodings:
                     dic=compress_file(file, encoding=encoding)
                     info_dic['size'].update(dict([
-                        (f"{tag}_{k}",v) for k,v in dic.items()
+                        (f"{short_tag}_{k}",v) for k,v in dic.items()
                     ]))
                     # Copy the file to results dir
                     new_file=dic[encoding]['file_name']
                     assert isinstance(new_file,str), f"file {new_file} not valid"
                     if not isinstance(target_dir, type(None)):
-                        psi4_copy(new_file, target_dir=target_dir)
+                        new_file_location=psi4_copy(new_file, target_dir=target_dir)
+                        new_files.update({tag:os.path.realpath(new_file_location)})
                     # Decompress the file in case it has been compresssed
                     if not encoding in ['regular', None]:
                         decompress_file(new_file)
@@ -240,7 +243,7 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
                         except Exception as ex:
                             print(f"Could not delete file {file}")
 
-    return info_dic
+    return info_dic, new_files
 
 def run_psi4(atom_types, coordinates, dft_functional, basis_set,
             total_charge=0, multiplicity=1,
@@ -432,31 +435,46 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
                 psi4_copy(system_json, target_dir=target_dir)
         except Exception as ex:
             print(f"Json file for system info of job {jobname} could not be generated:\n{ex}")
-    def compress_target_dir(target_dir):
+    def compress_target_dir(target_dir, file_di={}):
+        def compress_file(f):
+            compres_di=[
+                {'ext':'.fchk', 'cmd':f"xz -v4 {f}", 'new_file':f"{f}.xz" }
+            ]
+            compressed=False
+            for cd in compres_di:
+                assert not compressed, f"Double compression!"
+                extension=cd['ext']
+                new_file=cd['new_file']
+                cmd=cd['cmd']
+                if f.endswith(extension):
+                    # Delete compressed file generate it and check if new file is there
+                    if os.path.isfile(new_file):
+                        os.remove(new_file)
+                    p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)  # level four seeamed like a good compromise for systematic test on single file
+                    out, err = p.communicate()
+                    if not os.path.isfile(new_file):
+                        raise Exception(f"Compression did not work: {cmd}\n{out}\n{err}")
+                    compressed=True
+            return new_file
         try:
+
+            # Iterate over all files in target direcotry
             import glob
-            files=glob.glob(f"{target_dir}/*")
+            files=[ os.path.realpath(x) for x in glob.glob(f"{target_dir}/*") ]
+            # Check file_di
+            new_file_di=copy.deepcopy(file_di)
+            for key,file in file_di.items():
+                file=os.path.realpath(file)
+                assert file in files, f"File in provided file dict but not in directory {target_dir}: {file}"
+                new_file=compress_file(file)
+                new_file_di.update({key:new_file})
+                files.remove(file)
             for f in files:
-                compres_di=[
-                    {'ext':'.fchk', 'cmd':f"xz -v4 {f}", 'new_file':f"{f}.xz" }
-                ]
-                compressed=False
-                for cd in compres_di:
-                    assert not compressed, f"Double compression!"
-                    extension=cd['ext']
-                    new_file=cd['new_file']
-                    cmd=cd['cmd']
-                    if f.endswith(extension):
-                        # Delete compressed file generate it and check if new file is there
-                        if os.path.isfile(new_file):
-                            os.remove(new_file)
-                        p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)  # level four seeamed like a good compromise for systematic test on single file
-                        out, err = p.communicate()
-                        if not os.path.isfile(new_file):
-                            print(f"Compression did not work: {cmd}\n{out}\n{err}")
-                        compressed=True
+                new_file=compress_file(f)
+            return new_file_di
+
         except Exception as ex:
-            print(f"Could not compress results directory: {ex}")
+            raise Exception(f"Could not compress results directory: {ex}")
 
         
 
@@ -465,8 +483,9 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         psi4_dict, target_dir=execute_psi4_job(target_dir)
 
         # Check sizes, copy files
-        run_analysis=psi4_after_run(psi4_dict,target_dir=target_dir, gzip=True, delete=True)
+        run_analysis, new_files=psi4_after_run(psi4_dict,target_dir=target_dir, gzip=True, delete=True)
         psi4_dict.update(run_analysis)
+        psi4_dict.update(new_files)
 
         # Get derived information (atm this is not read in)
         # do_properties=False
@@ -478,17 +497,23 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         # Drop system info
         drop_system_info(jobname, target_dir)
         # Compress target directory
-        compress_target_dir(target_dir)
+        target_files=dict(
+            [k,v] for k,v in psi4_dict.items() if k in ['fchk_grac_file']
+        )
+        target_files=compress_target_dir(target_dir, target_files)
 
         # If everything gone well return positive error code
         converged=1
         error=None
+        if not  'fchk_grac_file' in psi4_dict.keys(): raise Exception(f"Expected key \'fchk_grac_file\'")
+        fchk_file=os.path.realpath(target_files['fchk_grac_file'])
 
         my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
         # In case of a test we want errors to kill the job so we notice them immediately
         converged=0
         error=str(ex)
+        fchk_file=None
 
         # Get hostname/ho
         hostname=os.popen("hostname").read().strip()
@@ -505,6 +530,7 @@ def compute_entry_bruno(record, workder_id, num_threads=1, maxiter=150, target_d
         method=record['method'],
         id=record.get("id", None),
         conformation=record['conformation'],
+        fchk_file=fchk_file
     )
     # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
     output.update(dict(
