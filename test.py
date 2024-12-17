@@ -57,10 +57,10 @@ def start_server(config_file):
     try:
         #  fastapi='/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/fastapi'
         #  assert isfile(fastapi)
-        #  server=subprocess.Popen([f"{fastapi}","run","server_bruno.py"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        #  server=subprocess.Popen([f"{fastapi}","run","server.py"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         python='/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
         assert isfile(python)
-        server=subprocess.Popen(f"{python} server_bruno.py --config {config_file}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        server=subprocess.Popen(f"{python} server.py --config {config_file}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         pid=server.pid
 
         time.sleep(3)
@@ -88,6 +88,7 @@ if __name__=="__main__":
     config_file=args.config
 
     address='127.0.0.1:8000'
+    target_dir='../test_copy_files_target/'
     server=start_server(config_file)
     qm_method='pbe0-grac'
     qm_basis='sto-3g'
@@ -126,40 +127,40 @@ if __name__=="__main__":
         tag='populate_wfn'
         if fl[tag]:
             # Populate the database
-            cmd=f"{python} ../populate_db_bruno.py --filenames ../test_sample.pkl --address 127.0.0.1:8000 --property wfn --method={qm_method} --basis={qm_basis} --test"
+            cmd=f"{python} ../populate_db.py --filenames ../test_sample.pkl --address 127.0.0.1:8000 --property wfn --method={qm_method} --basis={qm_basis} --test"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='compute_wfn'
         if fl[tag]:
             # Run the wfn calculation
             python=python # same as before
-            cmd=f"{python} ../client_2.py {address} --num_threads 4 --target_dir ../test_copy_files_target/ --test --property wfn"
+            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='populate_lisa'
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db_bruno.py --address 127.0.0.1:8000 --property part --method LISA"
+            cmd=f"{python} ../populate_db.py --address 127.0.0.1:8000 --property part --method LISA"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
 
         tag='compute_lisa'
         if fl[tag]:
             python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
-            cmd=f"{python} ../client_2.py {address} --property part --method LISA"
+            cmd=f"{python} ../client.py {address} --property part --method LISA --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         tag='populate_mbis'
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db_bruno.py --address 127.0.0.1:8000 --property part --method MBIS"
+            cmd=f"{python} ../populate_db.py --address 127.0.0.1:8000 --property part --method MBIS"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='compute_mbis'
         if fl[tag]:
             python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
-            cmd=f"{python} ../client_2.py {address} --property part --method MBIS"
+            cmd=f"{python} ../client.py {address} --property part --method MBIS --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         kill_process(server)

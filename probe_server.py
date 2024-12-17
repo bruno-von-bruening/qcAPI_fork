@@ -30,36 +30,14 @@ def human_time_duration(seconds:float):
     return " ".join(parts)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Populate a qcAPI database with jobs")
-    parser.add_argument(
-        "address",
-        type=str,
-        default="127.0.0.1:8000",
-        help="URL:PORT of the qcAPI server",
-    )
-    parser.add_argument(
-        "--refresh", "-r", type=float, default=1.0, help="refresh rate in seconds"
-    )
-    parser.add_argument(
-        "--worker_delay","-d",
-        type=float,
-        default=10.,
-        help="delay for recent worker check in minutes",
-    )
-    parser.add_argument(
-        "--b1", type=float, default=0.9, help="exponential moving average parameter"    
-    )
+def main(address, delay, refresh, property, method):
 
-    args = parser.parse_args()
-    url = args.address.split(":")[0]
-    port = args.address.split(":")[1]
-    delay = args.worker_delay * 60
-    api_point = f"http://{url}:{port}/?delay={delay}"
+    request=f"{address}/{property}?delay={delay}"
+    response = requests.get(request)
 
-    response = requests.get(api_point)
-    if response.status_code != 200:
-        raise ValueError("Error getting initial response")
+    status_code=response.status_code
+    if status_code != 200:
+        raise ValueError(f"Error getting initial response for \'{request}\': code={status_code}, details={response.text}")
 
     body = response.json()
     pending = body["pending"]
@@ -67,7 +45,7 @@ def main():
     failed = body["failed"]
     total = pending + converged + failed
     processed = converged + failed
-    if args.refresh <=0:
+    if refresh <=0:
         percent = 100 * processed / total
         recent_worker = body["recently_active_workers"]
         print(f'[{percent:.2f}%] {processed}/{total} (r,f,w = {pending},{failed},{recent_worker})')
@@ -76,7 +54,7 @@ def main():
     try:
         with tqdm.tqdm(total=total, initial=processed, dynamic_ncols=True) as pbar:
             while True:
-                response = requests.get(api_point)
+                response = requests.get(request)
                 if response.status_code != 200:
                     time.sleep(args.refresh)
                     continue
@@ -104,7 +82,41 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Populate a qcAPI database with jobs")
+    parser.add_argument(
+        "address",
+        type=str,
+        default="127.0.0.1:8000",
+        help="URL:PORT of the qcAPI server",
+    )
+    parser.add_argument(
+        "--refresh", "-r", type=float, default=1.0, help="refresh rate in seconds"
+    )
+    parser.add_argument(
+        "--worker_delay","-d",
+        type=float,
+        default=10.,
+        help="delay for recent worker check in minutes",
+    )
+    parser.add_argument(
+        "--b1", type=float, default=0.9, help="exponential moving average parameter"    
+    )
+    parser.add_argument(
+        "--property", type=str, default='wfn', help='which property to display'
+        )
+    parser.add_argument(
+        "--method", type=str, default='wfn', help='which method to display'
+        )
+
+    args = parser.parse_args()
+    url = args.address.split(":")[0]
+    port = args.address.split(":")[1]
+    delay = args.worker_delay * 60
+    property = args.property
+    refresh=args.refresh
+    address = f"http://{url}:{port}"
+    method=args.method
+    main(address, delay, refresh, property, method)
 
 
 # NOTES:

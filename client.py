@@ -4,31 +4,19 @@ import psi4
 import argparse
 import numpy as np
 import time
-from functools import partial
 import multiprocessing as mp
-import os
+import os ; from os.path import isfile, isdir
 
 import requests
-from brunos_addition import compute_entry_bruno, switch_script
+from run_routines.run_psi4_grac import compute_entry_grac
+from run_routines.run_partitioning import exc_partitioning
+import subprocess
+import json
+import sys; sys.path.insert(1, os.environ['SCR'])
+import modules.mod_objects as m_obj
+import modules.mod_utils as m_utl
 
-
-BOHR = 0.52917721067
-
-PERIODIC_TABLE_STR = """
-H                                                                                                                           He
-Li  Be                                                                                                  B   C   N   O   F   Ne
-Na  Mg                                                                                                  Al  Si  P   S   Cl  Ar
-K   Ca  Sc                                                          Ti  V   Cr  Mn  Fe  Co  Ni  Cu  Zn  Ga  Ge  As  Se  Br  Kr
-Rb  Sr  Y                                                           Zr  Nb  Mo  Tc  Ru  Rh  Pd  Ag  Cd  In  Sn  Sb  Te  I   Xe
-Cs  Ba  La  Ce  Pr  Nd  Pm  Sm  Eu  Gd  Tb  Dy  Ho  Er  Tm  Yb  Lu  Hf  Ta  W   Re  Os  Ir  Pt  Au  Hg  Tl  Pb  Bi  Po  At  Rn
-Fr  Ra  Ac  Th  Pa  U   Np  Pu  Am  Cm  Bk  Cf  Es  Fm  Md  No  Lr  Rf  Db  Sg  Bh  Hs  Mt  Ds  Rg  Cn  Nh  Fl  Mc  Lv  Ts  Og
-"""
-
-PERIODIC_TABLE = ["Dummy"] + PERIODIC_TABLE_STR.strip().split()
-
-PERIODIC_TABLE_REV_IDX = {s: i for i, s in enumerate(PERIODIC_TABLE)}
-
-print_flush = partial(print, flush=True)
+from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     conformation = record["conformation"]
@@ -58,7 +46,7 @@ def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None
         else:
             coordinates = conformation["coordinates"]
             species = conformation["species"]
-        symbols = [PERIODIC_TABLE[s] for s in species]
+        symbols = [ atomic_charge_to_atom_type(s) for s in species]
         total_charge = round(conformation.get("total_charge", 0))
         total_atomic_number = np.sum(species)
         multiplicity = 1 if (total_charge + total_atomic_number) % 2 == 0 else 2
@@ -150,9 +138,147 @@ def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None
 
     return output
 
+def switch_script(record):
+    """ Run either my our the original entry calculation script"""
+    method=record['method']
+    if method.upper()=='PBE0-GRAC':
+        return 'bruno'
+    else:
+        return 'original'
 
-def main():
-    parser = argparse.ArgumentParser(description="Populate a qcAPI database with jobs")
+def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False, property='wfn', method=None, fchk_link_file=None):
+    """ """
+
+    def wait_for_job_completion(res, delay, property):
+        """ Check status of job until it changes.
+        The job may be done by another worker, then return this info in job_already_done variable"""
+
+        job_already_done = False # Should stay false for regular termination
+        while not job_already_done:
+            try:
+                delay = np.random.uniform(0.8, 1.2) * delay
+                entry = res.get(timeout=delay)
+                break
+            except mp.TimeoutError:
+                if property=='wfn':
+                    response = requests.get(f"http://{url}:{port}/get_record_status/{record['id']}?worker_id={worker_id}")
+                elif property=='part':
+                    response = requests.get(f"http://{url}:{port}/get_part_status/{record['id']}?worker_id={worker_id}")
+                else:
+                    raise Exception()
+                if response.status_code != 200:
+                    print_flush(
+                        f"Error getting record status. Got status code: {response.status_code} , text={response.text}"
+                    )
+                    continue
+                job_status = response.json()
+                print_flush("JOB STATUS: ", job_status)
+                job_already_done = job_status == 1
+
+        return entry, job_already_done
+
+    def get_next_record(serv_adr, property='part', method='lisa'):
+        """ Get a the next record to be worked at (in case there is none, return none) """
+        worker_id, record= (None, None)
+        while True:
+            # Determine type of request
+            assert not isinstance(property, type(None))
+            if method in ['',None]:
+                request_code='/'.join([
+                    'get_next_record', property ])
+            else:
+                request_code='/'.join([
+                    'get_next_record', property, method ])
+
+            response = requests.get(f"{serv_adr}/{request_code}")
+            status_code=response.status_code
+            # Break because there are no jobs left
+            if status_code == 210:
+                print_flush("No more records. Exiting.")
+                break
+            # Succesfully get job
+            elif status_code ==200:
+                body = response.json()
+                record,worker_id = body
+                print("WORKER ID: ", worker_id)
+                print(record)
+                break
+            # Communication Error
+            elif status_code == 201:
+                raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
+                break
+            # Other errors
+            else:
+                print_flush(f"Error getting next record command ({request_code}). Retrying in a bit. (received code {status_code}, detail={response.text})")
+                time.sleep(0.5)
+                continue
+        return record, worker_id
+
+    serv_adr=f"http://{url}:{port}" # address of server
+    mp.set_start_method("spawn")
+
+    # Get a new record until there a no one left
+    while True:
+        # Check for a new record
+        record,worker_id=get_next_record(serv_adr, method=method, property=property)
+        # Break if nothing to be done anymore
+        if isinstance(worker_id, type(None)):
+            break
+
+        # Decide which function to use and define arguments
+        if property in ['wfn']:
+            mode=switch_script(record)
+            if mode=='bruno':
+                script=compute_entry_grac
+            elif mode=='original':
+                script=compute_entry
+            else:
+                raise Exception(f"Switch function failure (invalid return): {mode}")
+        elif property in ['part']:
+            script=exc_partitioning
+        else:
+            raise Exception()
+        args=(record, worker_id, num_threads, max_iter, target_dir, do_test)
+        # Start the job
+        pool = mp.Pool(1) # Why is this here
+        proc = pool.apply_async(script, args=args)
+        # Check return of job
+        entry, job_already_done =wait_for_job_completion(proc, delay, property)
+        
+        # In case the has been done by another worker I still want to kill the worker 
+        if job_already_done:
+            print_flush("Job already done by another worker. Killing QC calculation and getting a new job.")
+            pool.terminate()
+            pool.join()
+            entry = record
+                          
+        if property in ['wfn']:
+            request=f"{serv_adr}/qc_result/{worker_id}"
+            response = requests.put(request, json=entry)
+        elif property in ['part']:
+            request=f"{serv_adr}/fill/part/LISA/{worker_id}"
+            response = requests.put(request, json=entry )
+            part=entry['part']
+            print('PART', part)
+        else:
+            raise Exception()
+        
+        # Check success of request
+        status_code=response.status_code
+        if status_code == 200: # desired
+            print(response.json()['message'])
+            error=None
+        elif status_code == 422: # error in function definition
+            error= f"Error update record ({request}: Bad communication with function (check function argument)"
+        elif status_code != 200:
+            error= f"Error updating record ({request}). Got status code: {response.status_code}, message={response.text}"
+        if not isinstance(error, type(None)):
+            raise Exception(error)
+        # Make sure to clean the file system!
+        psi4.core.clean()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Populate a qcAPI dataserv_adr with jobs")
     parser.add_argument(
         "address",
         type=str,
@@ -169,79 +295,42 @@ def main():
         "--delay", "-d", type=float, default=60, help="Ping frequency in seconds"
     )
     parser.add_argument(
-        '--target_dir', type=str, help='where to save file'
+        '--target_dir', type=str, help='where to save file', default=os.getcwd()
     )
     parser.add_argument(
         '--test', action='store_true', help='run test using hydrogen molecule and excepting when error is encountered in psi4 run'
     )
+    parser.add_argument(
+        '--do_lisa', action='store_true', help='run lisa job'
+    )
+    parser.add_argument(
+        '--fchk_link', type=str, help='file where fchk_files are stored',
+    )
+    parser.add_argument(
+        '--property', type=str
+    )
+    parser.add_argument(
+        '--method' , type=str
+    )
+    parser.add_argument(
+        '--basis',   type=str
+    )
+    
 
     args = parser.parse_args()
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
     target_dir=args.target_dir
     do_test=args.test
+    num_threads=args.num_threads
+    max_iter=args.maxiter
+    delay=args.delay
 
-    mp.set_start_method("spawn")
+    # filter by property and specs
+    property    = args.property
+    method      = args.method
+    basis       = args.basis
 
-    while True:
-        response = requests.get(f"http://{url}:{port}/get_next_record/")
-        if response.status_code == 210:
-            print_flush("No more records. Exiting.")
-            break
-        elif response.status_code != 200:
-            print_flush("Error getting next record. Retrying in a bit.")
-            time.sleep(0.5)
-            continue
+    check_dir_exists(target_dir)
 
-        body = response.json()
-        record,worker_id = body
-        print("WORKER ID: ", worker_id)
-        print(record)
-
-        # entry = compute_entry(record, args.num_threads, args.maxiter)
-        # compute entry in a separate process asynchronously
-        pool = mp.Pool(1)
-
-        # Decide which function to use
-        mode=switch_script(record)
-        if mode=='bruno':
-            script=compute_entry_bruno
-        elif mode=='original':
-            script=compute_entry
-        else:
-            raise Exception(f"Switch function failure (invalid return): {mode}")
-        res = pool.apply_async(script, args=(record, worker_id, args.num_threads, args.maxiter, target_dir, do_test))
-        job_already_done = False
-        while not job_already_done:
-            try:
-                delay = np.random.uniform(0.8, 1.2) * args.delay
-                entry = res.get(timeout=delay)
-                break
-            except mp.TimeoutError:
-                response = requests.get(f"http://{url}:{port}/get_record_status/{record['id']}?worker_id={worker_id}")
-                if response.status_code != 200:
-                    print_flush(
-                        "Error updating record. Got status code: ", response.status_code
-                    )
-                    continue
-                job_status = response.json()
-                print_flush("JOB STATUS: ", job_status)
-                job_already_done = job_status == 1
-        
-        if job_already_done:
-            print_flush("Job already done by another worker. Killing QC calculation and getting a new job.")
-            # kill the process
-            pool.terminate()
-            pool.join()
-            entry = record
-                          
-        response = requests.put(f"http://{url}:{port}/qc_result/{worker_id}", json=entry)
-        if response.status_code != 200:
-            print_flush(
-                "Error updating record. Got status code: ", response.status_code
-            )
-
-    psi4.core.clean()
-
-if __name__ == "__main__":
-    main()
+    main(url, port, num_threads, max_iter, delay, target_dir=target_dir, do_test=do_test, property=property, method=method)

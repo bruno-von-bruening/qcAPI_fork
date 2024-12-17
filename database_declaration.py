@@ -80,6 +80,7 @@ class Conformation(BaseModel):
     wiberg_lowdin_indices: list[list[float]] | None = None
     mayer_indices: list[list[float]] | None = None
 class QCRecord(SQLModel, table=True):
+
     # This is the root no foreign Keys
     id: str = Field( primary_key=True)
 
@@ -96,6 +97,7 @@ class QCRecord(SQLModel, table=True):
     fchk_file: str = Field(default='none')
     
     hirshfeld_partitionings: 'hirshfeld_partitioning' =Relationship(back_populates='record')
+
 #class KLD(SQLModel, table=True):
 #    id: int=Field(foreign_key='hirshfeld_partitioning', primary_key=True)
 #    KLD: float
@@ -105,14 +107,22 @@ class QCRecord(SQLModel, table=True):
 #
 #    partitioning: 'hirshfeld_partitioning' = Relationship(back_populates='KLD')
 class hirshfeld_partitioning(SQLModel, table=True):
+    def __init__(self, **kwargs):
+        make_id=False
+        if not 'id' in kwargs.keys():
+            kwargs.update({'id':'TO_BE_REPLACED'})
+            make_id=True   
+        super().__init__(**kwargs)
+        if make_id:
+            self.make_id()
     # Identifier
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: str = Field(primary_key=True)
     record_id: str = Field(foreign_key='qcrecord.id')
     fchk_file: str | None # Copied from record (could be also foreign key)-> no, since this link may break when QCRecord gets updated
 
     # Specs to method
     method:         str # LISA, MBIS ...
-    spec:           str | None # basis, settings etc. (will be a mess for the moment)
+    method_parameters:           str | None = 'DefSet' # basis, settings etc. (will be a mess for the moment)
     # Meta
     timestamp:      float = Field(default=-1, index=True)
     elapsed_time:   float= Field(default=-1.)
@@ -122,6 +132,19 @@ class hirshfeld_partitioning(SQLModel, table=True):
     # Links
     molecular_multipoles: 'Molecular_Multipoles' = Relationship(back_populates='partitioning')#,sa_relationship_kwargs={'foreign_keys':[record_id]})
     record:         'QCRecord' = Relationship(back_populates='hirshfeld_partitionings') 
+
+    def make_id(self):
+        # Default for method_parameters
+        if isinstance(self.method_parameters, type(None)):
+            method_parameters='DefSet'
+        else:
+            method_parameters=self.method_parameters
+        part_tag='-'.join([  'PART', self.method, self.method_parameters ])
+        id='_'.join([ part_tag, self.record_id])
+        self.id=id
+        return id
+        
+    
 #    KLD:            'KLD'      = Relationship(back_populates='partitioning')
 #    Solution:       'Solution' = Relationship(back_populates='partitioning')
 class Molecular_Multipoles(SQLModel, table=True):
