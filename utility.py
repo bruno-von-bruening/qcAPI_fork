@@ -20,10 +20,11 @@ print_flush = partial(print, flush=True)
 class HTTPcodes(int,Enum):
     """ Mapping of Interpretation of HTML errors """
     # Cannnonic
-    normal          = 200 ,
+    normal              = 200 ,
+    bad_communcation    = 422 ,
     # Custom
-    escape          = 210 ,
-    internal_error  = 411 ,
+    escape              = 210 ,
+    internal_error      = 411 ,
             #  # Communication Error
             #  elif status_code == 201:
             #      raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")

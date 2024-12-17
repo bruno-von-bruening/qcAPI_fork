@@ -248,10 +248,10 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             entry = record
                           
         if property in ['wfn']:
-            request=f"{serv_adr}/qc_result/{worker_id}"
+            request=f"{serv_adr}/fill/wfn/{worker_id}"
             response = requests.put(request, json=entry)
         elif property in ['part']:
-            request=f"{serv_adr}/fill/part/LISA/{worker_id}"
+            request=f"{serv_adr}/fill/part/{worker_id}"
             response = requests.put(request, json=entry )
         else:
             raise Exception()
@@ -259,10 +259,10 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         # Check success of request
         status_code=response.status_code
         if status_code == 200: # desired
-            print(response.json()['message'])
+            print(f"Job : {response.json()['message']} with error message {response.json()['error']}")
             error=None
         elif status_code == HTTPcodes.internal_error:
-            errror=f"Error in processing"
+            error=f"Error in processing"
         elif status_code == 422: # error in function definition
             error= f"Bad communication with function (check function argument)"
         elif status_code != 200:

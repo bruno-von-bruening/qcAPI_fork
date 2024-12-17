@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request,Depends
 from sqlmodel import SQLModel, func, col, select,delete, Session,create_engine,update
 from sqlalchemy.orm import load_only
 from fastapi.encoders import jsonable_encoder
+from utility import HTTPcodes 
 
 from database_declaration import (
     Conformation,
@@ -98,33 +99,6 @@ def make_app(app, SessionDep):
     async def return_conformation_id(conformation: Conformation):
         return get_conformation_id(conformation)
 
-    @app.put("/qc_result/{worker_id}")
-    async def create_item(
-        worker_id: str, record: QCRecord, session: SessionDep, request: Request
-    ):
-        worker = session.get(Worker, uuid.UUID(worker_id))
-        if worker is None:
-            raise HTTPException(status_code=400, detail="Worker does not exist")
-        session.delete(worker)
-        session.commit()
-
-        if record.converged < 0:
-            return {"message": "Record not processed. Ignoring."}
-
-        id = get_record_id(Conformation(**record.conformation), record.method, record.basis)
-        if id != record.id:
-            raise HTTPException(status_code=400, detail="ID does not match record")
-        prev_record = session.get(QCRecord, id)
-        if prev_record is None:
-            raise HTTPException(status_code=400, detail="Record does not exist")
-        if prev_record.converged == 1:
-            raise HTTPException(status_code=210, detail="Record already converged")
-
-        record.timestamp = datetime.datetime.now().timestamp()
-        prev_record.sqlmodel_update(record)
-        session.add(prev_record)
-        session.commit()
-        return {"message": "Record stored successfully. Thanks for your contribution!"}
 
     # Should be update database
     def gen_fill():
@@ -136,7 +110,7 @@ def make_app(app, SessionDep):
             raise HTTPException(status_code=400, detail="Worker does not exist")
         session.delete(worker)
         session.commit()
-    def wrapper_gen_fill(entry, session, worker_id, property, method=None):
+    def wrapper_gen_fill(entry, session, worker_id, property):
         try:
             kill_woker(session=session, worker_id=worker_id)
             if property in ['part']:
@@ -176,22 +150,39 @@ def make_app(app, SessionDep):
                 else:
                     if part.converged==1:
                         raise HTTPException(502, detail=f"No multipoles provided although converged!")
-                return {"message": "Partitioning and Moments stored successfully. Thanks for your contribution!"}
+                return {"message": "Partitioning and Moments stored successfully. Thanks for your contribution!", 'error':None}
             elif property in ['wfn']:
-                raise Exception(f"Implement {property}")
+                record=QCRecord(**entry)
+                if record.converged < 0:
+                    return {"message": "Record not processed. Ignoring."}
+
+                id = get_record_id(Conformation(**record.conformation), record.method, record.basis)
+                if id != record.id:
+                    raise HTTPException(status_code=400, detail="ID does not match record")
+                prev_record = session.get(QCRecord, id)
+                if prev_record is None:
+                    raise HTTPException(status_code=400, detail="Record does not exist")
+                if prev_record.converged == 1:
+                    raise HTTPException(status_code=210, detail="Record already converged")
+
+                record.timestamp = datetime.datetime.now().timestamp()
+                prev_record.sqlmodel_update(record)
+                session.add(prev_record)
+                session.commit()
+                return {"message": "Record stored successfully. Thanks for your contribution!" ,'error':None}
             else:
                 raise Exception(f"Unkown property {property}")
         except Exception as ex:
-            raise HTTPException(411, detail=f"Could not execute {wrapper_gen_fill}: {str(ex)}")
+            raise HTTPException(HTTPcodes.internal_error, detail=f"Could not execute {wrapper_gen_fill}: {str(ex)}")
 
-    @app.put("/fill/{property}/{method}/{worker_id}")
+    @app.put("/fill/{property}/{worker_id}")
     async def fill_part(
         entry: dict, 
         worker_id: str, 
-        property: str, method: str,
+        property: str, 
         session: SessionDep, request: Request,
     ):
-        return wrapper_gen_fill(entry, session, worker_id, property, method=method)
+        return wrapper_gen_fill(entry, session, worker_id, property)
 
     def get_conformations(session):
         conformations=[ conf.model_dump() for conf in session.exec(select(QCRecord)).all()  ]
