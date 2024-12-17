@@ -74,7 +74,7 @@ def make_app(app, SessionDep):
                 "recently_active_workers": num_active_workers,
             }
         except Exception as ex:
-            raise Exception(311, detail=f"Error in function {get_progress_info}: {str(ex)}")
+            raise Exception(411, detail=f"Error in function {get_progress_info}: {str(ex)}")
 
     @app.get("/{property}")
     async def root(

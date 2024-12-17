@@ -258,8 +258,6 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         elif property in ['part']:
             request=f"{serv_adr}/fill/part/LISA/{worker_id}"
             response = requests.put(request, json=entry )
-            part=entry['part']
-            print('PART', part)
         else:
             raise Exception()
         
