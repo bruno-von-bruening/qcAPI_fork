@@ -174,7 +174,9 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 job_status = response.json()
                 print_flush("JOB STATUS: ", job_status)
                 job_already_done = job_status == 1
-
+        if isinstance(entry, dict):
+            if all([x in entry.keys() for x in ['message','error'] ]):
+                print(f"Job completition:\n  Message: {entry['message']}\n  Error: {entry['error']}")
         return entry, job_already_done
 
     def get_next_record(serv_adr, property='part', method='lisa'):
@@ -193,7 +195,6 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             status_code=response.status_code
             # Break because there are no jobs left
             if status_code == HTTPcodes.normal:
-                print(f"Job completition:\n  Message: {response.json()['message']}\n  Error: {response.json()['error']}")
                 body = response.json()
                 record,worker_id = body
                 break
