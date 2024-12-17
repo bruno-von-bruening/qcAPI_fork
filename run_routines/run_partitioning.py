@@ -115,8 +115,6 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
                 traceless=True,
                 multipoles=moms_json,
             )
-            raise Exception(f"test")
-
 
             record['converged']=1    
             return {

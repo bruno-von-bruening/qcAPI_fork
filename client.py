@@ -193,6 +193,7 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             status_code=response.status_code
             # Break because there are no jobs left
             if status_code == HTTPcodes.normal:
+                print(f"Job completition:\n  Message: {response.json()['message']}\n  Error: {response.json()['error']}")
                 body = response.json()
                 record,worker_id = body
                 break
