@@ -136,49 +136,53 @@ def make_app(app, SessionDep):
             raise HTTPException(status_code=400, detail="Worker does not exist")
         session.delete(worker)
         session.commit()
-    def wrapper_gen_fill(entry, session, property, method=None):
-        if property in ['part']:
-            mand_keys=['part','multipoles']
-            for key in mand_keys:
-                if not key in entry.keys(): raise Exception(f"Excepted key \'{key}\' but found {entry.keys()}")
-            part=entry['part']
-            multipoles=entry['multipoles']
-            try:
-                if part['converged'] < 0:
-                    return {"message": "Partitioning not processed. Ignoring."}
-
-                id=part['id']
-                prev_part = session.get(hirshfeld_partitioning, id)
-                if prev_part is None:
-                    raise HTTPException(status_code=400, detail="Record does not exist")
-                elif prev_part.converged == 1:
-                    raise HTTPException(status_code=210, detail="Record already converged")
-                else:
-                    session.delete(prev_part)
-                
-                    part=hirshfeld_partitioning(**part)
-                    part.timestamp = datetime.datetime.now().timestamp()
-                    session.add(part)
-                    session.commit()
-            except Exception as ex:
-                raise HTTPException(501, detail=f"there {part} {ex}")
-
-
-            if not isinstance(multipoles, type(None)):
+    def wrapper_gen_fill(entry, session, worker_id, property, method=None):
+        try:
+            kill_woker(session=session, worker_id=worker_id)
+            if property in ['part']:
+                mand_keys=['part','multipoles']
+                for key in mand_keys:
+                    if not key in entry.keys(): raise Exception(f"Excepted key \'{key}\' but found {entry.keys()}")
+                part=entry['part']
+                multipoles=entry['multipoles']
                 try:
-                    mul=Molecular_Multipoles(**multipoles)
-                    session.add(mul)
-                    session.commit()
+                    if part['converged'] < 0:
+                        return {"message": "Partitioning not processed. Ignoring."}
+
+                    id=part['id']
+                    prev_part = session.get(hirshfeld_partitioning, id)
+                    if prev_part is None:
+                        raise HTTPException(status_code=400, detail="Record does not exist")
+                    elif prev_part.converged == 1:
+                        raise HTTPException(status_code=210, detail="Record already converged")
+                    else:
+                        session.delete(prev_part)
+                    
+                        part=hirshfeld_partitioning(**part)
+                        part.timestamp = datetime.datetime.now().timestamp()
+                        session.add(part)
+                        session.commit()
                 except Exception as ex:
-                    raise HTTPException(502, detail=f"Couldnt create multipoles: {ex}")
+                    raise HTTPException(501, detail=f"there {part} {ex}")
+
+
+                if not isinstance(multipoles, type(None)):
+                    try:
+                        mul=Molecular_Multipoles(**multipoles)
+                        session.add(mul)
+                        session.commit()
+                    except Exception as ex:
+                        raise HTTPException(502, detail=f"Couldnt create multipoles: {ex}")
+                else:
+                    if part.converged==1:
+                        raise HTTPException(502, detail=f"No multipoles provided although converged!")
+                return {"message": "Partitioning and Moments stored successfully. Thanks for your contribution!"}
+            elif property in ['wfn']:
+                raise Exception(f"Implement {property}")
             else:
-                if part['converged']==1:
-                    raise HTTPException(502, detail=f"No multipoles provided although converged!")
-            return {"message": "Partitioning and Moments stored successfully. Thanks for your contribution!"}
-        elif property in ['wfn']:
-            raise Exception(f"Implement {property}")
-        else:
-            raise Exception(f"Unkown property {property}")
+                raise Exception(f"Unkown property {property}")
+        except Exception as ex:
+            raise HTTPException(411, detail=f"Could not execute {wrapper_gen_fill}: {str(ex)}")
 
     @app.put("/fill/{property}/{method}/{worker_id}")
     async def fill_part(
@@ -187,12 +191,7 @@ def make_app(app, SessionDep):
         property: str, method: str,
         session: SessionDep, request: Request,
     ):
-        try:
-            kill_woker(session=session, worker_id=worker_id)
-            return_val =wrapper_gen_fill(entry, session, property, method=method)
-            return return_val
-        except Exception as ex:
-            raise HTTPException(311, detail=f"Could not execute {wrapper_gen_fill}: {str(ex)}")
+        return wrapper_gen_fill(entry, session, worker_id, property, method=method)
 
     def get_conformations(session):
         conformations=[ conf.model_dump() for conf in session.exec(select(QCRecord)).all()  ]
