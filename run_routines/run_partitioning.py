@@ -81,8 +81,9 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
 
 
         try:
+            error=[]
+
             # Retrieve files
-            results_file='results.json'
             assert os.path.isfile(results_file)
             with open(results_file, 'r') as rd:
                 results=json.load(rd)
@@ -101,14 +102,18 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
             except Exception as ex:
                 raise Exception(f"Error in reading moment from file {mom_file} with {m_obj.multipoles}: {ex}")
             
-            os.chdir('..')
-            if os.path.realpath(target_dir)!=os.getcwd():
-                target=make_dir(jobname, base_dir=target_dir)
-                assert os.path.isdir(target)
-                source_files= glob.glob(f"{work_dir}/*")
-                assert len(source_files)>0, f"No output files in {os.path.realpath(work_dir)}!"
-                [ shutil.move(file, target) for file in source_files ]
-                os.rmdir(work_dir)
+            try:
+                os.chdir('..')
+                if os.path.realpath(target_dir)!=os.getcwd():
+                    target=make_dir(jobname, base_dir=target_dir)
+                    assert os.path.isdir(target)
+                    source_files= glob.glob(f"{work_dir}/*")
+                    assert len(source_files)>0, f"No output files in {os.path.realpath(work_dir)}!"
+                    [ shutil.move(file, target) for file in source_files ]
+                    os.rmdir(work_dir)
+            except Exception as ex:
+                error.append(f"Problems in copying results: {str(ex)}")
+
 
             multipoles=dict(
                 partitioning_id=record['id'],
@@ -118,16 +123,24 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
                 traceless=True,
                 multipoles=moms_json,
             )
-
+            
+            # Process message and error
+            if len(error)>0:
+                message=f"Successful run (albeit not critical errors occured)"
+                error='|'.join(error)
+            else:
+                message=f"Succesful run"
+                error=None
+            # Update convergence of record 
             record['converged']=1    
             return {
                 'part':record,
                 'multipoles':multipoles,
-                'message': f"Succesful Run",
-                'error': None,
+                'message': message,
+                'error': error,
             }
         except Exception as ex:
-            raise Exception(f"Error in postprocessing horton run : {ex}")
+            raise Exception(f"Error in postprocessing horton run : {str(ex)}")
     except Exception as ex:
         record['converged']=0
         return {
