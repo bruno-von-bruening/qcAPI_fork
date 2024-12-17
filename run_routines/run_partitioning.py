@@ -78,6 +78,8 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
         except Exception as ex:
             raise Exception(f"Error in executing horton: {ex}")
 
+
+
         try:
             # Retrieve files
             results_file='results.json'
@@ -100,12 +102,13 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
                 raise Exception(f"Error in reading moment from file {mom_file} with {m_obj.multipoles}: {ex}")
             
             os.chdir('..')
-            target=make_dir(jobname, base_dir=target_dir)
-            assert os.path.isdir(target)
-            source_files= glob.glob(f"{work_dir}/*")
-            assert len(source_files)>0, f"No output files!"
-            [ shutil.move(file, target) for file in source_files ]
-            os.rmdir(work_dir)
+            if os.path.realpath(target_dir)!=os.getcwd():
+                target=make_dir(jobname, base_dir=target_dir)
+                assert os.path.isdir(target)
+                source_files= glob.glob(f"{work_dir}/*")
+                assert len(source_files)>0, f"No output files in {os.path.realpath(work_dir)}!"
+                [ shutil.move(file, target) for file in source_files ]
+                os.rmdir(work_dir)
 
             multipoles=dict(
                 partitioning_id=record['id'],
