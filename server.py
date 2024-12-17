@@ -461,7 +461,7 @@ def make_app(app, SessionDep):
             else:
                 raise Exception(f"Cannot process property \'{property}\'")
         except Exception as ex:
-            raise HTTPException(300, detail=f"Error in retrieving record and worker id: {str(ex)}")
+            raise HTTPException(401, detail=f"Error in retrieving record and worker id: {str(ex)}")
         
         if isinstance(record, type(None)):
             raise HTTPException(210, detail=f"No more record to process!")

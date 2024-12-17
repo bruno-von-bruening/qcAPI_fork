@@ -16,7 +16,7 @@ import sys; sys.path.insert(1, os.environ['SCR'])
 import modules.mod_objects as m_obj
 import modules.mod_utils as m_utl
 
-from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists
+from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists, HTTPcodes
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     conformation = record["conformation"]
@@ -179,7 +179,6 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
 
     def get_next_record(serv_adr, property='part', method='lisa'):
         """ Get a the next record to be worked at (in case there is none, return none) """
-        worker_id, record= (None, None)
         while True:
             # Determine type of request
             assert not isinstance(property, type(None))
@@ -193,25 +192,21 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             response = requests.get(f"{serv_adr}/{request_code}")
             status_code=response.status_code
             # Break because there are no jobs left
-            if status_code == 210:
-                print_flush("No more records. Exiting.")
-                break
-            # Succesfully get job
-            elif status_code ==200:
+            if status_code == HTTPcodes.normal:
                 body = response.json()
                 record,worker_id = body
-                print("WORKER ID: ", worker_id)
-                print(record)
                 break
-            # Communication Error
-            elif status_code == 201:
-                raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
+            elif status_code == HTTPcodes.escape:
+                print_flush("No more records. Exiting.")
+                worker_id, record= (None, None)
                 break
-            # Other errors
+            elif status_code== HTTPcodes.internal_error:
+                error=f"Internal Error"
+                raise Exception(f"{error} ({request}): (received code {status_code}, detail={response.text})")
             else:
-                print_flush(f"Error getting next record command ({request_code}). Retrying in a bit. (received code {status_code}, detail={response.text})")
-                time.sleep(0.5)
-                continue
+                eror=f"Unkown Error"
+                print(f"{error} ({request}): Retrying in a bit. (received code {status_code}, detail={response.text})")
+            time.sleep(0.5)
         return record, worker_id
 
     serv_adr=f"http://{url}:{port}" # address of server
@@ -266,12 +261,14 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         if status_code == 200: # desired
             print(response.json()['message'])
             error=None
+        elif status_code == HTTPcodes.internal_error:
+            errror=f"Error in processing"
         elif status_code == 422: # error in function definition
-            error= f"Error update record ({request}: Bad communication with function (check function argument)"
+            error= f"Bad communication with function (check function argument)"
         elif status_code != 200:
-            error= f"Error updating record ({request}). Got status code: {response.status_code}, message={response.text}"
+            error= f"Undescribed error"
         if not isinstance(error, type(None)):
-            raise Exception(error)
+            raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")
         # Make sure to clean the file system!
         psi4.core.clean()
 

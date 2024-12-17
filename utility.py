@@ -1,6 +1,7 @@
 
 from functools import partial
 import os, subprocess
+from enum import Enum
 # Replacers for Thomas script
 PERIODIC_TABLE_STR = """
 H                                                                                                                           He
@@ -15,6 +16,18 @@ BOHR = 0.52917721067
 ANGSTROM_TO_BOHR=1./BOHR
 
 print_flush = partial(print, flush=True)
+
+class HTTPcodes(int,Enum):
+    """ Mapping of Interpretation of HTML errors """
+    # Cannnonic
+    normal          = 200 ,
+    # Custom
+    escape          = 210 ,
+    internal_error  = 411 ,
+            #  # Communication Error
+            #  elif status_code == 201:
+            #      raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
+            #      break
 
 def atomic_charge_to_atom_type(Z):
     """ Return atom type when given an atomic Number """
@@ -46,3 +59,6 @@ def make_dir(jobname, base_dir=None ):
 def check_dir_exists(dir):
     hostname=os.uname()[1]
     assert os.path.isdir(dir), f"Cannot find target directory \'{dir}\' in respect to {hostname}:{os.getcwd()}"
+
+def check_response(response):
+    status_code=response.status_code
