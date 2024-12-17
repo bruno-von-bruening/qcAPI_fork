@@ -126,7 +126,7 @@ if __name__=="__main__":
         tag='populate_wfn'
         if fl[tag]:
             # Populate the database
-            cmd=f"{python} ../populate_db_bruno.py ../test_sample.pkl --address 127.0.0.1:8000 --property wfn --method={qm_method} --basis={qm_basis} --test"
+            cmd=f"{python} ../populate_db_bruno.py --filenames ../test_sample.pkl --address 127.0.0.1:8000 --property wfn --method={qm_method} --basis={qm_basis} --test"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='compute_wfn'
@@ -140,7 +140,7 @@ if __name__=="__main__":
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db_bruno.py ../test_sample.pkl --address 127.0.0.1:8000 --property part --method LISA"
+            cmd=f"{python} ../populate_db_bruno.py --address 127.0.0.1:8000 --property part --method LISA"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
 
         tag='compute_lisa'
@@ -153,7 +153,7 @@ if __name__=="__main__":
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db_bruno.py ../test_sample.pkl --address 127.0.0.1:8000 --property part --method MBIS"
+            cmd=f"{python} ../populate_db_bruno.py --address 127.0.0.1:8000 --property part --method MBIS"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='compute_mbis'

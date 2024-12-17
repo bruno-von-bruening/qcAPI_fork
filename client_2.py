@@ -14,6 +14,7 @@ import subprocess
 import json
 import sys; sys.path.insert(1, os.environ['SCR'])
 import modules.mod_objects as m_obj
+import modules.mod_utils as m_utl
 
 
 
@@ -58,14 +59,11 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
         return input_file, moment_file, solution_file, kld_history_file
 
     # Check conda
-    conda_base='/home/bruno/0_Software/miniconda3/'
-    assert isdir(conda_base), f"Conda base environment assumed to be \'{conda_base}\' but is not a directory!"
-    env_name='LISA_wpart'
-    python=os.path.join(conda_base, 'envs', env_name, 'bin','python')
-    assert isfile(python), f"Cannot find python executable under {python}, does the environment {env_name} exist on this machine?"
+    env_name='horton_wpart'
+    python=m_utl.get_conda_env(env_name)
 
     # Check script
-    script='/home/bruno/1_PhD/1-1_Scripts/execution/run_horton_wpart.py'
+    script=f"{os.environ['SCR']}/execution/run_horton_wpart.py"
     assert isfile(script), f"Not a file: {script}"
 
     assert 'method' in record.keys()

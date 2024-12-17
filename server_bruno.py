@@ -27,40 +27,72 @@ from utils_bruno import (
 def make_app(app, SessionDep):
     """ Add all the methods to the app """
 
+    def get_progress_info(session, property, method, delay):
+        """ """
+        try:
+            filters={}
+            if property in ['part']:
+                object=hirshfeld_partitioning
+                if not isinstance(method, type(None)):
+                    filters.update({'method':method})
+            elif property in ['wfn']:
+                object=QCRecord
+            else:
+                raise Exception(f"Unkown property {property}")
+            
+            def get_num(object, filters):
+                # Count amount of objget
+                query=select(func.count()).select_from(object)
+                # Optional filters
+                for key,val in filters.items():
+                    query=query.where( getattr(object, key) == val )
+                # get the number
+                query=query
+                num=session.exec(query).one()
+                return num
+            num_records = get_num(object, dict([*filters, ('converged',1)   ]) )
+            converged   = get_num(object, dict([*filters, ('converged',1)   ]) )
+            pending     = get_num(object, dict([*filters, ('converged',-1)  ]) )
+            # Failed is implicit
+            failed = num_records - converged - pending
+
+            # Get numbers of workers that are active (have lasted communicated with database)
+            num_workers = session.exec(select(func.count()).select_from(Worker)).one()
+            current_timestamp = datetime.datetime.now().timestamp()
+            num_active_workers = session.exec(
+                select(func.count())
+                .select_from(Worker)
+                .where(Worker.timestamp > current_timestamp - delay)
+            ).one()
+
+            return {
+                "message": "qcAPI is running",
+                "converged": converged,
+                "pending": pending,
+                "failed": failed,
+                "num_workers": num_workers,
+                "recently_active_workers": num_active_workers,
+            }
+        except Exception as ex:
+            raise Exception(311, detail=f"Error in function {get_progress_info}: {str(ex)}")
+
+    @app.get("/{property}")
+    async def root(
+        session: SessionDep, 
+        property: str,
+        delay: float = 600.
+    ):
+        """ Give overview over the job progress
+        Currently one available  """
+        return get_progress_info(session,property, method=None, delay=delay)
+
     # --> make this to a generic routine that takes the job class (filter between QCRECORDS and PARITIONINGS)
     @app.get("/")
     async def root(session: SessionDep, delay: float = 600.):
         """ Give overview over the job progress
         Currently one available  """
-
-        ### Get number of jobs by converged, pending and failes
-        num_records = session.exec(select(func.count()).select_from(QCRecord)).one()
-        converged = session.exec(
-            select(func.count()).select_from(QCRecord).where(QCRecord.converged == 1)
-        ).one()
-        pending = session.exec(
-            select(func.count()).select_from(QCRecord).where(QCRecord.converged == -1)
-        ).one()
-        # Failed is implicit
-        failed = num_records - converged - pending
-
-        # Get numbers of workers that are active (have lasted communicated with database)
-        num_workers = session.exec(select(func.count()).select_from(Worker)).one()
-        current_timestamp = datetime.datetime.now().timestamp()
-        num_active_workers = session.exec(
-            select(func.count())
-            .select_from(Worker)
-            .where(Worker.timestamp > current_timestamp - delay)
-        ).one()
-
-        return {
-            "message": "qcAPI is running",
-            "converged": converged,
-            "pending": pending,
-            "failed": failed,
-            "num_workers": num_workers,
-            "recently_active_workers": num_active_workers,
-        }
+        property='wfn'
+        return get_progress_info(session,property, method=None, delay=delay)
 
     @app.post("/conformation_id/")
     async def return_conformation_id(conformation: Conformation):
@@ -492,7 +524,7 @@ def main(config_file):
     import uvicorn
     app = FastAPI(lifespan=lifespan)
     app=make_app(app, SessionDep)
-    uvicorn.run(app)
+    uvicorn.run(app,port=8000, host='0.0.0.0')
 
 if __name__=='__main__':
 

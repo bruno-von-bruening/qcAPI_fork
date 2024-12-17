@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     import argparse
     parser = argparse.ArgumentParser(description='Populate a qcAPI database with jobs')
-    parser.add_argument('filenames', type=str, nargs='+', help='Filenames of the pickled configurations')
+    parser.add_argument('--filenames', type=str, nargs='+', help='Filenames of the pickled configurations')
     parser.add_argument('--property', type=str, default='wfn', help=f"Which property to be computed", choices=avail_properties)
     parser.add_argument('--address','-a', type=str, default="127.0.0.1:8000", help='URL:PORT of the qcAPI server')
     parser.add_argument('--method','-m', type=str, default="wb97m-d3bj" ,help='Method to use')
