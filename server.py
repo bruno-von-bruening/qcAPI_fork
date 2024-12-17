@@ -192,7 +192,7 @@ def make_app(app, SessionDep):
             return_val =wrapper_gen_fill(entry, session, property, method=method)
             return return_val
         except Exception as ex:
-            raise HTTPException(311, f"Could not execute {wrapper_gen_fill}: {str(ex)}")
+            raise HTTPException(311, detail=f"Could not execute {wrapper_gen_fill}: {str(ex)}")
 
     def get_conformations(session):
         conformations=[ conf.model_dump() for conf in session.exec(select(QCRecord)).all()  ]
