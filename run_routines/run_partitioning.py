@@ -123,4 +123,9 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
             'multipoles':multipoles,
         }
     except Exception as ex:
-        raise Exception(f"Error in postprocessing horton run : {ex}")
+        print(f"Error in postprocessing horton run : {ex}")
+        record['converged']=0
+        return {
+            'part': record,
+            'multipoles': None,
+        }

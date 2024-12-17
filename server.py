@@ -164,12 +164,16 @@ def make_app(app, SessionDep):
                 raise HTTPException(501, detail=f"there {part} {ex}")
 
 
-            try:
-                mul=Molecular_Multipoles(**multipoles)
-                session.add(mul)
-                session.commit()
-            except Exception as ex:
-                raise HTTPException(502, detail=f"Couldnt create multipoles: {ex}")
+            if not isinstance(multipoles, type(None)):
+                try:
+                    mul=Molecular_Multipoles(**multipoles)
+                    session.add(mul)
+                    session.commit()
+                except Exception as ex:
+                    raise HTTPException(502, detail=f"Couldnt create multipoles: {ex}")
+            else:
+                if part['converged']==1:
+                    raise HTTPException(502, detail=f"No multipoles provided although converged!")
             return {"message": "Partitioning and Moments stored successfully. Thanks for your contribution!"}
         elif property in ['wfn']:
             raise Exception(f"Implement {property}")
