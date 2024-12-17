@@ -258,14 +258,14 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         
         # Check success of request
         status_code=response.status_code
-        if status_code == 200: # desired
-            print(f"Job : {response.json()['message']} with error message {response.json()['error']}")
+        if status_code == HTTPcodes.normal: # desired
+            print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
             error=None
         elif status_code == HTTPcodes.internal_error:
             error=f"Error in processing"
         elif status_code == 422: # error in function definition
             error= f"Bad communication with function (check function argument)"
-        elif status_code != 200:
+        else:
             error= f"Undescribed error"
         if not isinstance(error, type(None)):
             raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")
