@@ -84,6 +84,7 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
             error=[]
 
             # Retrieve files
+            results_file='results.json'
             assert os.path.isfile(results_file)
             with open(results_file, 'r') as rd:
                 results=json.load(rd)
