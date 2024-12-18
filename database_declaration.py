@@ -96,7 +96,7 @@ class QCRecord(SQLModel, table=True):
     # New keys
     fchk_file: str = Field(default='none')
     
-    hirshfeld_partitionings: 'hirshfeld_partitioning' =Relationship(back_populates='record')
+    hirshfeld_partitionings: List['hirshfeld_partitioning'] =Relationship(back_populates='record')
 
 #class KLD(SQLModel, table=True):
 #    id: int=Field(foreign_key='hirshfeld_partitioning', primary_key=True)
@@ -130,7 +130,7 @@ class hirshfeld_partitioning(SQLModel, table=True):
     error:          str | None = None
 
     # Links
-    molecular_multipoles: 'Molecular_Multipoles' = Relationship(back_populates='partitioning')#,sa_relationship_kwargs={'foreign_keys':[record_id]})
+    distributed_multipoles: 'Distributed_Multipoles' = Relationship(back_populates='partitioning')#,sa_relationship_kwargs={'foreign_keys':[record_id]})
     record:         'QCRecord' = Relationship(back_populates='hirshfeld_partitionings') 
 
     def make_id(self):
@@ -147,7 +147,7 @@ class hirshfeld_partitioning(SQLModel, table=True):
     
 #    KLD:            'KLD'      = Relationship(back_populates='partitioning')
 #    Solution:       'Solution' = Relationship(back_populates='partitioning')
-class Molecular_Multipoles(SQLModel, table=True):
+class Distributed_Multipoles(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     partitioning_id: int =Field(foreign_key='hirshfeld_partitioning.id')
 
@@ -160,7 +160,7 @@ class Molecular_Multipoles(SQLModel, table=True):
     traceless:          bool    = Field(default=True)
 
     # Links
-    partitioning: 'hirshfeld_partitioning' = Relationship(back_populates='molecular_multipoles')
+    partitioning: 'hirshfeld_partitioning' = Relationship(back_populates='distributed_multipoles')
 
 def get_conformation_id(conformation: Conformation) -> str:
     coordinates = tuple(np.round(conformation.coordinates, 4).flatten())
