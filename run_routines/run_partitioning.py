@@ -70,7 +70,7 @@ def exc_partitioning(record, worker_id, num_threads=1, maxiter=150, target_dir=N
             
         try:
             # Execute Horton
-            cmd=f"{python} {script} -inp {input_file}"
+            cmd=f"export OMP_NUM_THREADS=1; {python} {script} -inp {input_file}"
             out_file='horton.out'
             horton=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
             stdout, stderr = horton.communicate()
