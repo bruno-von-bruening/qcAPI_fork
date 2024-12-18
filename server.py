@@ -22,7 +22,7 @@ from database_declaration import (
     RecordStatus,
     Worker,
     hirshfeld_partitioning,
-    Molecular_Multipoles,
+    Distributed_Multipoles,
 )
 
 def make_app(app, SessionDep):
@@ -142,7 +142,7 @@ def make_app(app, SessionDep):
 
                 if not isinstance(multipoles, type(None)):
                     try:
-                        mul=Molecular_Multipoles(**multipoles)
+                        mul=Distributed_Multipoles(**multipoles)
                         session.add(mul)
                         session.commit()
                     except Exception as ex:
