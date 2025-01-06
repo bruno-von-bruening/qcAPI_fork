@@ -158,7 +158,7 @@ if __name__=="__main__":
         os.mkdir('test')
         os.chdir('test')
 
-        python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+        python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
         tag='populate_wfn'
         if fl[tag]:
             # Populate the database
