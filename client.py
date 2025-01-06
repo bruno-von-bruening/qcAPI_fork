@@ -16,6 +16,8 @@ import sys; sys.path.insert(1, os.environ['SCR'])
 import modules.mod_objects as m_obj
 import modules.mod_utils as m_utl
 
+from http import HTTPStatus
+
 from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists, HTTPcodes
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
@@ -206,9 +208,8 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 print_flush("No more records. Exiting.")
                 worker_id, record= (None, None)
                 break
-            elif status_code== HTTPcodes.internal_error:
-                error=f"Internal Error"
-                raise Exception(f"{error} ({request}): (received code {status_code}, detail={response.text})")
+            elif status_code== HTTPStatus.INTERNAL_SERVER_ERROR:
+                raise Exception(f"{HTTPStatus.INTERNAL_SERVER_ERROR.phrase} ({request}): (received code {status_code}, detail={response.text})")
             else:
                 eror=f"Unkown Error"
                 print(f"{error} ({request}): Retrying in a bit. (received code {status_code}, detail={response.text})")

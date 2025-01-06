@@ -431,6 +431,7 @@ def make_app(app, SessionDep):
 
                     # Update record
                     record.timestamp = timestamp
+                    record.converged = 0
                     session.add(record)
                     session.commit()
                     session.refresh(record)
