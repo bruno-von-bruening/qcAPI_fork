@@ -19,6 +19,7 @@ import modules.mod_utils as m_utl
 from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists, HTTPcodes
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
+    raise Exception(f"This function does not work (change in id)")
     conformation = record["conformation"]
     method = record["method"]
     basis = record["basis"]
@@ -225,6 +226,7 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         # Decide which function to use and define arguments
         if property in ['wfn']:
             mode=switch_script(record)
+            mode='bruno'
             if mode=='bruno':
                 script=compute_entry_grac
             elif mode=='original':

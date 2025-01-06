@@ -132,9 +132,9 @@ def get_system_data():
 
     return system_data
 def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
-    
     # Store the results here
     info_dic={'size':{},'timing':{}}
+    done_grac=psi4_dict['do_GRAC']
     ##### Anaylse length
     ####################
     def get_timings(output_file):
@@ -145,7 +145,11 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
                 lines=rd.readlines()
             timing_tag='TIMING'
             timing_lines=[x for  x in lines if x.startswith(timing_tag)]
-            assert len(timing_lines)==6, f"{timing_lines}, {output_file}"
+            if done_grac:
+                expected_length=6
+            else:
+                expected_length=2
+            assert len(timing_lines)==expected_length, f"Expected {expected_length} lines, not {len(timing_lines)}:\n{timing_lines}, {output_file}"
             timing_lines_secs=[ x for x in timing_lines if bool(re.search(r'\[in seconds\]',x))]
             di={}
             for line in timing_lines_secs:
@@ -178,7 +182,11 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
         'fchk_neut_file'    : a,
     }
     new_files={}
-    for tag in ['psi4inp_file', 'psi4out_file', 'fchk_grac_file',  'fchk_neut_file']:#,'wfn_grac_file', 'wfn_neut_file']:
+    if done_grac:
+        file_keys=['psi4inp_file', 'psi4out_file', 'fchk_grac_file',  'fchk_neut_file']
+    else:
+        file_keys=['psi4inp_file', 'psi4out_file',  'fchk_neut_file']
+    for tag in file_keys:#,'wfn_grac_file', 'wfn_neut_file']:
         # Get the associated keys
         assert tag in psi4_dict.keys() and zip_switch.keys()
         file=psi4_dict[tag]
@@ -309,9 +317,14 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
             dft_functional=method
             do_GRAC=False
         elif len(method_components)==2:
-            assert method_components[1].upper()=='GRAC'
-            dft_functional=method_components[0]
-            do_GRAC=True
+            if method_components[1].upper() in 'GRAC':
+                dft_functional=method_components[0]
+                do_GRAC=True
+            elif method_components[1].upper() in ['D3BJ']:
+                dft_functional=method
+                do_GRAC=False
+            else:
+                raise Exception(f"Do not know how to handle method {method}")
         else: 
             raise Exception()
         
@@ -459,26 +472,29 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
         drop_system_info(jobname, target_dir)
         # Compress target directory
         target_files=dict(
-            [k,v] for k,v in psi4_dict.items() if k in ['fchk_grac_file']
+            [k,v] for k,v in psi4_dict.items() if k in ['fchk_grac_file','fchk_neut_file']
         )
         target_files=compress_target_dir(target_dir, target_files)
 
         # If everything gone well return positive error code
         converged=1
         error=None
-        if not  'fchk_grac_file' in psi4_dict.keys(): raise Exception(f"Expected key \'fchk_grac_file\'")
-        fchk_file=os.path.realpath(target_files['fchk_grac_file'])
+        if psi4_dict['do_GRAC']:
+            if not  'fchk_grac_file' in psi4_dict.keys(): raise Exception(f"Expected key \'fchk_grac_file\'")
+            fchk_file=os.path.realpath(target_files['fchk_grac_file'])
+        else:
+            fchk_file=os.path.realpath(target_files['fchk_neut_file'])
 
         my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
+        raise Exception(ex)
         # In case of a test we want errors to kill the job so we notice them immediately
         converged=0
         error=str(ex)
         fchk_file=None
-
         # Get hostname/ho
         hostname=os.popen("hostname").read().strip()
-        my_sep('FAILURE in  psi4 calculation (on machine)','!',info_line=f"ERROR: {error}", sep_times=2)
+        my_sep('FAILURE in  psi4 calculation ','!',info_line=f"ERROR: {error}", sep_times=2)
         if do_test:
             raise Exception(f"Test was requested hence terminating:\n{ex}")
     

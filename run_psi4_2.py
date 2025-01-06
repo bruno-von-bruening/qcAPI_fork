@@ -219,6 +219,7 @@ def complete_calc(
     save_calc_neut, wfn_neut_file, fchk_neut_file= save_wfn_string(calc_neut['wfn_var'], jobname=jobname, tag='neut', save_npy=save_npy) 
     content+=[f"#Calculate neutral molecule", string_calc_neut, *save_calc_neut]
 
+
     if do_GRAC:
         calc_ion={
             'molecule':'monomer_ion',
@@ -241,6 +242,7 @@ def complete_calc(
         string_calc_grac = calc_string(dft_functional, basis_set, **calc_grac, marker='SCF_GRAC')
         save_calc_grac, wfn_grac_file, fchk_grac_file= save_wfn_string(wfn_var=calc_grac['wfn_var'], jobname=jobname, tag='grac', save_npy=save_npy) 
         content+=[f"# GRAC SHIFT CALCULATION\n"+ac_string+f"\n# GRAC CORRECTED SCF\n"+string_calc_grac, *save_calc_grac]
+    
 
 
     # Remove temporary files
@@ -252,15 +254,21 @@ def complete_calc(
     with open(psi4inp_path,'w') as wr:
         wr.write(content)
 
-    return {
+    psi4_files= {
         'psi4inp_file': os.path.realpath(psi4inp_path),
         'psi4out_file': os.path.realpath(output_file),
-        #
         #'wfn_neut_file': os.path.realpath(wfn_neut_file),
         'fchk_neut_file': os.path.realpath(fchk_neut_file),
-       #'wfn_grac_file': os.path.realpath(wfn_grac_file),
-        'fchk_grac_file': os.path.realpath(fchk_grac_file),
     }
+    if do_GRAC:
+        psi4_files.update({
+            #'wfn_grac_file': os.path.realpath(wfn_grac_file),
+            'fchk_grac_file': os.path.realpath(fchk_grac_file),
+        })
+    psi4_files.update({
+        'do_GRAC':do_GRAC,
+    })
+    return psi4_files
 
 
 def property_calc(wfn_file, method, basis, grac_shift=None):

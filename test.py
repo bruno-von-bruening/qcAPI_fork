@@ -3,6 +3,9 @@
 import os; from os.path import isfile, isdir
 import subprocess
 import time
+import yaml
+import copy
+
 
 def is_running(process):
     """ The result of poll should be none if the process is running"""
@@ -76,6 +79,30 @@ def start_server(config_file):
     return server
 
 
+def make_dummy_config_file():
+    config_file=f"test_config.yaml"
+    config_content='\n'.join([
+        f"database_name: database_test.db"
+    ])
+    with open(config_file, 'w') as wr:
+        wr.write(config_content)
+    return config_file
+defaults=dict(
+    qm_method='pbe0-grac',
+    qm_basis='sto-3g',
+)
+def load_config(config_file):
+    """ Read the provided file and fills in default values"""
+    with open(config_file,'r') as rd:
+        original_config=yaml.safe_load(rd)
+    updated_config=copy.deepcopy(original_config)
+    for key,value in defaults.items():
+        if not key in original_config.keys():
+            print(f"INFO: Key {key} not found in config keys ({list(original_config.keys())}:\n{' '*4}Resorting to default value {value}")
+            updated_config.update({key:value})
+    return updated_config
+
+
 if __name__=="__main__":
     import argparse
     description=None
@@ -86,12 +113,17 @@ if __name__=="__main__":
         )
     args=par.parse_args()
     config_file=args.config
+    if not os.path.isfile(config_file):
+        config_file=make_dummy_config_file()
+    config=load_config(config_file)
+    
 
-    address='127.0.0.1:8000'
     target_dir='../test_copy_files_target/'
+    # Start the server
+    address='127.0.0.1:8000'
     server=start_server(config_file)
-    qm_method='pbe0-grac'
-    qm_basis='sto-3g'
+
+
     fl=dict(
         populate_wfn    =False,
         compute_wfn     =False,
@@ -117,6 +149,9 @@ if __name__=="__main__":
         compute_mbis    =True,
     )
     try:
+        qm_method=config['qm_method']
+        qm_basis=config['qm_basis']
+        # Work inside test dir and delete the dir in case it exists
         if isdir('test'):
             p=subprocess.Popen(f"rm test -r ", shell=True)
             x=p.wait()
