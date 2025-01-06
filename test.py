@@ -61,8 +61,8 @@ def start_server(config_file):
         #  fastapi='/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/fastapi'
         #  assert isfile(fastapi)
         #  server=subprocess.Popen([f"{fastapi}","run","server.py"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        python='/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
-        assert isfile(python)
+        python='python' # '/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
+        # assert isfile(python)
         server=subprocess.Popen(f"{python} server.py --config {config_file}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         pid=server.pid
 
