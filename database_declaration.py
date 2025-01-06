@@ -51,6 +51,7 @@ class RecordStatus(int, Enum):
     converged = 1
     failed = 0
     pending = -1
+    running = -2
 
 class Worker(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

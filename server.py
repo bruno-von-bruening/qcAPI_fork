@@ -404,20 +404,27 @@ def make_app(app, SessionDep):
             keys=[ k for k in keys if not k.startswith('_')]
             for mandatory_key in ['converged', 'timestamp']+list(prop_args.keys()):
                 if mandatory_key not in keys: raise Exception(f"Key {mandatory_key} not in available keys ({keys}) or {object}")
-            # Get the next record
-            query=( select(object)
-                .filter(object.converged == -1)
-            )
-            # Optional Argument
-            for key,val in prop_args.items():
-                query=(query
-                    .filter( getattr(object,key) == val )
+
+            def filter(object, status=-1, prop_args={}):
+                # Get the next record
+                query=( select(object)
+                    .filter(object.converged == status)
                 )
-            # Sort and retrieve record
-            query=(query
-                    .order_by(object.timestamp)
-            )
-            record=session.exec(query).first()
+                # Optional Argument
+                for key,val in prop_args.items():
+                    query=(query
+                        .filter( getattr(object,key) == val )
+                    )
+                # Sort and retrieve record
+                query=(query
+                        .order_by(object.timestamp)
+                )
+                record=session.exec(query).first()
+                return record
+            record=filter(object, status=-1, prop_args=prop_args)
+            # in case no record was found start new threads for unfinished records (in case other workers are more powerful or a job is frozen)
+            if isinstance(record, type(None)):
+                record=filter(object, status=-2, prop_args=prop_args)
 
             #### Decide on continuation either break or create worker
             if not isinstance(record, type(None)):
@@ -431,7 +438,7 @@ def make_app(app, SessionDep):
 
                     # Update record
                     record.timestamp = timestamp
-                    record.converged = 0
+                    record.converged = -2 # Set this record to running (So it does not get executed doubly)
                     session.add(record)
                     session.commit()
                     session.refresh(record)
