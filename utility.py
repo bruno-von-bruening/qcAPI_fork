@@ -24,7 +24,7 @@ class HTTPcodes(int,Enum):
     bad_communcation    = 422 ,
     # Custom
     escape              = 210 ,
-    internal_error      = 411 ,
+    internal_error      = 420 , # something went wrong
             #  # Communication Error
             #  elif status_code == 201:
             #      raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
