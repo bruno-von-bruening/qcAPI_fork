@@ -192,8 +192,11 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 request_code='/'.join([
                     'get_next_record', property, method ])
 
-            response = requests.get(f"{serv_adr}/{request_code}")
-            status_code=response.status_code
+            try:
+                response = requests.get(f"{serv_adr}/{request_code}")
+                status_code=response.status_code
+            except:
+                raise Exception(f"Could not communicate with server (address: {serv_adr}, request={request_code})")
             # Break because there are no jobs left
             if status_code == HTTPcodes.normal:
                 body = response.json()
