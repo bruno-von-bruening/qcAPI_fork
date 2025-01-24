@@ -17,19 +17,6 @@ ANGSTROM_TO_BOHR=1./BOHR
 
 print_flush = partial(print, flush=True)
 
-class HTTPcodes(int,Enum):
-    """ Mapping of Interpretation of HTML errors """
-    # Cannnonic
-    normal              = 200 ,
-    bad_communcation    = 422 ,
-    # Custom
-    escape              = 210 ,
-    internal_error      = 420 , # something went wrong
-            #  # Communication Error
-            #  elif status_code == 201:
-            #      raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
-            #      break
-
 def atomic_charge_to_atom_type(Z):
     """ Return atom type when given an atomic Number """
     atom_types=PERIODIC_TABLE_STR.split()

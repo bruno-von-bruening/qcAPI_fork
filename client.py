@@ -10,6 +10,8 @@ import os ; from os.path import isfile, isdir
 import requests
 from run_routines.run_psi4_grac import compute_entry_grac
 from run_routines.run_partitioning import exc_partitioning
+from run_routines.run_isodens_surf import run_isodens_surf
+from run_routines.run_esp_surf import run_esp_surf
 import subprocess
 import json
 import sys; sys.path.insert(1, os.environ['SCR'])
@@ -18,7 +20,7 @@ import modules.mod_utils as m_utl
 
 from http import HTTPStatus
 
-from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists, HTTPcodes
+from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
     raise Exception(f"This function does not work (change in id)")
@@ -149,7 +151,8 @@ def switch_script(record):
     else:
         return 'original'
 
-def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False, property='wfn', method=None, fchk_link_file=None):
+def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False, 
+         property='wfn', method=None, basis=None, isodensity_values=[], fchk_link_file=None):
     """ """
 
     def wait_for_job_completion(res, delay, property):
@@ -157,6 +160,8 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         The job may be done by another worker, then return this info in job_already_done variable"""
 
         job_already_done = False # Should stay false for regular termination
+        address='http://{url}:{port}'
+        id=record['id']
         while not job_already_done:
             try:
                 delay = np.random.uniform(0.8, 1.2) * delay
@@ -164,12 +169,14 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 break
             except mp.TimeoutError:
                 if property=='wfn':
-                    response = requests.get(f"http://{url}:{port}/get_record_status/{record['id']}?worker_id={worker_id}")
+                    response = requests.get(f"{address}/get_record_status/{id}?worker_id={worker_id}")
                 elif property=='part':
-                    response = requests.get(f"http://{url}:{port}/get_part_status/{record['id']}?worker_id={worker_id}")
+                    response = requests.get(f"{address}/get_part_status/{id}?worker_id={worker_id}")
+                elif property in ['isodens_surf']:
+                    response = requests.get(f"{address}/get_status/part/{id}?worker_id={worker_id}")
                 else:
                     raise Exception()
-                if response.status_code != 200:
+                if response.status_code != HTTPStatus.OK:
                     print_flush(
                         f"Error getting record status. Got status code: {response.status_code} , text={response.text}"
                     )
@@ -187,12 +194,12 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         while True:
             # Determine type of request
             assert not isinstance(property, type(None))
-            if method in ['',None]:
-                request_code='/'.join([
-                    'get_next_record', property ])
-            else:
-                request_code='/'.join([
-                    'get_next_record', property, method ])
+            request_code=f"get_next_record/{property}"
+            options=[]
+            if not method in ['',None]:
+                options+=[f"method={method}"]
+            if len(options)>0:
+                request_code+='?'+'&'.join(options)
 
             try:
                 response = requests.get(f"{serv_adr}/{request_code}")
@@ -200,19 +207,19 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             except:
                 raise Exception(f"Could not communicate with server (address: {serv_adr}, request={request_code})")
             # Break because there are no jobs left
-            if status_code == HTTPcodes.normal:
+            if status_code == HTTPStatus.OK:
                 body = response.json()
                 record,worker_id = body
                 break
-            elif status_code == HTTPcodes.escape:
+            elif status_code == HTTPStatus.NO_CONTENT:
                 print_flush("No more records. Exiting.")
                 worker_id, record= (None, None)
                 break
             elif status_code== HTTPStatus.INTERNAL_SERVER_ERROR:
-                raise Exception(f"{HTTPStatus.INTERNAL_SERVER_ERROR.phrase} ({request}): (received code {status_code}, detail={response.text})")
+                raise Exception(f"{HTTPStatus.INTERNAL_SERVER_ERROR.phrase} ({request_code}): (received code {status_code}, detail={response.text})")
             else:
-                eror=f"Unkown Error"
-                print(f"{error} ({request}): Retrying in a bit. (received code {status_code}, detail={response.text})")
+                error=f"Unkown Error"
+                print(f"{error} ({request_code}): Retrying in a bit. (received code {status_code}, detail={response.text})")
             time.sleep(0.5)
         return record, worker_id
 
@@ -228,6 +235,7 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             break
 
         # Decide which function to use and define arguments
+        args=(record, worker_id, num_threads, max_iter, target_dir, do_test)
         if property in ['wfn']:
             mode=switch_script(record)
             mode='bruno'
@@ -239,9 +247,12 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 raise Exception(f"Switch function failure (invalid return): {mode}")
         elif property in ['part']:
             script=exc_partitioning
+        elif property in ['isodens_surf']:
+            script=run_isodens_surf
+            args = (record, worker_id, num_threads, target_dir, do_test)
         else:
-            raise Exception()
-        args=(record, worker_id, num_threads, max_iter, target_dir, do_test)
+            script = run_esp_surf
+            args = (record, worker_id, num_threads, target_dir, do_test)
         # Start the job
         pool = mp.Pool(1) # Why is this here
         proc = pool.apply_async(script, args=args)
@@ -255,21 +266,23 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             pool.join()
             entry = record
                           
-        if property in ['wfn']:
-            request=f"{serv_adr}/fill/wfn/{worker_id}"
-            response = requests.put(request, json=entry)
-        elif property in ['part']:
-            request=f"{serv_adr}/fill/part/{worker_id}"
-            response = requests.put(request, json=entry )
-        else:
+        valid_properties=[
+            'wfn',
+            'part',
+            'isodens_surf',
+            'esp_surf',
+        ]
+        if not property in valid_properties:
             raise Exception()
+        request=f"{serv_adr}/fill/{property}/{worker_id}"
+        response = requests.put(request, json=entry )
         
         # Check success of request
         status_code=response.status_code
-        if status_code == HTTPcodes.normal: # desired
+        if status_code == HTTPStatus.OK: # desired
             print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
             error=None
-        elif status_code == HTTPcodes.internal_error:
+        elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
             error=f"Error in processing"
         elif status_code == 422: # error in function definition
             error= f"Bad communication with function (check function argument)"
@@ -281,46 +294,49 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
         psi4.core.clean()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Populate a qcAPI dataserv_adr with jobs")
-    parser.add_argument(
+    par = argparse.ArgumentParser(description="Populate a qcAPI dataserv_adr with jobs")
+    par.add_argument(
         "address",
         type=str,
         default="127.0.0.1:8000",
         help="URL:PORT of the qcAPI server",
     )
-    parser.add_argument(
+    par.add_argument(
         "--num_threads", "-n", type=int, default=1, help="Number of threads to use"
     )
-    parser.add_argument(
+    par.add_argument(
         "--maxiter", "-m", type=int, default=150, help="Maximum number of SCF iterations"
     )
-    parser.add_argument(
+    par.add_argument(
         "--delay", "-d", type=float, default=60, help="Ping frequency in seconds"
     )
-    parser.add_argument(
+    par.add_argument(
         '--target_dir', type=str, help='where to save file', default=os.getcwd()
     )
-    parser.add_argument(
+    par.add_argument(
         '--test', action='store_true', help='run test using hydrogen molecule and excepting when error is encountered in psi4 run'
     )
-    parser.add_argument(
+    par.add_argument(
         '--do_lisa', action='store_true', help='run lisa job'
     )
-    parser.add_argument(
+    par.add_argument(
         '--fchk_link', type=str, help='file where fchk_files are stored',
     )
-    parser.add_argument(
+    par.add_argument(
         '--property', type=str
     )
-    parser.add_argument(
+    par.add_argument(
         '--method' , type=str
     )
-    parser.add_argument(
+    par.add_argument(
         '--basis',   type=str
+    )
+    par.add_argument(
+        '--isodens_vals', nargs='+', type=float
     )
     
 
-    args = parser.parse_args()
+    args = par.parse_args()
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
     target_dir=args.target_dir
@@ -333,7 +349,10 @@ if __name__ == "__main__":
     property    = args.property
     method      = args.method
     basis       = args.basis
+    isodensity_values= args.isodens_vals
 
     check_dir_exists(target_dir)
 
-    main(url, port, num_threads, max_iter, delay, target_dir=target_dir, do_test=do_test, property=property, method=method)
+    main(url, port, num_threads, max_iter, delay, \
+         target_dir=target_dir, do_test=do_test, property=property, 
+         method=method, basis=basis, isodensity_values=isodensity_values)

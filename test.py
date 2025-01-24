@@ -123,6 +123,12 @@ if __name__=="__main__":
     address='127.0.0.1:8000'
     server=start_server(config_file)
 
+    defaults=dict(
+        populate_isodens_surf   = False,
+        compute_isodens_surf    = False,
+        populate_esp_surf       = False,
+        compute_esp_surf        = False,
+    )
 
     fl=dict(
         populate_wfn    =False,
@@ -148,6 +154,20 @@ if __name__=="__main__":
         populate_mbis   =True,
         compute_mbis    =True,
     )
+    # fl=dict(
+    #     populate_wfn    =False,
+    #     compute_wfn     =False,
+    #     populate_lisa   =False,
+    #     compute_lisa    =False,
+    #     populate_mbis   =False,
+    #     compute_mbis    =False,
+    #     populate_isodens_surf=True,
+    #     compute_isodens_surf=True,
+    #     populate_esp_surf=True,
+    #     compute_esp_surf=True,
+    # )
+    defaults.update(fl)
+    fl=defaults
     try:
         qm_method=config['qm_method']
         qm_basis=config['qm_basis']
@@ -194,9 +214,32 @@ if __name__=="__main__":
 
         tag='compute_mbis'
         if fl[tag]:
-            python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
             cmd=f"{python} ../client.py {address} --property part --method MBIS --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        
+        tag='populate_isodens_surf'
+        if fl[tag]:
+            python=python
+            cmd=f"{python} ../populate_db.py --address {address} --property isodens_surf --isodens_vals 0.01 1.E-3"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        tag='compute_isodens_surf'
+        if fl[tag]:
+            python=python
+            cmd=f"{python} ../client.py {address} --property isodens_surf --target_dir {target_dir}"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        
+        prop='esp_surf'
+        tag='populate_esp_surf'
+        if fl[tag]:
+            python=python
+            cmd=f"{python} ../populate_db.py --address {address} --property {prop}"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        tag='compute_esp_surf'
+        if fl[tag]:
+            python=python
+            cmd=f"{python} ../client.py {address} --property {prop} --target_dir {target_dir}"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=30, tag=tag)
         
         kill_process(server)
     except Exception as ex:

@@ -13,6 +13,8 @@ from sqlalchemy import Column, PickleType
 #from utils import Conformation
 
 from sqlalchemy.orm import registry, with_polymorphic
+    
+default_timestamp=-1
 
 
 #       Conformation
@@ -98,6 +100,8 @@ class QCRecord(SQLModel, table=True):
     fchk_file: str = Field(default='none')
     
     hirshfeld_partitionings: List['hirshfeld_partitioning'] =Relationship(back_populates='record')
+    isodensity_surfaces: List['Isodensity_Surface']= Relationship(back_populates='record')
+    esp_surfaces: List['ESP_surface']= Relationship(back_populates='density')
 
 #class KLD(SQLModel, table=True):
 #    id: int=Field(foreign_key='hirshfeld_partitioning', primary_key=True)
@@ -162,6 +166,47 @@ class Distributed_Multipoles(SQLModel, table=True):
 
     # Links
     partitioning: 'hirshfeld_partitioning' = Relationship(back_populates='distributed_multipoles')
+
+class Isodensity_Surface(SQLModel, table=True):
+    """ """
+    # Declaring parts
+    id: Optional[int] = Field(default=None, primary_key=True)
+    record_id: str = Field(foreign_key='qcrecord.id')
+    isodensity_value: float         # Defines the surface and should be known at creation
+    spacing: float | None           # Possibly assigned as default from the executable  
+
+    # Content parts (to be computed)
+    converged: int = RecordStatus.pending
+    timestamp: int = default_timestamp
+    #
+    surface_file: str | None # 
+    number_of_coordinates: int | None
+    coordinates: str | None # coordinates either as str or as path to file
+    number_of_triangles: int | None
+    triangles: str | None
+
+    # Links
+    record: 'QCRecord' = Relationship(back_populates='isodensity_surfaces')
+    esp_evaluation: 'ESP_surface' = Relationship(back_populates='surface')
+
+class ESP_surface(SQLModel, table=True):
+    """ """
+    # Declaring Parts
+    id: Optional[int] = Field(default=None, primary_key=True)
+    surface_id: int = Field(foreign_key='isodensity_surface.id')
+    density_id: str = Field(foreign_key='qcrecord.id')
+
+    # Content parts
+    converged: int = RecordStatus.pending
+    timestamp: int = default_timestamp
+    #
+    esp_surface_file: str | None
+    number_of_values: int | None
+    values: str | None
+
+    # Links
+    surface: 'Isodensity_Surface' = Relationship(back_populates='esp_evaluation')
+    density: 'QCRecord' = Relationship(back_populates='esp_surfaces')
 
 def get_conformation_id(conformation: Conformation) -> str:
     coordinates = tuple(np.round(conformation.coordinates, 4).flatten())
