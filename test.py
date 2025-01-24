@@ -82,7 +82,7 @@ def start_server(config_file):
 def make_dummy_config_file():
     config_file=f"test_config.yaml"
     config_content='\n'.join([
-        f"database_name: database_test.db"
+        f"database: database_test.db"
     ])
     with open(config_file, 'w') as wr:
         wr.write(config_content)
