@@ -82,8 +82,10 @@ def start_server(config_file):
 def make_dummy_config_file():
     config_file=f"test_config.yaml"
     config_content='\n'.join([
-        f"database: database_test.db"
-    ])
+        f"database: database_test.db",
+        f"global:",
+        f"  psi4_script: /home/bruno/1_PhD/1-1_Scripts/execution/psi4_scripts/run_psi4_2.py",
+    ])+'\n'
     with open(config_file, 'w') as wr:
         wr.write(config_content)
     return config_file
@@ -176,7 +178,7 @@ if __name__=="__main__":
         if fl[tag]:
             # Run the wfn calculation
             python=python # same as before
-            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn"
+            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn --config ../{config_file}"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='populate_lisa'

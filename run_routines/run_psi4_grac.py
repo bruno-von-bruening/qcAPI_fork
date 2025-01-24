@@ -1,6 +1,5 @@
 # NEW
 import os, sys, shutil, json, re, copy
-from run_psi4_2 import complete_calc, psi4_exit_ana, property_calc
 import subprocess
 import time, datetime
 import psi4
@@ -131,10 +130,11 @@ def get_system_data():
     )
 
     return system_data
+
 def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
     # Store the results here
     info_dic={'size':{},'timing':{}}
-    done_grac=psi4_dict['do_GRAC']
+    done_grac=psi4_dict['settings']['grac_correction']
     ##### Anaylse length
     ####################
     def get_timings(output_file):
@@ -180,6 +180,7 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
         'fchk_grac_file'    : a,
         'wfn_neut_file'     : a,
         'fchk_neut_file'    : a,
+        'final_fchk_file'   : a,
     }
     new_files={}
     if done_grac:
@@ -225,41 +226,76 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
 
     return info_dic, new_files
 
-def run_psi4(atom_types, coordinates, dft_functional, basis_set,
+def make_psi4_input_file(make_psi4_input, 
+            atom_types, coordinates, method, basis_set,
             total_charge=0, multiplicity=1,
-            jobname='test', hardware_settings=None, do_GRAC=False,
+            jobname='test', hardware_settings=None,
             target_dir=None):
     """ Interface between this data and my generic run script """
     psi4_start_time=time.time()
+    
+    # Make xyz_file
+    xyz_file=jobname+'.xyz'
+    with open(xyz_file,'w') as wr:
+        lines=[ f"{len(atom_types)}", "Generated for running job: \'{jobname}\'"]
+        lines+=[    "{at_ty:<2} {coord_str}".format(
+                            at_ty=at, coord_str=' '.join([f"{x:>12}" for x in coor])
+                        )
+                        for at, coor in zip(atom_types, coordinates)
+        ]
+        wr.write('\n'.join(lines)+'\n')
+
+
 
     # Generate the input file
-    psi4_dict=complete_calc(
-        atom_types, coordinates, total_charge=total_charge, multiplicity=multiplicity,
-        dft_functional=dft_functional, do_GRAC=do_GRAC, basis_set=basis_set, 
-        jobname=jobname, units={'LENGTH':'ANGSTROM'}, hardware_settings=hardware_settings
-    )  
-    psi4_input_file=psi4_dict['psi4inp_file']
+    job='single_point'
+    files_per_calc=make_psi4_input(job, func=method, basis_set=basis_set, xyz_file=xyz_file,execute=False)
+    assert len(files_per_calc)==1
+    psi4_input_file=files_per_calc[0]['input']
+    psi4_storage_file=files_per_calc[0]['storage']
 
-    # Run the process
-    process = subprocess.Popen(
-        f"conda run -n qcAPI      psi4 {psi4_input_file}",
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE,
-        shell=True,
-    )
-    stdout, stderr = process.communicate()
-    error_code =process.returncode
+    return psi4_input_file, psi4_storage_file
+
+def execute_the_job(execute_psi4, psi4_input_file, psi4_storage_file):
+    # Import the run script
+
+    psi4_start_time=time.time()
+
+    info= execute_psi4(psi4_input_file, conda_env='qcAPI')
+    stdout=info['stdout']
+    stderr=info['stderr']
+    return_code=info['return_code']
+
+    # Confirm all expected results are there
+    expected_files={
+        'psi4inp_file': psi4_input_file,
+        'psi4out_file': psi4_input_file.split('.')[0]+'.out',
+        'log_file': psi4_input_file.split('.')[0]+'.log',
+        'storage_file': psi4_storage_file,
+    }
+    for key, file in expected_files.items():
+        if not os.path.isfile(file):
+            raise Exception(f"Not a file: {file}")
+    
+    with open(expected_files['storage_file'], 'r') as rd:
+        import yaml
+        data=yaml.safe_load(rd)
+    computed_files=data['files']
+    fchk_key='final_fchk'
+    assert fchk_key in computed_files.keys(), f"Found no key {fchk_key}"
+    fchk_file=computed_files[fchk_key]
+    assert  os.path.isfile(fchk_file)
 
     # Recover the data
-    psi4_dict.update({
-        'exit_ana': psi4_exit_ana(psi4_dict['psi4out_file']),
-        'real_time':time.time()-psi4_start_time,
-        'time_unit':'s',
-        'error_code':error_code,
-        'stdout':stdout.decode('utf-8'),
-        'stderr': stderr.decode('utf-8')})
-
-
+    psi4_dict=dict(
+        exit_ana= None,#
+        real_time=time.time()-psi4_start_time,
+        time_unit='s',
+        return_code=return_code,
+        stdout= stdout,
+        stderr= stderr,
+        final_fchk=fchk_file,
+    )
     return psi4_dict
     
 def extract_psi4_info(wfn_file, method, basis):
@@ -267,9 +303,85 @@ def extract_psi4_info(wfn_file, method, basis):
     psi4_dict=property_calc(wfn_file, method, basis)
     return psi4_dict
 
+def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
+    """ Actual steps to be done:
+    1.1 create a target directory for the results
+    1.2 create a local directory mirroring the target directory
+    2.1 create an input file
+    2.2 execute the input file
+    2.3 retrieve the information
+    """
+    # Make a target direcotry for the job (where things will be copied to)
+    # If that does not work the calculation should not be started
+    target_dir=make_dir(jobname, base_dir=target_dir)
 
-def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
-    """ Cal psi4 calculation """
+    # Creates a local directory in which the files will be created
+    local_dir=os.path.basename(target_dir)
+    assert os.path.realpath(target_dir)!=os.path.realpath(local_dir)
+    if os.path.isdir(local_dir):
+        raise Exception(f"Directory {local_dir} already exist, that should not happen")
+    else:
+        os.mkdir(local_dir)
+        os.chdir(local_dir)
+
+
+    def clean_psi4_manually():
+        # Psi4 jobs are named after linux process ids
+        pid=os.getpid()
+        clean_file=f"psi.{pid}.clean"
+        if not os.path.isfile(clean_file):
+            print(f"Cannot find file {clean_file}, hence will not clean")
+        else:
+            # Get file (each is a line in this files)
+            with open(clean_file, 'r') as rd:
+                lines=rd.readlines()
+                files=[l.strip() for l in lines]
+            # Iterate over files and remove them
+            for f in files:
+                if not os.path.isfile(f):
+                    print(f"Found {f} in {clean_file}: Expected file but not a valid file")
+                else:
+                    os.remove(f)
+
+    # Import the run script
+    def get_run_script(psi4_script):
+        import importlib
+        assert os.path.isfile(psi4_script)
+        sys.path.insert(1, os.path.dirname(psi4_script))
+        run_psi4_mod=importlib.import_module(os.path.basename(psi4_script).split('.')[0])
+        run_psi4=run_psi4_mod.run_psi4
+        execute_psi4=run_psi4_mod.execute_psi4_shell
+        return run_psi4, execute_psi4
+    make_psi4_input, execute_psi4=get_run_script(psi4_script)
+
+    # Get the wave function
+    input_file, storage_file = make_psi4_input_file(make_psi4_input, **psi4_di)
+    
+    psi4_dict=execute_the_job(execute_psi4, input_file, storage_file)
+
+    # In case the job fails clean manually and raise error
+    if psi4_dict['return_code']!=0:
+        # Delete files (in case of a failed job this is not done automatically)
+        clean_psi4_manually()
+        raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
+    
+    # copy all files
+    import glob
+    for fi in glob.glob('.'):
+        try:
+            p=subprocess.Popen(f"cp -r {fi} {target_dir}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            stdout, stderr=p.communicate()
+            if p.returncode!=0:
+                raise Exception(stderr.decode())
+        except Exception as ex:
+            print(f"error in copying {fi}: {str(ex)}")
+    return dict(
+        fchk_file=psi4_dict['final_fchk']
+    )
+
+def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
+    """ Cal psi4 calculation
+    This routine only processes """
     start_time = time.time()
 
     def my_sep(message, sep, info_line=None, sep_times=1, print_hostname=True):
@@ -305,36 +417,7 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
             'multiplicity': multiplicity
         }
         
-    def process_method(record):
-        """ Read the method tag """
 
-        method=record['method']
-        basis_set=record['basis']
-        
-        # Parse the method for GRAC key
-        method_components=method.split('-')
-        if len(method_components)==1:
-            dft_functional=method
-            do_GRAC=False
-        elif len(method_components)==2:
-            if method_components[1].upper() in 'GRAC':
-                dft_functional=method_components[0]
-                do_GRAC=True
-            elif method_components[1].upper() in ['D3BJ']:
-                dft_functional=method
-                do_GRAC=False
-            else:
-                raise Exception(f"Do not know how to handle method {method}")
-        else: 
-            raise Exception()
-        
-        return {
-            'dft_functional':dft_functional,
-            'do_GRAC': do_GRAC, 
-            'basis_set':basis_set,
-        }
-
-        
     # create ID
     id=record['id']
     jobname=make_jobname(id, workder_id)
@@ -345,146 +428,31 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
     # Get conformational details (some are processed), possibly do a test by using Hydrogen molecule
     conf_di =process_conformation(record, do_test=do_test)
     # Method to be run on conformation
-    method_di=process_method(record)
+    
     # Hardware settings
     hardware_settings=dict(
         num_threads=4,
         memory='8GB',
     )
-    [ psi4_di.update(x) for x in [conf_di, method_di]]
+
+    # Check that all keys are there
+    [ psi4_di.update(x) for x in [conf_di]]
     psi4_di.update({'hardware_settings':hardware_settings, 'jobname':jobname})
     mandatory_keys=[ 'atom_types', 'coordinates']
+    psi4_di.update({'method':record['method'], 'basis_set':record['basis']})
     optional_keys=['total_charge', 'multiplicity',
-            'dft_functional', 'basis_set', 'do_GRAC', 'jobname', 'hardware_settings', 'target_dir'
+            'method', 'basis_set', 'jobname', 'hardware_settings', 'target_dir'
     ]
     assert all([x in psi4_di.keys() for x in mandatory_keys]), f"{psi4_di.keys()} {mandatory_keys}"
     assert all([x in mandatory_keys+optional_keys for x in psi4_di.keys()]), f"{psi4_di.keys()} {optional_keys+mandatory_keys}"
-
-    def execute_psi4_job(target_dir):
-        def clean_psi4_manually():
-            # Psi4 jobs are named after linux process ids
-            pid=os.getpid()
-            clean_file=f"psi.{pid}.clean"
-            if not os.path.isfile(clean_file):
-                print(f"Cannot find file {clean_file}, hence will not clean")
-            else:
-                # Get file (each is a line in this files)
-                with open(clean_file, 'r') as rd:
-                    lines=rd.readlines()
-                    files=[l.strip() for l in lines]
-                # Iterate over files and remove them
-                for f in files:
-                    if not os.path.isfile(f):
-                        print(f"Found {f} in {clean_file}: Expected file but not a valid file")
-                    else:
-                        os.remove(f)
-        # Make a target direcotry for the job (where things will be copied to)
-        target_dir=make_dir(jobname, base_dir=target_dir)
-
-        # Get the wave function
-        psi4_dict = run_psi4(**psi4_di)
-        # In case the job fails clean manually and raise error
-        if psi4_dict['error_code']!=0:
-            # Delete files (in case of a failed job this is not done automatically)
-            clean_psi4_manually()
-            raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
-        return psi4_dict, target_dir
     
-    def drop_dictionary(jobname, target_dir, psi4_dict):
-        try:
-            info_json=jobname+'_ana.json'
-            with open(info_json,'w') as wr:
-                json.dump(psi4_dict, wr)
-            if not isinstance(target_dir, type(None)):
-                psi4_copy(info_json, target_dir=target_dir)
-        except Exception as ex:
-            print(f"Json file for performance analysis of job {jobname} could not be generated:\n{ex}")
-    def drop_system_info(jobname, target_dir):
-        try:
-            system_json=jobname+'_sysinfo.json'
-            system_dic=get_system_data()
-            with open(system_json,'w') as wr:
-                json.dump(system_dic, wr)
-            if not isinstance(target_dir, type(None)):
-                psi4_copy(system_json, target_dir=target_dir)
-        except Exception as ex:
-            print(f"Json file for system info of job {jobname} could not be generated:\n{ex}")
-    def compress_target_dir(target_dir, file_di={}):
-        def compress_file(f):
-            compres_di=[
-                {'ext':'.fchk', 'cmd':f"xz -v4 {f}", 'new_file':f"{f}.xz" }
-            ]
-            compressed=False
-            for cd in compres_di:
-                assert not compressed, f"Double compression!"
-                extension=cd['ext']
-                new_file=cd['new_file']
-                cmd=cd['cmd']
-                if f.endswith(extension):
-                    # Delete compressed file generate it and check if new file is there
-                    if os.path.isfile(new_file):
-                        os.remove(new_file)
-                    p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)  # level four seeamed like a good compromise for systematic test on single file
-                    out, err = p.communicate()
-                    if not os.path.isfile(new_file):
-                        raise Exception(f"Compression did not work: {cmd}\n{out}\n{err}")
-                    compressed=True
-            return new_file
-        try:
-
-            # Iterate over all files in target direcotry
-            import glob
-            files=[ os.path.realpath(x) for x in glob.glob(f"{target_dir}/*") ]
-            # Check file_di
-            new_file_di=copy.deepcopy(file_di)
-            for key,file in file_di.items():
-                file=os.path.realpath(file)
-                assert file in files, f"File in provided file dict but not in directory {target_dir}: {file}"
-                new_file=compress_file(file)
-                new_file_di.update({key:new_file})
-                files.remove(file)
-            for f in files:
-                new_file=compress_file(f)
-            return new_file_di
-
-        except Exception as ex:
-            raise Exception(f"Could not compress results directory: {ex}")
-
-        
-
     try:
-        # Perpare directory
-        psi4_dict, target_dir=execute_psi4_job(target_dir)
-
-        # Check sizes, copy files
-        run_analysis, new_files=psi4_after_run(psi4_dict,target_dir=target_dir, gzip=True, delete=True)
-        psi4_dict.update(run_analysis)
-        psi4_dict.update(new_files)
-
-        # Get derived information (atm this is not read in)
-        # do_properties=False
-        # if do_properties:
-        #     output_conformation_add=extract_psi4_info(psi4_dict['wfn_grac_file'], dft_functional, basis_set)
-
-        # Drop dictionary
-        drop_dictionary(jobname, target_dir, psi4_dict)
-        # Drop system info
-        drop_system_info(jobname, target_dir)
-        # Compress target directory
-        target_files=dict(
-            [k,v] for k,v in psi4_dict.items() if k in ['fchk_grac_file','fchk_neut_file']
-        )
-        target_files=compress_target_dir(target_dir, target_files)
+        return_dict=run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir)
+        fchk_file=return_dict['fchk_file']
 
         # If everything gone well return positive error code
         converged=1
         error=None
-        if psi4_dict['do_GRAC']:
-            if not  'fchk_grac_file' in psi4_dict.keys(): raise Exception(f"Expected key \'fchk_grac_file\'")
-            fchk_file=os.path.realpath(target_files['fchk_grac_file'])
-        else:
-            fchk_file=os.path.realpath(target_files['fchk_neut_file'])
-
         my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
         raise Exception(ex)
@@ -500,7 +468,6 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
     
     
     ### RETURN the ouptu
-    elapsed_time=time.time()-start_time
     # Immutable information
     output=dict(
         basis=record['basis'],
@@ -510,6 +477,7 @@ def compute_entry_grac(record, workder_id, num_threads=1, maxiter=150, target_di
         fchk_file=fchk_file
     )
     # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
+    elapsed_time=time.time()-start_time
     output.update(dict(
         elapsed_time=elapsed_time,
         converged=converged,

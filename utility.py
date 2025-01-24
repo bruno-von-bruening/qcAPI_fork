@@ -63,3 +63,21 @@ def check_dir_exists(dir):
 
 def check_response(response):
     status_code=response.status_code
+
+def load_config(config_file):
+    assert os.path.isfile(config_file), f"Not a file: {config_file}"
+    import yaml
+    with open(config_file,'r') as rd:
+        config=yaml.safe_load(rd)
+    return config
+def load_global_config(config_file):
+    config=load_config(config_file)
+    global_key='global'
+    if global_key in config.keys():
+        global_conf=config[global_key]
+    else:
+        print(f"Did not find key {global_key} in {config_file}: {config.keys()}")
+        global_conf={}
+    return global_conf
+    
+

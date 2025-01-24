@@ -8,7 +8,7 @@ import multiprocessing as mp
 import os ; from os.path import isfile, isdir
 
 import requests
-from run_routines.run_psi4_grac import compute_entry_grac
+from run_routines.run_psi4_grac import compute_wave_function
 from run_routines.run_partitioning import exc_partitioning
 import subprocess
 import json
@@ -232,7 +232,15 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             mode=switch_script(record)
             mode='bruno'
             if mode=='bruno':
-                script=compute_entry_grac
+                def get_psi4_script(config_file):
+                    sys.path.insert(1,os.path.realpath('..'))
+                    import utility as ut
+                    global_config=ut.load_global_config(config_file)
+                    psi4_script=global_config['psi4_script']
+                    return psi4_script
+                psi4_script=get_psi4_script(config_file)
+                from functools import partial
+                script=partial(compute_wave_function, psi4_script)
             elif mode=='original':
                 script=compute_entry
             else:
@@ -318,6 +326,9 @@ if __name__ == "__main__":
     parser.add_argument(
         '--basis',   type=str
     )
+    parser.add_argument(
+        '--config', type=str,
+    )
     
 
     args = parser.parse_args()
@@ -328,6 +339,7 @@ if __name__ == "__main__":
     num_threads=args.num_threads
     max_iter=args.maxiter
     delay=args.delay
+    config_file=args.config
 
     # filter by property and specs
     property    = args.property
