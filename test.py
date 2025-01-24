@@ -118,7 +118,8 @@ if __name__=="__main__":
     config=load_config(config_file)
     
 
-    target_dir='../test_copy_files_target/'
+    test_dir='test/'
+    target_dir='test_copy_files_target/'
     # Start the server
     address='127.0.0.1:8000'
     server=start_server(config_file)
@@ -152,11 +153,17 @@ if __name__=="__main__":
         qm_method=config['qm_method']
         qm_basis=config['qm_basis']
         # Work inside test dir and delete the dir in case it exists
-        if isdir('test'):
-            p=subprocess.Popen(f"rm test -r ", shell=True)
-            x=p.wait()
-        os.mkdir('test')
-        os.chdir('test')
+        def make_dirs(test_dir, target_dir):
+            def make_rm_dir(the_dir):
+                if isdir(the_dir):
+                    p=subprocess.Popen(f"rm {the_dir} -r ", shell=True)
+                    x=p.wait()
+                os.mkdir(the_dir)
+            make_rm_dir(test_dir)
+            os.chdir(test_dir)
+            make_rm_dir(target_dir)
+        make_dirs(test_dir, target_dir)
+
 
         python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
         tag='populate_wfn'
