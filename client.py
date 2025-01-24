@@ -254,15 +254,15 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
             pool.terminate()
             pool.join()
             entry = record
-                          
-        if property in ['wfn']:
-            request=f"{serv_adr}/fill/wfn/{worker_id}"
-            response = requests.put(request, json=entry)
-        elif property in ['part']:
-            request=f"{serv_adr}/fill/part/{worker_id}"
-            response = requests.put(request, json=entry )
         else:
-            raise Exception()
+            if property in ['wfn']:
+                request=f"{serv_adr}/fill/wfn/{worker_id}"
+                response = requests.put(request, json=entry)
+            elif property in ['part']:
+                request=f"{serv_adr}/fill/part/{worker_id}"
+                response = requests.put(request, json=entry )
+            else:
+                raise Exception()
         
         # Check success of request
         status_code=response.status_code
