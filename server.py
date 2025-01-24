@@ -494,10 +494,16 @@ def make_app(app, SessionDep):
 
 
 def main(config_file):
+
+    # Load config
     with open(config_file) as f:
         config = yaml.safe_load(f)
+    db_key='database'
+    mand_keys=[db_key]
+    for key in mand_keys:
+        assert key in config.keys(), f"Expected key \'{key}\' to occur in {config_file}"
 
-    sqlite_file_name = config.get("database_name", "test_database").replace('.db','') + ".db"
+    sqlite_file_name = config[db_key].replace('.db','') + ".db"
     sqlite_url = f"sqlite:///{sqlite_file_name}"
 
     connect_args = {"check_same_thread": False}
