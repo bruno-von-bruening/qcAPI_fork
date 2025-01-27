@@ -269,7 +269,7 @@ def execute_the_job(execute_psi4, psi4_input_file, psi4_storage_file):
     # Confirm all expected results are there
     expected_files={
         'psi4inp_file': psi4_input_file,
-        'psi4out_file': psi4_input_file.split('.')[0]+'.out',
+        'psi4out_file': info['psi4_output_file'],
         'log_file': psi4_input_file.split('.')[0]+'.log',
         'storage_file': psi4_storage_file,
     }
