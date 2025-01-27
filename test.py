@@ -90,7 +90,8 @@ def make_dummy_config_file():
         wr.write(config_content)
     return config_file
 defaults=dict(
-    qm_method='pbe0-grac',
+    #qm_method='pbe0-grac',
+    qm_method='mp2',
     qm_basis='sto-3g',
 )
 def load_config(config_file):
