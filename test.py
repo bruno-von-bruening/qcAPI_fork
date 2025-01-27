@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-
-import os; from os.path import isfile, isdir
-import subprocess
+import os,sys; from os.path import isfile, isdir
+import subprocess as sp; import signal
 import time
 import yaml
 import copy
@@ -14,9 +13,16 @@ def kill_process(process):
     """ Kill the process for some reason pid is one larger (maybe do to python counting convention)
     """
     # Do not terminate with process.pid for some reason the pid is different between two version I have tried (maybe that is about the library version or the Linux version)
-    process.terminate()
-    #p=subprocess.Popen(f"kill {process.pid+1}", shell=True)
-    #p.communicate()
+    pid= process.pid
+    try:
+        # Kill the process group
+        progress_group=os.getpgid(pid)
+        p=sp.Popen(f"kill -- -{progress_group}", shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
+        p.communicate()
+        if p.returncode != 0:
+            raise Exception(f"Could not terminate process with pid: {pid}")
+    except Exception as ex:
+        print(f"Could not kill process  with pid {pid} : {str(ex)}")
 
 def run_process(cmd, limit_time=False, time_limit=10, tag=None):
     """ """
@@ -28,7 +34,7 @@ def run_process(cmd, limit_time=False, time_limit=10, tag=None):
     err_file=f'{tag_str}run.err'
     out_file=f'{tag_str}run.out'
     new_cmd=f" {cmd}  1> {out_file} 2> {err_file}" # Copies to both file and terminal
-    process=subprocess.Popen(new_cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, preexec_fn=os.setsid)
+    process=sp.Popen(new_cmd, shell=True, stderr=sp.PIPE, stdout=sp.PIPE)#, preexec_fn=os.setsid)
     print(f"RUNNING {tag}: (at {os.getcwd()})\n    {new_cmd}")
 
     if limit_time:
@@ -62,10 +68,10 @@ def start_server(config_file):
     try:
         #  fastapi='/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/fastapi'
         #  assert isfile(fastapi)
-        #  server=subprocess.Popen([f"{fastapi}","run","server.py"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        #  server=sp.Popen([f"{fastapi}","run","server.py"], stderr=sp.PIPE, stdout=sp.PIPE)
         python='python' # '/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
         # assert isfile(python)
-        server=subprocess.Popen(f"{python} server.py --config {config_file}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        server=sp.Popen(f"{python} server.py --config {config_file}", shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
         pid=server.pid
 
         time.sleep(3)
@@ -86,7 +92,8 @@ def make_dummy_config_file():
     config_content='\n'.join([
         f"database: database_test.db",
         f"global:",
-        f"  psi4_script: /home/bvbruening/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
+        #f"  psi4_script: /home/bvbruening/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
+        f"  psi4_script: /home/bruno/1_PhD/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
     ])+'\n'
     with open(config_file, 'w') as wr:
         wr.write(config_content)
@@ -161,7 +168,7 @@ if __name__=="__main__":
         def make_dirs(test_dir, target_dir):
             def make_rm_dir(the_dir):
                 if isdir(the_dir):
-                    p=subprocess.Popen(f"rm {the_dir} -r ", shell=True)
+                    p=sp.Popen(f"rm {the_dir} -r ", shell=True)
                     x=p.wait()
                 os.mkdir(the_dir)
             make_rm_dir(test_dir)
