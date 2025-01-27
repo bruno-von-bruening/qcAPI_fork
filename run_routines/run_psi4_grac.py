@@ -314,6 +314,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
     # Make a target direcotry for the job (where things will be copied to)
     # If that does not work the calculation should not be started
     target_dir=make_dir(jobname, base_dir=target_dir)
+    target_dir=os.path.realpath(target_dir)
 
     # Creates a local directory in which the files will be created
     local_dir=os.path.basename(target_dir)
@@ -367,8 +368,18 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
     
     # copy all files
     import glob
-    for fi in glob.glob('.'):
+    for fi in glob.glob('*'):
         try:
+            # if its a fchk file compress it first
+            if fi.lower().endswith(f".fchk"):
+                p=subprocess.Popen(f"xz -6 {fi}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout, stderr = p.communicate()
+                if p.returncode != 0:
+                    print(f"Errror when compressing {fi}: {stderr.decode()}")
+                else:
+                    xz_file=fi+'.xz'
+                    assert os.path.isfile(xz_file)
+                    fi=xz_file
             p=subprocess.Popen(f"cp -r {fi} {target_dir}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             stdout, stderr=p.communicate()
             if p.returncode!=0:
