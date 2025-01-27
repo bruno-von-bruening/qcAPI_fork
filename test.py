@@ -13,8 +13,10 @@ def is_running(process):
 def kill_process(process):
     """ Kill the process for some reason pid is one larger (maybe do to python counting convention)
     """
-    os.system(f"kill {process.pid+1}")
-    time.sleep(1)
+    # Do not terminate with process.pid for some reason the pid is different between two version I have tried (maybe that is about the library version or the Linux version)
+    process.terminate()
+    #p=subprocess.Popen(f"kill {process.pid+1}", shell=True)
+    #p.communicate()
 
 def run_process(cmd, limit_time=False, time_limit=10, tag=None):
     """ """
@@ -84,13 +86,13 @@ def make_dummy_config_file():
     config_content='\n'.join([
         f"database: database_test.db",
         f"global:",
-        f"  psi4_script: /home/bruno/1_PhD/1-1_Scripts/execution/psi4_scripts/run_psi4_2.py",
+        f"  psi4_script: /home/bvbruening/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
     ])+'\n'
     with open(config_file, 'w') as wr:
         wr.write(config_content)
     return config_file
 defaults=dict(
-    qm_method='pbe0-grac',
+    qm_method='mp2',#'pbe0-grac',
     qm_basis='sto-3g',
 )
 def load_config(config_file):
@@ -190,7 +192,8 @@ if __name__=="__main__":
 
         tag='compute_lisa'
         if fl[tag]:
-            python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
             cmd=f"{python} ../client.py {address} --property part --method LISA --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
@@ -203,7 +206,8 @@ if __name__=="__main__":
 
         tag='compute_mbis'
         if fl[tag]:
-            python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
             cmd=f"{python} ../client.py {address} --property part --method MBIS --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
