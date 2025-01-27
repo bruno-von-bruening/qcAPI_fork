@@ -346,7 +346,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
     # Import the run script
     def get_run_script(psi4_script):
         import importlib
-        assert os.path.isfile(psi4_script)
+        assert os.path.isfile(psi4_script), f"Psi4 script is not valid: {psi4_script}"
         sys.path.insert(1, os.path.dirname(psi4_script))
         run_psi4_mod=importlib.import_module(os.path.basename(psi4_script).split('.')[0])
         run_psi4=run_psi4_mod.run_psi4

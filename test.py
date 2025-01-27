@@ -16,12 +16,13 @@ def kill_process(process):
     pid= process.pid
     try:
         # Kill the process group
-        progress_group=os.getpgid(pid)
-        p=sp.Popen(f"kill -- -{progress_group}", shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
-        p.communicate()
-        if p.returncode != 0:
-            raise Exception(f"Could not terminate process with pid: {pid}")
+        p=sp.Popen(f"kill -- {pid}", shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+        stdout, stderr = p.communicate()
+        if p.returncode!=0:
+            raise Exception(stderr.decode())
+        time.sleep(1)
     except Exception as ex:
+        raise Exception(f"Could not kill server with {pid}: {str(ex)}")
         print(f"Could not kill process  with pid {pid} : {str(ex)}")
 
 def run_process(cmd, limit_time=False, time_limit=10, tag=None):
@@ -56,8 +57,11 @@ def run_process(cmd, limit_time=False, time_limit=10, tag=None):
     with open(err_file,'r') as err, open(out_file) as out:
         stderr=err.read()
         stdout=out.read()
-    if process.returncode !=0: # 0 is good returncode
-        raise Exception(f"{stderr} {stdout}")#, stdout)
+    indent=4*' '
+    stdout_indent='\n'.join([ indent+x for x in stdout.split('\n')])
+    stderr_indent='\n'.join([ indent+x for x in stderr.split('\n')])
+    if process.returncode != 0: # 0 is good returncode
+        raise Exception(f"Process did not terminate normall:\nstderr=\n{stderr_indent}\nstdout=\n{stdout_indent}")#, stdout)
     print('Process finished')
     return stdout, stderr
 
@@ -71,14 +75,15 @@ def start_server(config_file):
         #  server=sp.Popen([f"{fastapi}","run","server.py"], stderr=sp.PIPE, stdout=sp.PIPE)
         python='python' # '/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
         # assert isfile(python)
-        server=sp.Popen(f"{python} server.py --config {config_file}", shell=True, stderr=sp.PIPE, stdout=sp.PIPE)
+        server=sp.Popen(f"{python} server.py --config {config_file}".split(), stderr=sp.PIPE, stdout=sp.PIPE)
         pid=server.pid
 
         time.sleep(3)
         if not isinstance(server.poll(), type(None)):
-            kill_process(server)
+            #kill_process(server)
             stdout, stderr = server.communicate()
-            raise Exception(f"Exiting do to server shutdown! ({stderr})")
+            error_with_indent='\n'.join([4*' '+x for x in stderr.decode().split('\n')])
+            raise Exception(f"Exiting do to server shutdown! ERROR:\n{error_with_indent}")
         else:
             print(f"Server started with process id: {pid}")
         
@@ -89,11 +94,13 @@ def start_server(config_file):
 
 def make_dummy_config_file():
     config_file=f"test_config.yaml"
+    psi4_script=f"{os.environ['SCR']}/execution/psi4_scripts/run_psi4_2.py"
+    assert os.path.isfile(psi4_script)
     config_content='\n'.join([
         f"database: database_test.db",
         f"global:",
         #f"  psi4_script: /home/bvbruening/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
-        f"  psi4_script: /home/bruno/1_PhD/1-1_scripts/multipole_scripts/execution/psi4_scripts/run_psi4_2.py",
+        f"  psi4_script: {psi4_script}",
     ])+'\n'
     with open(config_file, 'w') as wr:
         wr.write(config_content)
