@@ -6,18 +6,22 @@ import numpy as np
 import time
 import multiprocessing as mp
 import os ; from os.path import isfile, isdir
+import sys
+from functools import partial
+import subprocess as sp
+import json
 
 import requests
+from http import HTTPStatus
+
+# Custom modules
+sys.path.insert(1, os.environ['SCR'])
 from run_routines.run_psi4_grac import compute_wave_function
 from run_routines.run_partitioning import exc_partitioning
-import subprocess
-import json
-import sys; sys.path.insert(1, os.environ['SCR'])
 import modules.mod_objects as m_obj
 import modules.mod_utils as m_utl
 
-from http import HTTPStatus
-
+# Associated (satelite) module
 from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, check_dir_exists, HTTPcodes
 
 def compute_entry(record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
@@ -178,8 +182,21 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 print_flush("JOB STATUS: ", job_status)
                 job_already_done = job_status == 1
         if isinstance(entry, dict):
-            if all([x in entry.keys() for x in ['message','error'] ]):
-                print(f"Job completition:\n  Message: {entry['message']}\n  Error: {entry['error']}")
+            
+            # Recovering the avaible information
+            info_lines=[]
+            for key in  ['message','error','warnings']:
+                if key in entry.keys():
+                    info_lines.append(f"{key.capitalize():<10} : {entry[key]}")
+            if len(info_lines)==0:
+                info_lines=[f"No information tags where found in the output"]
+            
+            # Formatting and printing
+            info_string=f"Job completition:"
+            indent=4*' '
+            info='\n'.join([info_string]+ [ indent+x for x in info_lines])
+            print(info)
+
         return entry, job_already_done
 
     def get_next_record(serv_adr, property='part', method='lisa'):
@@ -239,7 +256,6 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                     psi4_script=global_config['psi4_script']
                     return psi4_script
                 psi4_script=get_psi4_script(config_file)
-                from functools import partial
                 script=partial(compute_wave_function, psi4_script)
             elif mode=='original':
                 script=compute_entry
@@ -247,6 +263,7 @@ def main(url, port, num_threads, max_iter, delay, target_dir=None, do_test=False
                 raise Exception(f"Switch function failure (invalid return): {mode}")
         elif property in ['part']:
             script=exc_partitioning
+            script=partial(exc_partitioning, config_file)
         else:
             raise Exception()
         args=(record, worker_id, num_threads, max_iter, target_dir, do_test)

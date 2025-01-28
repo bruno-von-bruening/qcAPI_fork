@@ -66,7 +66,7 @@ def run_process(cmd, limit_time=False, time_limit=10, tag=None):
     return stdout, stderr
 
 
-def start_server(config_file):
+def start_server(config_file, host, port):
     """ Return server handle"""
     assert config_file, f"Not a file: {config_file}"
     try:
@@ -75,7 +75,7 @@ def start_server(config_file):
         #  server=sp.Popen([f"{fastapi}","run","server.py"], stderr=sp.PIPE, stdout=sp.PIPE)
         python='python' # '/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
         # assert isfile(python)
-        server=sp.Popen(f"{python} server.py --config {config_file}".split(), stderr=sp.PIPE, stdout=sp.PIPE)
+        server=sp.Popen(f"{python} server.py --config {config_file} --host {host} --port {port}".split(), stderr=sp.PIPE, stdout=sp.PIPE)
         pid=server.pid
 
         time.sleep(3)
@@ -89,7 +89,7 @@ def start_server(config_file):
         
     except Exception as ex:
         raise Exception(f"Cannot open server: \n{ex}")
-    return server
+    return server, f"{host}:{port}"
 
 
 def make_dummy_config_file():
@@ -121,28 +121,9 @@ def load_config(config_file):
             updated_config.update({key:value})
     return updated_config
 
-
-if __name__=="__main__":
-    import argparse
-    description=None
-    epilog=None
-    par=argparse.ArgumentParser(description=description, epilog=epilog)
-    par.add_argument(
-        '--config', type=str, help=f"Config file for this server", default='config_test.yaml'
-        )
-    args=par.parse_args()
-    config_file=args.config
-    if not os.path.isfile(config_file):
-        config_file=make_dummy_config_file()
-    config=load_config(config_file)
-    
-
-    test_dir='test/'
-    target_dir='test_copy_files_target/'
-    # Start the server
-    address='127.0.0.1:8000'
-    server=start_server(config_file)
-
+def run_test(config_file, host, port, qm_method, qm_basis, target_dir):
+    # Start the server (return subprocess object)
+    server, address=start_server(config_file,host, port)
 
     fl=dict(
         populate_wfn    =False,
@@ -168,9 +149,15 @@ if __name__=="__main__":
         populate_mbis   =True,
         compute_mbis    =True,
     )
+    fl=dict(
+        populate_wfn    =True,
+        compute_wfn     =True,
+        populate_lisa   =True,
+        compute_lisa    =True,
+        populate_mbis   =False,
+        compute_mbis    =False,
+    )
     try:
-        qm_method=config['qm_method']
-        qm_basis=config['qm_basis']
         # Work inside test dir and delete the dir in case it exists
         def make_dirs(test_dir, target_dir):
             def make_rm_dir(the_dir):
@@ -183,7 +170,6 @@ if __name__=="__main__":
             make_rm_dir(target_dir)
         make_dirs(test_dir, target_dir)
 
-
         python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
         tag='populate_wfn'
         if fl[tag]:
@@ -195,7 +181,7 @@ if __name__=="__main__":
         if fl[tag]:
             # Run the wfn calculation
             python=python # same as before
-            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn --config ../{config_file}"
+            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn --config {config_file}"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='populate_lisa'
@@ -209,7 +195,7 @@ if __name__=="__main__":
         if fl[tag]:
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
-            cmd=f"{python} ../client.py {address} --property part --method LISA --target_dir {target_dir}"
+            cmd=f"{python} ../client.py {address} --property part --method LISA --target_dir {target_dir} --config {config_file}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         tag='populate_mbis'
@@ -230,6 +216,39 @@ if __name__=="__main__":
     except Exception as ex:
         kill_process(server)
         raise Exception(f"Script terminated with error (Killing Server): {ex}")
+
+if __name__=="__main__":
+
+    # Hardcoded parameters
+    test_dir='test_full_run/'
+    target_dir='test_copy_files_target/'
+    #address='127.0.0.1:8000'
+    host='0.0.0.0'
+    port=8000
+
+    # Define argparse
+    import argparse
+    description=f"Test the routines for qcAPI data production on small example (3 smallest entry from pickle file)"
+    epilog=f"Usage example:\n    {__file__} --config config_test.yaml"
+    par=argparse.ArgumentParser(description=description, epilog=epilog)
+    # Add argumnets
+    adar=par.add_argument
+    adar(
+        '--config', type=str, help=f"Config file for this server", default='config_test.yaml'
+        )
+    # parse arguments
+    args=par.parse_args()
+    config_file=args.config
+
+    # process input
+    if not os.path.isfile(config_file):
+        config_file=make_dummy_config_file()
+    config_file=os.path.realpath(config_file)
+    config=load_config(config_file)
+    qm_method=config['qm_method']
+    qm_basis=config['qm_basis']
+    
+    run_test(config_file, host, port, qm_method, qm_basis, target_dir,)
 
 
 

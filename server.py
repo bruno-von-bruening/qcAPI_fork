@@ -493,7 +493,7 @@ def make_app(app, SessionDep):
 
 
 
-def main(config_file):
+def main(config_file, host, port):
 
     # Load config
     with open(config_file) as f:
@@ -535,7 +535,7 @@ def main(config_file):
     import uvicorn
     app = FastAPI(lifespan=lifespan)
     app=make_app(app, SessionDep)
-    uvicorn.run(app,port=8000, host='0.0.0.0')
+    uvicorn.run(app,port=port, host=host)
 
 if __name__=='__main__':
 
@@ -546,10 +546,18 @@ if __name__=='__main__':
     par.add_argument(
         '--config', type=str, help=f"Config file in yaml format", required=True
         )
+    par.add_argument(
+        '--host', type=str, help=f"IP of host", default='0.0.0.0'
+        )
+    par.add_argument(
+        '--port', type=int, help=f"Port", default=8000
+        )
     args=par.parse_args()
     config_file=args.config
+    host=args.host
+    port=args.port
     assert os.path.isfile(config_file), f"Not a file {config_file}"
 
-    main(config_file)
+    main(config_file, host, port)
 
 

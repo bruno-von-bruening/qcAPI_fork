@@ -367,6 +367,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
         raise Exception(f"Psi4 wave function run did terminate with error: {psi4_dict['stderr']}")
     
     # copy all files
+    
     import glob
     for fi in glob.glob('*'):
         try:
@@ -386,8 +387,10 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
                 raise Exception(stderr.decode())
         except Exception as ex:
             print(f"error in copying {fi}: {str(ex)}")
+    new_fchk_file=os.path.join( target_dir , os.path.basename(psi4_dict['final_fchk']) )+'.xz'
+    assert os.path.isfile(new_fchk_file)
     return dict(
-        fchk_file=psi4_dict['final_fchk']
+        fchk_file=os.path.realpath(  new_fchk_file )
     )
 
 def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
