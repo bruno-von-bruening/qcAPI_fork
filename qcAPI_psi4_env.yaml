@@ -1,4 +1,4 @@
-name: qcAPI
+name: qcAPI_externalise_database
 channels:
   - conda-forge
   - conda-forge/label/libint_dev
@@ -14,3 +14,4 @@ dependencies:
     - fastapi[standard]
     - sqlmodel
     - requests
+    - rdkit

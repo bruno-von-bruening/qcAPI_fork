@@ -5,6 +5,22 @@ import time
 import yaml
 import copy
 
+# paths
+def make_file(name, path):
+    new_file=os.path.realpath(os.path.join(path, name))
+    assert os.path.isfile(new_file), f"Not a file \'{new_file}\'"
+    return new_file
+qcapi_home=os.path.realpath('../../')
+assert os.path.isdir(qcapi_home)
+
+# scripts
+qcapi_bin=os.path.realpath(os.path.join(qcapi_home,'bin'))
+assert os.path.isdir(qcapi_bin)
+server_file=make_file('server.py',qcapi_bin)
+populate_script=make_file('populate_db.py',qcapi_bin)
+client_script=make_file('client.py', qcapi_bin)
+# data
+geom_file=make_file('tests/supplementary_files/test_sample.pkl', qcapi_home)
 
 def is_running(process):
     """ The result of poll should be none if the process is running"""
@@ -18,9 +34,13 @@ def kill_process(process):
         # Kill the process group
         p=sp.Popen(f"kill -- {pid}", shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
         stdout, stderr = p.communicate()
+        
         if p.returncode!=0:
             raise Exception(stderr.decode())
         time.sleep(1)
+
+        stderr, stdout=process.communicate()
+        return stderr.decode(), stdout.decode()
     except Exception as ex:
         raise Exception(f"Could not kill server with {pid}: {str(ex)}")
         print(f"Could not kill process  with pid {pid} : {str(ex)}")
@@ -75,7 +95,7 @@ def start_server(config_file, host, port):
         #  server=sp.Popen([f"{fastapi}","run","server.py"], stderr=sp.PIPE, stdout=sp.PIPE)
         python='python' # '/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python'
         # assert isfile(python)
-        server=sp.Popen(f"{python} server.py --config {config_file} --host {host} --port {port}".split(), stderr=sp.PIPE, stdout=sp.PIPE)
+        server=sp.Popen(f"{python} {server_file} --config {config_file} --host {host} --port {port}".split(), stderr=sp.PIPE, stdout=sp.PIPE)
         pid=server.pid
 
         time.sleep(3)
@@ -107,7 +127,7 @@ def make_dummy_config_file():
     return config_file
 defaults=dict(
     #qm_method='pbe0-grac',
-    qm_method='mp2',
+    qm_method='hf',
     qm_basis='sto-3g',
 )
 def load_config(config_file):
@@ -157,6 +177,14 @@ def run_test(config_file, host, port, qm_method, qm_basis, target_dir):
         populate_mbis   =False,
         compute_mbis    =False,
     )
+    fl=dict(
+        populate_wfn    =True,
+        compute_wfn     =True,
+        populate_lisa   =True,
+        compute_lisa    =True,
+        populate_mbis   =False,
+        compute_mbis    =False,
+    )
     try:
         # Work inside test dir and delete the dir in case it exists
         def make_dirs(test_dir, target_dir):
@@ -174,47 +202,51 @@ def run_test(config_file, host, port, qm_method, qm_basis, target_dir):
         tag='populate_wfn'
         if fl[tag]:
             # Populate the database
-            cmd=f"{python} ../populate_db.py --filenames ../test_sample.pkl --address 127.0.0.1:8000 --property wfn --method={qm_method} --basis={qm_basis} --test"
-            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+            cmd=f"{python} {populate_script} --filenames {geom_file} --address {address} --property wfn --method={qm_method} --basis={qm_basis} --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
 
         tag='compute_wfn'
         if fl[tag]:
             # Run the wfn calculation
             python=python # same as before
-            cmd=f"{python} ../client.py {address} --num_threads 4 --target_dir {target_dir} --test --property wfn --config {config_file}"
-            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+            cmd=f"{python} {client_script} {address} --num_threads 4 --target_dir {target_dir} --property wfn --config {config_file} --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
 
         tag='populate_lisa'
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db.py --address 127.0.0.1:8000 --property part --method LISA"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property part --method LISA"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
 
         tag='compute_lisa'
         if fl[tag]:
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
-            cmd=f"{python} ../client.py {address} --property part --method LISA --target_dir {target_dir} --config {config_file}"
+            cmd=f"{python} {client_script} {address} --property part --method LISA --target_dir {target_dir} --config {config_file} --test"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         tag='populate_mbis'
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} ../populate_db.py --address 127.0.0.1:8000 --property part --method MBIS"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property part --method MBIS"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
 
         tag='compute_mbis'
         if fl[tag]:
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
-            cmd=f"{python} ../client.py {address} --property part --method MBIS --target_dir {target_dir}"
+            cmd=f"{python} {client_script} {address} --property part --method MBIS --target_dir {target_dir}"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         kill_process(server)
     except Exception as ex:
-        kill_process(server)
+        stdout, stderr=kill_process(server)
+        with open(f"server.out", 'w') as wr:
+            wr.write(stdout)
+        with open(f"server.err", 'w') as wr:
+            wr.write(stderr)
         raise Exception(f"Script terminated with error (Killing Server): {ex}")
 
 if __name__=="__main__":

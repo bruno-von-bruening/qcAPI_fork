@@ -1,4 +1,24 @@
 
+from . import *
+
+import rdkit.Chem as rdchem
+from rdkit.Chem import rdDetermineBonds, rdmolops
+
+def auto_inchi(coordinates, atom_types):
+    #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
+    mol_block=f"{len(coordinates)}\n\n"
+    for ty,coor in zip( atom_types, coordinates):
+        bohr_to_angstrom=0.529177249
+        fac=bohr_to_angstrom
+        coor=[f"{float(x)*fac:.8f}" for x in coor]
+        mol_block+=f"{ty} {' '.join(coor)}\n"
+    rdmol=rdchem.MolFromXYZBlock(mol_block)
+    rdDetermineBonds.DetermineBonds(rdmol, charge=0)
+    auto_inchi=rdchem.inchi.MolToInchi(rdmol)
+    auto_inchi_key=rdchem.inchi.MolToInchiKey(rdmol)
+
+    return auto_inchi, auto_inchi_key
+
 from functools import partial
 import os, subprocess
 from enum import Enum
@@ -16,19 +36,6 @@ BOHR = 0.52917721067
 ANGSTROM_TO_BOHR=1./BOHR
 
 print_flush = partial(print, flush=True)
-
-class HTTPcodes(int,Enum):
-    """ Mapping of Interpretation of HTML errors """
-    # Cannnonic
-    normal              = 200 ,
-    bad_communcation    = 422 ,
-    # Custom
-    escape              = 210 ,
-    internal_error      = 420 , # something went wrong
-            #  # Communication Error
-            #  elif status_code == 201:
-            #      raise Exception(f"Error from communicating with server: error_code={status_code}, message={response.json()['detail']}")
-            #      break
 
 def atomic_charge_to_atom_type(Z):
     """ Return atom type when given an atomic Number """
@@ -79,5 +86,11 @@ def load_global_config(config_file):
         print(f"Did not find key {global_key} in {config_file}: {config.keys()}")
         global_conf={}
     return global_conf
-    
+
+def analyse_exception(ex):
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    file=exc_tb.tb_frame.f_code.co_filename
+    line_no=exc_tb.tb_lineno
+    return f"{exc_type} {file}:{line_no}:\n{str(ex)}"
+
 

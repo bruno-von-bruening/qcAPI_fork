@@ -1,6 +1,8 @@
 *.db
 *.pkl
-__pycache__/
+**__pycache__/
 test_full_run/
 test_config*.yaml
+build/
+dist/
 

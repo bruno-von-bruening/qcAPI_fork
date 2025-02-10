@@ -5,8 +5,7 @@ import time, datetime
 import psi4
 import numpy as np
 
-from utility import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush, make_jobname, make_dir
-
+from . import *
 
 def psi4_copy(file, target_dir=None):
     if not isinstance(file, str):
@@ -249,7 +248,7 @@ def make_psi4_input_file(make_psi4_input,
 
     # Generate the input file
     job='single_point'
-    files_per_calc=make_psi4_input(job, func=method, basis_set=basis_set, xyz_file=xyz_file,execute=False)
+    files_per_calc=make_psi4_input(job, func=method, basis_set=basis_set, xyz_file=xyz_file, execute=False, add_method_tags=False)
     assert len(files_per_calc)==1
     psi4_input_file=files_per_calc[0]['input']
     psi4_storage_file=files_per_calc[0]['storage']
@@ -393,7 +392,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
         fchk_file=os.path.realpath(  new_fchk_file )
     )
 
-def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
+def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
     """ Cal psi4 calculation
     This routine only processes """
     start_time = time.time()
@@ -411,19 +410,19 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxite
             lines+=[' '*4+info_line]
         lines+=[sep]*sep_times 
         print('\n'.join(lines))
-    def process_conformation(record, do_test=False):
+    def process_conformation(geom, do_test=False):
         # Conformation data
-        conformation = record["conformation"]
         if do_test:
             coordinates=[[0,0,0],[0,0,1]]
             species=[1,1]
+            multiplicity=1
+            total_charge=0
         else:
-            coordinates = conformation["coordinates"]
-            species = conformation["species"]
+            coordinates = geom["coordinates"]
+            species = geom["nuclear_charges"]
+            multiplicity=geom['multiplicity']
+            total_charge=geom['charge']
         atom_types=[ atomic_charge_to_atom_type(x) for x in species ]
-        multiplicity=1
-        total_charge=conformation['total_charge']
-        assert 'total_charge' in conformation.keys(), f"At the moment the charge needs to be defined unambigious by providing it in conformation, found {conformation.keys()}"
         return {
             'atom_types':atom_types,
             'coordinates': coordinates,
@@ -440,7 +439,7 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxite
     # Get input information
     psi4_di={}
     # Get conformational details (some are processed), possibly do a test by using Hydrogen molecule
-    conf_di =process_conformation(record, do_test=do_test)
+    conf_di =process_conformation(geom, do_test=do_test)
     # Method to be run on conformation
     
     # Hardware settings
@@ -480,21 +479,28 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, maxite
         if do_test:
             raise Exception(f"Test was requested hence terminating:\n{ex}")
     
-    
+    fchk_info={
+        'hostname': os.uname()[1],
+        'path_to_container': os.path.relpath(os.path.dirname(fchk_file), os.environ['HOME']),
+        'path_in_container': '.',
+        'file_name': os.path.basename(fchk_file),
+        'size_mb': os.path.getsize(fchk_file)/(1024**2)
+    }
     ### RETURN the ouptu
     # Immutable information
-    output=dict(
-        basis=record['basis'],
-        method=record['method'],
-        id=record.get("id", None),
-        conformation=record['conformation'],
-        fchk_file=fchk_file
-    )
+    output=dict(**record)
+    output.update( dict(
+        fchk_info=fchk_info,
+        energy=None,
+        gradient=None,
+    ))
     # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
     elapsed_time=time.time()-start_time
     output.update(dict(
         elapsed_time=elapsed_time,
         converged=converged,
         error=error,
+        message=None,
+        warning=None
     ))
     return output

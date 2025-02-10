@@ -1,15 +1,20 @@
+from . import *
+import numpy as np
+
 import sys, os ; sys.path.insert(1, os.environ['SCR'])
 origin=os.path.realpath('..'); sys.path.insert(1, origin)
 
 import modules.mod_utils as m_utl
-import modules.mod_objects as m_obj
+#import modules.mod_objects as m_obj
+from qc_objects.objects.property import multipoles as obj_multipoles
+from qc_objects.objects.basis import molecular_radial_basis
 from os.path import isfile, isdir
 import subprocess, json, shutil, glob
 import numpy as np
+from util.util import analyse_exception
 
-from utility import make_jobname, make_dir, load_global_config
 
-def prepare_input(record, worker_id, config_file, warnings):
+def prepare_input(worker_id, record, horton_script, fchk_file, warnings):
     def get_conda_python():
         """"""
         # Check conda
@@ -41,10 +46,10 @@ def prepare_input(record, worker_id, config_file, warnings):
         assert isfile(script), f"Not a file: {script}"
 
         return script
-    def prepare_horton_arguments():
+    def prepare_horton_arguments(src_fchk_file):
 
         # Get fchk_file and link it
-        file=record['fchk_file']; assert isfile(file), f"FCHK file in record is not valid: {file}"
+        file=src_fchk_file; assert isfile(file), f"FCHK file in record is not valid: {file}"
         linked_file=f"ln_{os.path.basename(file)}"
         if os.path.islink(linked_file):
             os.unlink(linked_file)
@@ -56,9 +61,9 @@ def prepare_input(record, worker_id, config_file, warnings):
             fchk_fi=linked_file,
             dir_nam=jobname,
         )
-        fchk_file=linked_file
+        tmp_fchk_file=linked_file
         method=record['method']
-        return jobname, method, rep_di, fchk_file
+        return jobname, method, rep_di, tmp_fchk_file
     def make_horton_input_file(rep_di, method, fchk_file):
         # Make MBIS input file
         assert os.path.isfile(fchk_file), f"FCHK file \'{fchk_file}\' does not exist"
@@ -85,7 +90,7 @@ def prepare_input(record, worker_id, config_file, warnings):
     try:
         # Get environment dependent python and run script
         python = get_conda_python()
-        script = get_script(config_file)
+        script = horton_script#get_script(config_file)
     except Exception as ex:
         raise Exception(f"Error while getting python executable and script: {ex}")
 
@@ -103,15 +108,15 @@ def prepare_input(record, worker_id, config_file, warnings):
 
     try:
         # get the input needed to construct horton input
-        jobname, method, rep_di,  fchk_file = prepare_horton_arguments()
-        assert os.path.isfile(fchk_file)
+        jobname, method, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
+        assert os.path.isfile(tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while preparing horton input arguments: {ex}")
 
 
     try:
         # construct horton input file
-        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, fchk_file)
+        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while generating horton input file: {ex}")
     
@@ -127,31 +132,115 @@ def execute_horton(python, script, input_file):
     horton=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
     stdout, stderr = horton.communicate()
 
-    error_message=f"The commannd \'{cmd}\' did terminate with error: {stderr.decode('utf-8')}"
+    with open(error_file, 'r') as rd:
+        horton_stderr=rd.readlines()
+    indent=4*' '
+    horton_stderr=[ indent+'|-'+x.strip() for x in horton_stderr ]
+    horton_stderr='\n'.join(horton_stderr)
+
+    error_message=f"The commannd \'{cmd}\' did terminate with error: stderr={stderr.decode('utf-8')}\nhorton_stderr={horton_stderr}"
     if horton.returncode!=0: raise Exception(error_message)
 
 def recover_horton_results(record, jobname, work_dir, target_dir, error, warnings):
-    def get_moments():
-        # Retrieve files
+    def load_results_overview():
+        """ horton execution drops a files that contains all the location of the generated file 
+        add the absolute path to this dir (files are defined relative to this)
+        """
         results_file='results.json'
         assert os.path.isfile(results_file)
         with open(results_file, 'r') as rd:
             results=json.load(rd)
-        # Files
+        results.update({'location':os.path.realpath(os.path.dirname(results_file)), 'the_file':results_file})
+        return results
+
+    def get_moments(results):
         try:
             mom_file=results['files']['moments']
-            mom_file=os.path.join( os.path.dirname(results_file),mom_file )
+            mom_file=os.path.join( results['location'],mom_file )
         except Exception as ex:
-            raise Exception(f"Cannot read moments in file {results_file}: {ex}")
+            raise Exception(f"Cannot read moments in {results['the_file']}: {ex}")
         assert isfile(mom_file), f"{mom_file}"
         
         try:
-            moms=m_obj.multipoles(mom_file).get_moments
+            mom= obj_multipoles(mom_file)
+            moms= mom.get_moments
+            ranks=mom.ranks_list
             moms=np.array(moms).tolist()
             moms_json=json.dumps(moms)
         except Exception as ex:
-            raise Exception(f"Error in reading moment from file {mom_file} with {m_obj.multipoles}: {ex}")
-        return moms_json
+            raise Exception(f"Error in reading moment from file {mom_file} with {obj_multipoles}: {analyse_exception(ex)}")
+        return ranks,moms_json
+    def get_solution(results):
+        try:
+            file_tag='files'
+            sol_tag='solution'
+            sol_file=results[file_tag][sol_tag]
+
+            sol=molecular_radial_basis(sol_file)
+            sol=sol.to_dict()
+
+            def to_table(sol):
+                # get this into the sqlmodel database format (list of list)
+                required_keys=['exponent_scales','exponent_orders','coefficients','normalizations']
+                optional_keys=['initial_coefficients']
+                sol_dic=dict([(x,[]) for x in required_keys+optional_keys])
+                the_lengths=[]
+                for at in sol['shape_functions']:
+                    
+                    # Assertions
+                    assert isinstance(at, dict), f"Not a dict: {at}"
+                    for k in required_keys:
+                        assert k in at.keys()
+                        assert isinstance(at[k], (list, np.ndarray)), f"Calue of key {k} is of wrong type: {type(at[k])}"
+                    for k in optional_keys:
+                        assert k in at.keys()
+                        assert isinstance(at[k], (list, np.ndarray, type(None))), f"Calue of key {k} is of wrong type: {type(at[k])}"
+
+                    # check that the lengths all match                
+                    lenghts=[ len(at[x]) for x in required_keys if not isinstance(x, type(None))]
+                    assert len(set(lenghts))==1, f"Multipole lengths detected {lenghts}: {at}"
+
+
+                    lenght=lenghts[0]
+                    the_lengths.append(lenght)
+                    for k in required_keys:
+                        sol_dic[k].append(at[k])
+                for k,i in sol_dic.items():
+                    if any( isinstance(x,type(None)) for x in i ):
+                        assert all([ isinstance(x, type(None))  for x in i ])
+                        sol_dic[k]=None
+                sol_dic.update({'functions_per_site':the_lengths})
+                sol_dic.update({'coordinates_of_sites': sol['coordinates'], 'types_of_sites': sol['atom_types']})
+
+
+
+                # Map the keys to the new ones
+                try:
+                    the_map=dict([
+                        ('decay_factors','exponent_scales'),
+                        ('decay_orders','exponent_orders'),
+                        ('normalizations','normalizations'),
+                        ('coefficients','coefficients'),
+                        ('initial_coefficiens','initial_coefficients'),
+                        ('functions_per_site','functions_per_site'),
+                        ('types_of_sites','types_of_sites'),
+                        ('coordinates_of_sites','coordinates_of_sites')
+                    ])
+                    sol_dic=dict([ 
+                        (k,sol_dic[the_map[k]]) for k in the_map.keys() 
+                    ])
+                except Exception as ex:
+                    raise Exception(f"Failure in remapping the solution structure: {ex}")
+
+                return sol_dic
+            sol_dic=to_table(sol)
+            return sol_dic
+            
+        except Exception as ex:
+            raise Exception(f"Failure in getting solution fomr {results['the_file']}: {ex}")
+    results=load_results_overview()
+
+
 
     def copying_results(error):
         try:
@@ -167,22 +256,26 @@ def recover_horton_results(record, jobname, work_dir, target_dir, error, warning
             error.append(f"Problems in copying results: {str(ex)}")
         return error
 
-    moms_json=get_moments()
+    results=load_results_overview()
+    ranks,moms_json=get_moments(results)
+    solution=get_solution(results)
+    ranks='|'.join([' '.join(['']+ [str(y) for y in x]+['']) for x in ranks] )
 
     # copy the results to target directory and append errors if encountered
     error=copying_results(error)
 
     multipoles=dict(
-        partitioning_id=record['id'],
+        id=record['id'],
         length_units='ANGSTROM',
         representation='CARTESIAN',
         convention='Stone',
+        ranks=ranks,
         traceless=True,
         multipoles=moms_json,
     )
-    return multipoles, error
+    return multipoles,solution, error
 
-def exc_partitioning(config_file, record, worker_id, num_threads=1, maxiter=150, target_dir=None, do_test=False):
+def exc_partitioning(horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
     # Create warnings and errors that get change permanently in the exception blog
     warnings=[]
@@ -193,7 +286,7 @@ def exc_partitioning(config_file, record, worker_id, num_threads=1, maxiter=150,
     try:
         # Input generation
         try:
-            python, script, input_file, jobname, work_dir = prepare_input(record, worker_id, config_file, warnings)
+            python, script, input_file, jobname, work_dir = prepare_input(worker_id, record, horton_script, fchk_file, warnings)
         except Exception as ex:
             raise Exception(f"Error in preparing data: {ex}")
 
@@ -206,7 +299,7 @@ def exc_partitioning(config_file, record, worker_id, num_threads=1, maxiter=150,
         # Recovering Results
         try:
             error=[]
-            multipoles, errors=recover_horton_results(record, jobname, work_dir, target_dir, errors, warnings)
+            multipoles, solution, errors=recover_horton_results(record, jobname, work_dir, target_dir, errors, warnings)
         except Exception as ex:
             raise Exception(f"Error in postprocessing horton run : {str(ex)}")
         
@@ -224,6 +317,7 @@ def exc_partitioning(config_file, record, worker_id, num_threads=1, maxiter=150,
             return {
                 'part':record,
                 'multipoles':multipoles,
+                'solution':solution,
                 'message': message,
                 'warnings': array_to_str(warnings),
                 'error': error_string,
@@ -239,6 +333,7 @@ def exc_partitioning(config_file, record, worker_id, num_threads=1, maxiter=150,
         return {
             'part': record,
             'multipoles': None,
+            'solution':None,
             'message': f"Record did not converge",
             'error': str(ex),
             'warnings': array_to_str(warnings),
