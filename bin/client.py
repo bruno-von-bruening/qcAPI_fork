@@ -3,7 +3,7 @@
 from server_executions.client_server import main
 
 import os
-from util.util import check_dir_exists
+from util.util import check_dir_exists, available_properties
 
 if __name__ == "__main__":
     import argparse
@@ -11,44 +11,45 @@ if __name__ == "__main__":
     prog=None
     epilog=None
     parser = argparse.ArgumentParser(description=description, prog=prog, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument(
+    adar=parser.add_argument
+    adar(
         "address",
         type=str,
         default="127.0.0.1:8000",
         help="URL:PORT of the qcAPI server",
     )
-    parser.add_argument(
+    adar(
         "--num_threads", "-n", type=int, default=1, help="Number of threads to use"
     )
-    parser.add_argument(
+    adar(
         "--maxiter", "-m", type=int, default=150, help="Maximum number of SCF iterations"
     )
-    parser.add_argument(
+    adar(
         "--delay", "-d", type=float, default=60, help="Ping frequency in seconds"
     )
-    parser.add_argument(
+    adar(
         '--target_dir', type=str, help='where to save file', default=os.getcwd()
     )
-    parser.add_argument(
+    adar(
         '--test', action='store_true', help='run test using hydrogen molecule and excepting when error is encountered in psi4 run'
     )
-    parser.add_argument(
+    adar(
         '--do_lisa', action='store_true', help='run lisa job'
     )
-    parser.add_argument(
+    adar(
         '--fchk_link', type=str, help='file where fchk_files are stored',
     )
-    parser.add_argument(
-        '--property', type=str
+    adar(
+        '--property', type=str, choices=available_properties,
     )
-    parser.add_argument(
+    adar(
         '--method' , type=str
     )
-    parser.add_argument(
+    adar(
         '--basis',   type=str
     )
-    parser.add_argument(
-        '--config', type=str,
+    adar(
+        '--config', type=str, required=True
     )
     
 

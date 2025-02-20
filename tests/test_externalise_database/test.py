@@ -178,12 +178,20 @@ def run_test(config_file, host, port, qm_method, qm_basis, target_dir):
         compute_mbis    =False,
     )
     fl=dict(
-        populate_wfn    =True,
-        compute_wfn     =True,
-        populate_lisa   =True,
-        compute_lisa    =True,
-        populate_mbis   =False,
-        compute_mbis    =False,
+        populate_wfn        =True  ,
+        compute_wfn         =True  ,
+        populate_lisa       =True  ,
+        compute_lisa        =True  ,
+        populate_mbis       =True  ,
+        compute_mbis        =True  ,
+        populate_grid       =True  ,
+        compute_grid        =True  , 
+        populate_map        =True  ,
+        compute_map         =True  ,
+        populate_espdmp     =True  ,
+        compute_espdmp      =True  ,
+        populate_espcmp     =True  ,
+        compute_espcmp      =True  ,
     )
     try:
         # Work inside test dir and delete the dir in case it exists
@@ -237,7 +245,63 @@ def run_test(config_file, host, port, qm_method, qm_basis, target_dir):
         if fl[tag]:
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
-            cmd=f"{python} {client_script} {address} --property part --method MBIS --target_dir {target_dir}"
+            cmd=f"{python} {client_script} {address} --property part --method MBIS --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+
+        tag='populate_grid'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property isodensity_surface --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+
+        tag='compute_grid'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property isodensity_surface --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+    
+        prop='multipolar_esp'
+        tag='populate_espdmp'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property {prop} --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+        tag='compute_espdmp'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        
+        prop='density_esp'
+        tag='populate_map'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property {prop} --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+        tag='compute_map'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+        
+        prop='compare_esp'
+        tag='populate_espcmp'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address 127.0.0.1:8000 --property {prop} --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+        tag='compute_espcmp'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
             stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
         
         kill_process(server)

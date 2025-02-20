@@ -387,9 +387,12 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
         except Exception as ex:
             print(f"error in copying {fi}: {str(ex)}")
     new_fchk_file=os.path.join( target_dir , os.path.basename(psi4_dict['final_fchk']) )+'.xz'
+    new_storage_file=os.path.join( target_dir , os.path.basename(storage_file) )
     assert os.path.isfile(new_fchk_file)
+    assert os.path.isfile(new_storage_file)
     return dict(
-        fchk_file=os.path.realpath(  new_fchk_file )
+        fchk_file=os.path.realpath(  new_fchk_file ),
+        storage_file=os.path.realpath( new_storage_file)
     )
 
 def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
@@ -462,6 +465,12 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_it
     try:
         return_dict=run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir)
         fchk_file=return_dict['fchk_file']
+        storage_file=return_dict['storage_file']
+        assert os.path.isfile(storage_file)
+        with open(storage_file, 'r' ) as rd:
+            data=yaml.safe_load(rd)
+            energy=data['results']['energy']
+            gradient=data['results']['gradient']
 
         # If everything gone well return positive error code
         converged=1
@@ -491,8 +500,8 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_it
     output=dict(**record)
     output.update( dict(
         fchk_info=fchk_info,
-        energy=None,
-        gradient=None,
+        energy=energy,
+        energy_gradient=gradient,
     ))
     # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
     elapsed_time=time.time()-start_time
