@@ -14,7 +14,7 @@ from data_base.qcAPI_database import RecordStatus
 from pydantic import BaseModel, BeforeValidator, PlainSerializer
 from typing import List, Annotated, Union, Tuple
 
-from property_database.data_models import File_Model, Map_Stats_Model
+from property_database.data_models.utilities import File_Model, Map_Stats_Model
 
 from data_base.database_declaration import DMP_ESP_MAP_Stats
 

@@ -34,6 +34,8 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
     else:
         gs_str='-grid_spacing '+' '.join([str(x) for x in grid_spacings])
 
+    converged=0
+    run_data=None
     # Excecution
     if tracker.no_error:
         try:
@@ -86,7 +88,7 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
             run_data={'surface_file':surf_file}
             converged=1
         except Exception as ex:
-            converged=0
+            tracker.add_error(ex)
 
     record.update({'converged':converged, **tracker.model_dump()})
     run_info={'status':tracker.status,'status_code':tracker.status_code}

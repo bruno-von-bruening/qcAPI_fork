@@ -2,7 +2,6 @@
 import os, sys, shutil, json, re, copy
 import subprocess
 import time, datetime
-import psi4
 import numpy as np
 
 from . import *
@@ -255,12 +254,12 @@ def make_psi4_input_file(make_psi4_input,
 
     return psi4_input_file, psi4_storage_file
 
-def execute_the_job(execute_psi4, psi4_input_file, psi4_storage_file):
+def execute_the_job(conda_env, execute_psi4, psi4_input_file, psi4_storage_file):
     # Import the run script
 
     psi4_start_time=time.time()
 
-    info= execute_psi4(psi4_input_file, conda_env='qcAPI')
+    info= execute_psi4(psi4_input_file, conda_env=conda_env)
     stdout=info['stdout']
     stderr=info['stderr']
     return_code=info['return_code']
@@ -302,7 +301,7 @@ def extract_psi4_info(wfn_file, method, basis):
     psi4_dict=property_calc(wfn_file, method, basis)
     return psi4_dict
 
-def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
+def run_compute_wave_function(jobname, conda_env, psi4_script, psi4_di, target_dir):
     """ Actual steps to be done:
     1.1 create a target directory for the results
     1.2 create a local directory mirroring the target directory
@@ -357,7 +356,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
     # Get the wave function
     input_file, storage_file = make_psi4_input_file(make_psi4_input, **psi4_di)
     
-    psi4_dict=execute_the_job(execute_psi4, input_file, storage_file)
+    psi4_dict=execute_the_job(conda_env, execute_psi4, input_file, storage_file)
 
     # In case the job fails clean manually and raise error
     if psi4_dict['return_code']!=0:
@@ -395,7 +394,7 @@ def run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir):
         storage_file=os.path.realpath( new_storage_file)
     )
 
-def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
+def compute_wave_function(conda_env, psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
     """ Cal psi4 calculation
     This routine only processes """
     start_time = time.time()
@@ -463,7 +462,7 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_it
     assert all([x in mandatory_keys+optional_keys for x in psi4_di.keys()]), f"{psi4_di.keys()} {optional_keys+mandatory_keys}"
     
     try:
-        return_dict=run_compute_wave_function(jobname, psi4_script, psi4_di, target_dir)
+        return_dict=run_compute_wave_function(jobname, conda_env,psi4_script, psi4_di, target_dir)
         fchk_file=return_dict['fchk_file']
         storage_file=return_dict['storage_file']
         assert os.path.isfile(storage_file)
@@ -477,7 +476,6 @@ def compute_wave_function(psi4_script, record, workder_id, num_threads=1, max_it
         error=None
         my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
-        raise Exception(ex)
         # In case of a test we want errors to kill the job so we notice them immediately
         converged=0
         error=str(ex)

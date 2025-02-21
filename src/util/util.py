@@ -121,6 +121,40 @@ def load_config(config_file):
     import yaml
     with open(config_file,'r') as rd:
         config=yaml.safe_load(rd)
+    assert isinstance(config, dict), f""
+    
+    import_key='import'
+    if import_key in config.keys():
+        imports=config[import_key]
+        def add(config, add_config):
+            def add_loop(the_dict, ref_dict):
+                for k,v in the_dict.items():
+                    if not k in ref_dict.keys():
+                        ref_dict.update({k:v})
+                    else:
+                        if isinstance(v, dict):
+                            ref_dict[k]=add_loop(v, ref_dict[k])
+                        elif v==ref_dict[k]:
+                            pass
+                        else:
+                            raise Exception(f"Key {k} appears in input {config_file} but also in import {imports} with contradictory values")
+                return ref_dict
+
+            config=add_loop(add_config, config)
+            return config
+        
+        if isinstance(imports, list):
+            for x in imports:
+                assert isinstance(x, str)
+                add_config=load_config(x)
+                config=add(config, add_config)
+        elif isinstance(imports, str):
+            add_config=load_config(imports)
+            config=add(config, add_config)
+        else:
+            raise Exception()
+
+    
     return config
 # Outdate use query config instead
 def load_global_config(config_file):

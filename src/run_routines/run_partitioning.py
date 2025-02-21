@@ -15,15 +15,6 @@ from util.util import analyse_exception
 
 
 def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
-    def get_conda_python():
-        """"""
-        # Check conda
-        env_name='horton_wpart'
-        python=m_utl.get_conda_env(env_name)
-        if isinstance(python, type(None)): raise Exception(f"Could not get python executable")
-        assert os.path.isfile(os.path.realpath(python)), os.path.relpath(python)
-
-        return python
 
     def get_script(config_file):
         # get horton script
@@ -89,7 +80,6 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     try:
         # Get environment dependent python and run script
-        python = get_conda_python()
         script = horton_script#get_script(config_file)
     except Exception as ex:
         raise Exception(f"Error while getting python executable and script: {ex}")
@@ -120,7 +110,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
     except Exception as ex:
         raise Exception(f"Error while generating horton input file: {ex}")
     
-    return tracker, python, script, input_file, jobname, work_dir
+    return tracker, script, input_file, jobname, work_dir
 
 ####
 def execute_horton(tracker, python, script, input_file):
@@ -287,7 +277,7 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
     )
     return tracker, mom_fi_di, multipoles,solution
 
-def exc_partitioning(horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
+def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
     # Create warnings and errors that get change permanently in the exception blog
     tracker=Tracker()
@@ -295,13 +285,13 @@ def exc_partitioning(horton_script, fchk_file, record, worker_id, num_threads=1,
     try:
         # Input generation
         try:
-            tracker, python, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
+            tracker, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
         except Exception as ex:
             raise Exception(f"Error in preparing data: {analyse_exception(ex)}")
 
         # Execution            
         try:
-            tracker=execute_horton(tracker,python, script, input_file)
+            tracker=execute_horton(tracker,python_exc, script, input_file)
         except Exception as ex:
             raise Exception(f"Error in executing horton: {analyse_exception(ex)}")
 

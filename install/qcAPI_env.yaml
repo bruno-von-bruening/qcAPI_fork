@@ -1,15 +1,14 @@
-name: qcAPI_externalise_database
+name: qcAPI
 channels:
-  - conda-forge
-  - conda-forge/label/libint_dev
+  #- conda-forge
+  #- conda-forge/label/libint_dev
   - defaults
 dependencies:
   - python=3.10
-  - pip
-  - git
+  #- git
   - numpy
-  - psi4
-  - dftd3-python
+  #- psi4
+  - pip
   - pip:
     - fastapi[standard]
     - sqlmodel

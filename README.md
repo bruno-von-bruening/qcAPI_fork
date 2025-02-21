@@ -8,8 +8,21 @@ Distribute quantum chemistry calculations over different machines following a si
 
 Install dependencies via the provided conda environment:
 ```bash
-  conda env create -f qcAPI_psi4_env.yml
-  conda activate qcAPI_psi4
+  conda env create -f qcAPI_env.yml
+  conda activate qcAPI
+```
+We will need many subpackages to run this script (density_operations, ):
+```bash
+  git clone "<path_to_script>"
+  conda env create -f "<tag>_env.yaml"
+  conda activate "<env>"
+
+  # Manage paths and compile f90
+  python install/setup.py 
+
+  # Install pip
+  python -m pip install --upgrade build  
+  python -m build; python -m pip install .
 ```
 
 ## Usage example

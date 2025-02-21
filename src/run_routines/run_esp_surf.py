@@ -32,11 +32,11 @@ def setup_bash_env(tracker: Tracker, mode: str='fortran', shell_env=None, num_th
     export_lines=[f"export OMP_NUM_THREADS={num_threads}"]
     if mode in ['fortran']:
         assert isinstance(shell_env, dict), f"shell_env should be dict but is {shell_env}"
-        env_path_key='env_paths'
-        assert env_path_key in shell_env.keys()
-        env_paths=shell_env[env_path_key]
-        assert isinstance(env_paths, dict)
-        for key, value in env_paths.items():
+        #env_path_key='env_paths'
+        #assert env_path_key in shell_env.keys(), f"key {env_path_key} is not in {shell_env.keys()}"
+        #env_paths=shell_env[env_path_key]
+        #assert isinstance(env_paths, dict)
+        for key, value in shell_env.items():
             export_lines.append(f"export {key}={value}")
         return export_lines
     elif mode in ['python']:

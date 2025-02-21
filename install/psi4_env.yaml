@@ -1,0 +1,10 @@
+name: psi4
+channels:
+   - conda-forge
+   - conda-forge/label/libint_dev
+   - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - psi4
+  - dftd3-python

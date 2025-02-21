@@ -16,13 +16,18 @@ from util.environment import get_python_from_conda_env
 # Associated (satelite) module
 from util.util import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR
 
+@validate_call
+def get_env(config_file:file, the_key:str):
+    """ """
+    query=('global', the_key)
+    python_env=query_config(config_file, (*query,'python_env') )
+    script_exc=query_config(config_file, (*query, 'script' ))
+    python_exc=get_python_from_conda_env(python_env)
+    
+    return python_exc, script_exc
+
 def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
     
-    def get_psi4_script(config_file):
-        sys.path.insert(1,os.path.realpath('..'))
-        global_config=load_global_config(config_file)
-        psi4_script=global_config['psi4_script']
-        return psi4_script
     def get_geometry(id):
         request_code=f"{serv_adr}/get/geom/{id}"
         response=requests.get(request_code)
@@ -39,18 +44,14 @@ def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
     assert conf_id_key in record.keys()
     id=record[conf_id_key]
     geom=get_geometry(id)
-    psi4_script=get_psi4_script(config_file)
-    script=partial(compute_wave_function, psi4_script, geom=geom, max_iter=max_iter)
+
+    conda_env='psi4'
+    python_exc, psi4_script=get_env(config_file, conda_env)
+
+    script=partial(compute_wave_function, conda_env, psi4_script, geom=geom, max_iter=max_iter)
     return script
 
 def prepare_part_script(config_file, record, serv_adr, max_iter=None):
-    def get_horton_script(config_file):
-        sys.path.insert(1,os.path.realpath('..'))
-        global_config=load_global_config(config_file)
-        horton_key='horton_script'
-        assert horton_key in global_config.keys(), f"Cannot find {horton_key} in \'{config_file}\': {global_config}"
-        psi4_script=global_config['horton_script']
-        return psi4_script
 
     def get_wave_function_file(id):
         request_code=f"{serv_adr}/get/fchk/{id}"
@@ -62,25 +63,14 @@ def prepare_part_script(config_file, record, serv_adr, max_iter=None):
 
         return fchk_info
     
-    def gen_fchk_file(fchk_info):
-        target_host=fchk_info['hostname']
-        this_host=os.uname()[1]
-        assert this_host==target_host, f"File from a different hostname!: here=\'{this_host}\', there=\'{target_host}\'"
-
-        to_storage  =fchk_info['path_to_container']
-        to_file     =fchk_info['path_in_container']
-        file        =fchk_info['file_name']
-        path=os.path.realpath(os.path.join(os.environ['HOME'], to_storage, to_file, file))
-        assert os.path.isfile(path), f"Not a existing file: {path}"
-        return path
         
+    python_exc, horton_script = get_env(config_file, 'horton')
 
-    horton_script=get_horton_script(config_file)
     wfn_id=record['wave_function_id']
     fchk_info=get_wave_function_file(wfn_id)
-    fchk_file=gen_fchk_file(fchk_info)
+    fchk_file=File_Model(**fchk_info).path
 
-    script=partial(exc_partitioning, horton_script, fchk_file, max_iter=max_iter)
+    script=partial(exc_partitioning, python_exc, horton_script, fchk_file, max_iter=max_iter)
     return script
 
 def prepare_idsurf_script(config_file, fchk_file):

@@ -241,7 +241,8 @@ def populate_conformation(session, conformations):
 
             count.populated +=1
             id_tracker.add_successful(conf.id)
-        except:
+        except Exception as ex:
+            raise Exception(ex)
             count.failed +=1
     return {'ids':id_tracker, 'counts':count}
         

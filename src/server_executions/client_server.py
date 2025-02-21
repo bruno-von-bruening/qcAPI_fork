@@ -179,5 +179,3 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
             error= f"Undescribed error"
         if not isinstance(error, type(None)):
             raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")
-        # Make sure to clean the file system!
-        psi4.core.clean()

@@ -6,4 +6,5 @@ test_config*.yaml
 build/
 dist/
 **.egg-info/
+timer.dat
 
