@@ -178,7 +178,7 @@ def get_functions(app, SessionDep):
                 raise Exception(f"Do not know how to handle {object}")
             return record
         except Exception as ex:
-            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failure in execution: {str(ex)}")
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failure in execution: {analyse_exception(ex)}")
 
     @app.get("/get_status/{property}/{id}")
     async def get_status(id: str, property: str, session: SessionDep, worker_id: str = None):

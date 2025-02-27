@@ -37,6 +37,7 @@ def make_wfn(filenames,address, method, basis, do_test=False):
                 inchikey=inchi_key,
                 source='unkown',
                 comments='conenctivity automapgenerated',
+                bonds='auto',
                 )
             conformation.update({'compound':compound})
 
@@ -46,7 +47,6 @@ def make_wfn(filenames,address, method, basis, do_test=False):
         status_code=response.status_code
         if status_code!=HTTPStatus.OK:
             raise Exception(f"Failed request ({request_code}): status_code={status_code}, details=\'{response.text}\'")
-
         try:
             response_content=response.json()
             first_id = response_content["ids"]['succeeded'][0]

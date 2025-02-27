@@ -22,17 +22,23 @@ def get_ids_for_object(session, sql_table):
     ids=[ x.id for x in convergd_wave_functions]
     return ids
 
-def make_object(session, the_object, dicts):
+@validate_call
+def make_object(session, the_object, dicts:List[dict]|dict):
     if isinstance(dicts, dict):
         dicts=[dicts]
-
-    objects=[]
-    for dic in dicts:
-        obj=the_object(**dic)
-        session.add(obj)
-        objects.append(obj)
-    session.commit()
-    return objects
+    try:
+        objects=[]
+        for dic in dicts:
+            try:
+                obj=the_object(**dic)
+                session.add(obj)
+                objects.append(obj)
+                session.commit()
+            except Exception as ex:
+                raise Exception(f"Could not fill {the_object.__name__} with: {dic}:\n{analyse_exception(ex)}")
+        return objects
+    except Exception as ex:
+        raise Exception(analyse_exception(ex))
 
 def populate_esprho(session, surf_ids, wfn_ids=None):
     """ """
@@ -207,25 +213,22 @@ def populate_conformation(session, conformations):
     for conformation in conformations:
         try:
             def make_compound(conformation):
-                key='compound'
-                compound=conformation[key]
-                del conformation[key]
+                try:
+                    key='compound'
+                    compound=conformation[key]
+                    del conformation[key]
 
-                inchi, inchi_key, source, comments=[ compound[x] for x in ['inchi','inchikey','source','comments'] ]
-                elements=conformation['species']
+                    #inchi, inchi_key, source, comments=[ compound[x] for x in ['inchi','inchikey','source','comments'] ]
+                    compound.update({'elements':conformation['species']})
 
-                the_compound=session.get(Compound, inchi_key)
-                if the_compound is None:
-                    new_compound=dict(
-                        inchikey=inchi_key, 
-                        charge=0, 
-                        multiplicity=1,
-                        elements=elements,
-                        ichi=inchi, 
-                        source=source, 
-                        comments=comments
-                    )
-                    the_compound=make_object(session, Compound, new_compound)[0]
+                    the_compound=session.get(Compound, compound['inchikey'])
+                    if the_compound is None:
+                        the_compound=make_object(session, Compound, compound)[0]
+                    else:
+                        raise Exception(f"Unexpectdelty found object of type {compound.__name__} for"+
+                                f" key=\"{compound['inchikey']}\" Updating object not defined yet")
+                except Exception as ex:
+                    raise Exception(analyse_exception(ex))
 
                 return the_compound
 
@@ -242,7 +245,7 @@ def populate_conformation(session, conformations):
             count.populated +=1
             id_tracker.add_successful(conf.id)
         except Exception as ex:
-            raise Exception(ex)
+            raise Exception(analyse_exception(ex))
             count.failed +=1
     return {'ids':id_tracker, 'counts':count}
         
