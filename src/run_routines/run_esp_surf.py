@@ -101,16 +101,16 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
     if tracker.no_error:
         try:
             os.chdir(os.path.realpath(new_dir))
-            results_files='results.json'
+            results_files='results.yaml'
             assert os.path.isfile(results_files), f"Not a file {os.path.realpath(results_files)}"
 
             with open(results_files, 'r') as rd:
-                content=json.load(rd)
+                content=yaml.safe_load(rd)
             try:
                 esp_maps=content['files']['esp-maps']
                 if len(esp_maps)!=1:
                     raise Exception(f"Expceted exactely one esp map, found {esp_maps}")
-                esp_map=list(esp_maps.values())[0]
+                esp_map=list(esp_maps.keys())[0]
             except Exception as ex:
                 raise Exception(f"Error in recovering esp maps: {str(ex)}")
 
