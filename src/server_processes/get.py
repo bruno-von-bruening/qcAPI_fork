@@ -121,6 +121,36 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
         record.update({'production_data':production_data})
     return record, worker_id
 def get_functions(app, SessionDep):
+
+    @app.get("/info/{object}")
+    async def info(
+        object : str ,
+        session: SessionDep,
+    ):
+        try:
+            timestamp=time.time()
+            delay=600
+
+            the_object=object_mapper[ get_unique_tag(object) ]
+            res=filter_db(session, the_object, filter_args={})
+
+            status_mapper=RecordStatus.to_dict()
+            id_by_status={}
+            for k,v in status_mapper.items():
+                id_by_status.update({k: [ x.id for x in res if x.converged==v]})
+            
+            counts=dict([ (k,len(v)) for k,v in id_by_status.items()])
+        
+            num_active_workers = session.exec(
+                select(func.count())
+                .select_from(Worker)
+                .where(Worker.timestamp > timestamp - delay)
+            ).one()
+            counts.update({"recently_active_workers":num_active_workers})
+            return counts
+
+        except Exception as ex:
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, analyse_exception(ex))
     
     @app.get("/get/{object}/{id}")
     async def gen_get_object(
@@ -150,11 +180,9 @@ def get_functions(app, SessionDep):
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failure in execution: {str(ex)}")
 
-    @app.get("/get_record_status/{id}")
-    async def get_record_status(id: str, session: SessionDep, worker_id: str = None):
+    @app.get("/get_status/{property}/{id}")
+    async def get_status(id: str, property: str, session: SessionDep, worker_id: str = None):
         try:
-            record = session.get(QCRecord, id)
-
             if worker_id is not None:
                 # update worker timestamp
                 worker = session.get(Worker, uuid.UUID(worker_id))
@@ -162,26 +190,12 @@ def get_functions(app, SessionDep):
                     worker.timestamp = datetime.datetime.now().timestamp()
                     session.add(worker)
                     session.commit()
+            the_object=object_mapper[ get_unique_tag(property) ]
+            record = session.get(the_object, id)
+                    
+            return record.converged
         except Exception as ex:
-            raise HTTPException(status_code=202, detail=f"get_record_status did not work but returned {ex}")
-                
-        return record.converged
-    @app.get("/get_part_status/{id}")
-    async def get_part_status(id: str, session: SessionDep, worker_id: str = None):
-        try:
-            record = session.get(hirshfeld_partitioning, id)
-
-            if worker_id is not None:
-                # update worker timestamp
-                worker = session.get(Worker, uuid.UUID(worker_id))
-                if worker is not None:
-                    worker.timestamp = datetime.datetime.now().timestamp()
-                    session.add(worker)
-                    session.commit()
-        except Exception as ex:
-            raise HTTPException(status_code=202, detail=f"get_part_status did not work but returned {ex}")
-                
-        return record.converged
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, analyse_exception(ex))
 
     @app.get("/get_next/{property}")
     async def get_next(

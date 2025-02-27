@@ -113,12 +113,12 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
     return tracker, script, input_file, jobname, work_dir
 
 ####
-def execute_horton(tracker, python, script, input_file):
+def execute_horton(tracker, python, script, input_file, num_threads=1):
     # Execute Horton
     output_file=input_file.split('.')[0]+'.hrtout'
     error_file=input_file.split('.')[0]+'.hrterr'
     
-    cmd=f"export OMP_NUM_THREADS=1; {python} {script} -inp {input_file} 1> {output_file} 2> {error_file}"
+    cmd=f"export OMP_NUM_THREADS={num_threads}; {python} {script} -inp {input_file} 1> {output_file} 2> {error_file}"
     horton=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
     stdout, stderr = horton.communicate()
 
@@ -291,7 +291,7 @@ def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, nu
 
         # Execution            
         try:
-            tracker=execute_horton(tracker,python_exc, script, input_file)
+            tracker=execute_horton(tracker,python_exc, script, input_file,num_threads=num_threads)
         except Exception as ex:
             raise Exception(f"Error in executing horton: {analyse_exception(ex)}")
 

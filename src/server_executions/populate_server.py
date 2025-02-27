@@ -109,17 +109,18 @@ def make_grid(address, do_test=False):
     if do_test:
         pairs=[(1.e-4, 0.5)]
     else:
-        pairs=[ 
-            (1.e-3, 0.1 ), 
-            (2.e-3, 0.1 ), 
-            (5.e-3, 0.1 ), 
-            (1.e-4, 0.2 ), 
-            (2.e-4, 0.2 ), 
-            (5.e-4, 0.2 ), 
-            (1.e-5, 0.4 ), 
-            (2.e-5, 0.4 ), 
-            (5.e-4, 0.4 ),
-        ]
+        pairs=[ (1.e-3, 0.2)]
+        #pairs=[ 
+        #    (1.e-3, 0.1 ), 
+        #    (2.e-3, 0.1 ), 
+        #    (5.e-3, 0.1 ), 
+        #    (1.e-4, 0.2 ), 
+        #    (2.e-4, 0.2 ), 
+        #    (5.e-4, 0.2 ), 
+        #    (1.e-5, 0.4 ), 
+        #    (2.e-5, 0.4 ), 
+        #    (5.e-4, 0.4 ),
+        #]
 
     request_code=f"{address}/populate/isosurf"
     the_json={'grid_pairs':pairs}

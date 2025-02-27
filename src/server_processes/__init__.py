@@ -9,7 +9,7 @@ from http import HTTPStatus
 
 
 # Database imports
-from sqlmodel import select, Session
+from sqlmodel import select, Session, func
 from data_base.database_declaration import (
     Conformation,
     Compound,
@@ -33,8 +33,19 @@ from util.sql_util import create_record, update_record, get_prev_record
 
 from util.sql_util import get_next_record_from_db, filter_db, sqlmodel, sqlmodel_cl_meta
 from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, get_unique_tag
+object_mapper={
+    NAME_PART: Hirshfeld_Partitioning,
+    NAME_WFN: Wave_Function,
+    NAME_IDSURF: IsoDens_Surface,
+    NAME_ESPDMP: DMP_ESP_Map,
+    NAME_ESPRHO: RHO_ESP_Map,
+    NAME_ESPCMP: DMP_vs_RHO_ESP_Map
+}
 from itertools import chain
 
 # Types import
 from pydantic import validate_call, ConfigDict, BaseModel
 from typing import List, Tuple
+import uuid
+import time
+import requests

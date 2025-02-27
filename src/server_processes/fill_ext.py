@@ -77,68 +77,76 @@ def fill_esprho(session, entry):
     return old_record, new_record
 
 def fill_part(session, entry):
-    # Check that all is there
-    try:
-        entry, run_data=get_run_data(entry)
-        part=entry
 
-        mul_key='multipoles'
-        sol_key='solution'
-        mom_fi_key='mom_file'
-        multipoles, solution, mom_file=get_from_run_data(run_data, keys=[mul_key, sol_key, mom_fi_key])
-    except Exception as ex:
-        raise Exception(f"Could not recover data from provided entry: {analyse_exception(ex)}")
+    converged=entry['converged']
 
-
-    # Update the multipoles 
-    if not isinstance(multipoles, type(None)):
+    # If record converged we expect subsidary files
+    if converged==RecordStatus.converged:
+        
+        # Recover the data
         try:
-            multipoles.update({'id':part['id']})
-            mul=Distributed_Multipoles(**multipoles)
-            session.add(mul)
-            session.commit()
-        except Exception as ex:
-            raise Exception(f"Could not create multipoles: {analyse_exception(ex)}")
-    else:
-        if part.converged==1:
-            raise Exception(f"No multipoles provided although converged!")
-    # Update the multipole file
-    if not isinstance(mom_file, type(None)):
-        assert isinstance(mom_file, dict), f"Expected moment file in dictionary format, got: {type(mom_file)} {mom_file}"
-        try:
-            mom_file.update({'id':part['id']})
-            create_record(session, MOM_File, mom_file)
-        except Exception as ex:
-            raise Exception(f"Could not create multipole file: {analyse_exception(ex)}")
-    else:
-        if part.converged==1:
-            raise Exception(f"No moment file provided although converged!")
-    
-    # Update the soltuions
-    if not isinstance(solution, type(None)):
-        try:
-            solution.update({'id':part['id']})
-            sol=ISA_Weights(**solution)
-            session.add(sol)
-            session.commit()
-        except Exception as ex:
-            raise Exception(f"Could not create ISA_weights: {analyse_exception(ex)}")
-    else:
-        if part.converged==1:
-            raise Exception(f"No multipoles provided although converged!")
+            entry, run_data=get_run_data(entry)
 
+            mul_key='multipoles'
+            sol_key='solution'
+            mom_fi_key='mom_file'
+            multipoles, solution, mom_file=get_from_run_data(run_data, keys=[mul_key, sol_key, mom_fi_key])
+        except Exception as ex:
+            raise Exception(f"Could not recover data from provided entry: {analyse_exception(ex)}")
+        
+
+        # Update the multipoles 
+        if not isinstance(multipoles, type(None)):
+            try:
+                multipoles.update({'id':entry['id']})
+                mul=Distributed_Multipoles(**multipoles)
+                session.add(mul)
+                session.commit()
+            except Exception as ex:
+                raise Exception(f"Could not create multipoles: {analyse_exception(ex)}")
+        else:
+            if converged==1:
+                raise Exception(f"No multipoles provided although converged!")
+        # Update the multipole file
+        if not isinstance(mom_file, type(None)):
+            assert isinstance(mom_file, dict), f"Expected moment file in dictionary format, got: {type(mom_file)} {mom_file}"
+            try:
+                mom_file.update({'id':entry['id']})
+                create_record(session, MOM_File, mom_file)
+            except Exception as ex:
+                raise Exception(f"Could not create multipole file: {analyse_exception(ex)}")
+        else:
+            if converged==1:
+                raise Exception(f"No moment file provided although converged!")
+        
+        # Update the soltuions
+        if not isinstance(solution, type(None)):
+            try:
+                solution.update({'id':entry['id']})
+                sol=ISA_Weights(**solution)
+                session.add(sol)
+                session.commit()
+            except Exception as ex:
+                raise Exception(f"Could not create ISA_weights: {analyse_exception(ex)}")
+        else:
+            if converged==1:
+                raise Exception(f"No multipoles provided although converged!")
+        
     # Update the partitioning
     the_object=Hirshfeld_Partitioning
     try:
-        if part['converged'] < 0:
+        if entry['converged'] < 0:
             return {"message": "Partitioning not processed. Ignoring."}
 
-        id=part['id']
+        id=entry['id']
         prev_part=get_prev_record(session, the_object, id)
-        new_record=the_object(**part)
+        new_record=the_object(**entry)
         return prev_part, new_record
     except Exception as ex:
         raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error in updating {the_object.__name__}: {ex}")
+
+
+
     
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 def fill_map_file(

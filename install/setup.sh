@@ -1,39 +1,17 @@
 
 conda_env='qcAPI'
 conda_file='install/qcAPI_env.yaml'
+dependencies=("PROPERTY_OBJECTS_HOME" "DENSITY_OPERATIONS_HOME" "PROPERTY_DATABASE_HOME" "QC_GLOBAL_UTILITIES_HOME")
 
 if [ ! -f ${conda_file} ]; then
    echo "The file \'${conda_file}\' does not exist"
    exit
 fi
-dependencies=("PROPERTY_OBJECTS_HOME" "DENSITY_OPERATIONS_HOME" "PROPERTY_DATABASE_HOME")
-paths=()
 
-for var in "${dependencies[@]}"; do
-   if [ -z ${var} ]; then
-      echo required environment variable ${var} is not defined
-      exit
-   fi
-   path=$(printf "%s"  "${!var}" )
-   if [ -z ${path} ]; then
-      echo the variable \'${var}\' appears to be empty and should be set
-      exit
-   fi
-   if [ ! -d "${path}" ]; then
-      echo the path ${path} associated with variable \'${var}\' is not a directory: \'${path}\'
-      exit
-   fi
-   paths+=("${path}")
-done
+source install/setup_ext.sh
 
-
-
-
-source activate base
-conda init bash 
-
-conda remove -n ${conda_env} --all
-conda env create -f ${conda_file}
+paths=$( get_paths_for_dependencies ${dependencies[@]} )
+conda_update_env ${conda_env} ${conda_file}
 
 conda activate ${conda_env}
 if [[ $? != 0 ]]; then
@@ -41,25 +19,4 @@ if [[ $? != 0 ]]; then
    exit
 fi
 
-install_pip_project() {
-   dir=$1
-   if [ ! -d ${dir} ]; then
-      print "Provided argument ${dir} is not a directory"
-      exit
-   fi
-   old_dir=$(pwd)
-   cd ${dir}
-
-   conda run -n ${conda_env} python -m pip install --upgrade build
-   conda run -n ${conda_env} python -m build
-   conda run -n ${conda_env} python -m pip install .
-
-   cd ${old_dir}
-}
-
-
-install_pip_project '.'
-for var  in "${paths[@]}"; do
-   install_pip_project "${var}"
-done
-
+install_pip_projects '.' ${paths[@]}

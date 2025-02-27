@@ -58,21 +58,40 @@ def make_name_dict():
     return names
 names=make_name_dict()
 
+OP_DELETE       = 'delete'
+available_operations=[ OP_DELETE ]
+
+
 def make_available_properties(names: dict) -> List[float]:
     avail_prop=[]
     for k,v in names.items():
         avail_prop +=[k]+list(v) 
 available_properties=make_available_properties(names)
 
-def get_unique_tag(object):
+def get_unique_tag(object, print_options=False):
+    def print_options():
+        lines=[f"Following options are accepted:"]
+        indent=4*' '
+        max_leng=max([ len(the_key) for the_key in names.keys() ])
+        for the_key, aliases in names.items():
+            aliases_key=','.join(aliases)
+            the_key=the_key+' '*(max_leng-len(the_key))
+            lines+=[f"{indent}- {the_key} ( aliases={aliases_key} )"]
+        return '\n'.join(lines)
+        
     # Get a unique name for the object
     object=object.lower()
-    object_tags=[]
+    found_tags=[]
     for prop, tags in names.items():
         if object in [x.lower() for x in tags]:
-            object_tags.append(prop)
-    assert len(object_tags)==1, f"could not associate {object}, found {len(object_tags)} properties"
-    object_tag=object_tags[0]
+            found_tags.append(prop)
+    if len(found_tags)!=1:
+        if not print_options:
+            raise Exception(f"could not associate {object}, found {len(object_tags)} properties")
+        else:
+            quit(print_options())
+    else:
+        object_tag=found_tags[0]
     return object_tag
 
 print_flush = partial(print, flush=True)
@@ -212,4 +231,12 @@ def copy_file(
 
 
 
+
+
+def check_address(address):
+    import requests
+    try:
+        response=requests.get(address)
+    except Exception as ex:
+        raise Exception(f"Cannot communicate with address ({address}):\n {ex}")
 

@@ -12,18 +12,14 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         The job may be done by another worker, then return this info in job_already_done variable"""
 
         job_already_done = False # Should stay false for regular termination
+        entry=None
         while not job_already_done:
             try:
                 delay = np.random.uniform(0.8, 1.2) * delay
                 entry = res.get(timeout=delay)
                 break
             except mp.TimeoutError:
-                if property=='wfn':
-                    response = requests.get(f"http://{url}:{port}/get_record_status/{record['id']}?worker_id={worker_id}")
-                elif property=='part':
-                    response = requests.get(f"http://{url}:{port}/get_part_status/{record['id']}?worker_id={worker_id}")
-                else:
-                    raise Exception()
+                response = requests.get(f"http://{url}:{port}/get_status/{property}/{record['id']}?worker_id={worker_id}")
                 if response.status_code != HTTPStatus.OK:
                     print_flush(
                         f"Error getting record status. Got status code: {response.status_code} , text={response.text}"
@@ -31,7 +27,8 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                     continue
                 job_status = response.json()
                 print_flush("JOB STATUS: ", job_status)
-                job_already_done = job_status == 1
+                job_already_done = ( job_status in [1,0] )
+        
         if isinstance(entry, dict):
             
             # Recovering the avaible information

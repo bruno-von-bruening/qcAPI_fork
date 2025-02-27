@@ -8,6 +8,7 @@ dependencies:
   #- git
   - numpy
   #- psi4
+  - tqdm
   - pip
   - pip:
     - fastapi[standard]
