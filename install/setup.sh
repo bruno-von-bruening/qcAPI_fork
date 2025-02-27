@@ -11,7 +11,15 @@ fi
 source install/setup_ext.sh
 
 paths=$( get_paths_for_dependencies ${dependencies[@]} )
+if [[ $? != 0 ]]; then
+   echo "Problem in setting up paths: ${paths}"
+   exit
+fi
 conda_update_env ${conda_env} ${conda_file}
+if [[ $? != 0 ]]; then
+   echo "Problem in updating conda environment"
+   exit
+fi
 
 conda activate ${conda_env}
 if [[ $? != 0 ]]; then

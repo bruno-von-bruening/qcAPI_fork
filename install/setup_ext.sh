@@ -4,16 +4,16 @@ get_paths_for_dependencies() {
    for var in "${dependencies[@]}"; do
       if [ -z ${var} ]; then
          echo required environment variable ${var} is not defined
-         exit
+         exit 1
       fi
       path=$(printf "%s"  "${!var}" )
       if [ -z ${path} ]; then
          echo the variable \'${var}\' appears to be empty and should be set
-         exit
+         exit 1
       fi
       if [ ! -d "${path}" ]; then
          echo the path ${path} associated with variable \'${var}\' is not a directory: \'${path}\'
-         exit
+         exit 1
       fi
       paths+=("${path}")
    done
@@ -26,11 +26,11 @@ conda_update_env() {
    conda_file=$2
    if [ ! -f ${conda_file} ]; then
       echo f"Provided invalid file: \"${conda_file}\" "
-      exit
+      exit 1
    fi
 
 
-   source $(dirname $CONDA_EXE)/../etc/profile.d/conda.sh
+   source $CONDA_PREFIX/etc/profile.d/conda.sh
    $CONDA_EXE init bash 
    
    conda activate base
@@ -42,7 +42,7 @@ install_pip_project() {
    dir=$1
    if [ ! -d ${dir} ]; then
       print "Provided argument ${dir} is not a directory"
-      exit
+      exit 1
    fi
    old_dir=$(pwd)
    cd ${dir}
@@ -56,5 +56,8 @@ install_pip_projects() {
    paths=($@)
    for var  in "${paths[@]}"; do
       install_pip_project "${var}"
+      if [[ $? != 0 ]]; then
+         exit 1
+      fi
    done
 }
