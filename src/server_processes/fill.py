@@ -80,6 +80,8 @@ def extend_app(app, SessionDep):
     ):
         try:
             return wrapper_gen_fill(entry, session, worker_id, property)
+        except HTTPException as ex:
+            raise HTTPException(ex)
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {str(ex)}")
     

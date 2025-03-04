@@ -1,6 +1,19 @@
 from . import *
 
 @validate_call
+def get_previous_record_wrap(session, object, id: str|int)
+    """ Get the previous record.
+    If the record the calculation has been started with does not exist anymore then there is something wrong
+    If it is already converged we will not overwrite it
+    """
+    old_record=get_prev_record(session, object, id)
+    if old_record is None:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
+    if old_record.converged == 1:
+        raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
+    return old_record
+
+@validate_call
 def get_run_data(entry:dict):
     run_data_key='run_data'
     assert run_data_key in entry.keys(), f"Expected key \'{run_data_key}\' in entry!"
@@ -27,7 +40,7 @@ def get_from_run_data(data:dict, keys: List):
 def fill_idsurf(session, entry):
     object=IsoDens_Surface
     id=entry['id']
-    old_record=get_prev_record(session, object, id)
+    old_record=get_prev_record_wrap(session, object, id)
 
     run_data=entry['run_data']
     surface_file=run_data['surface_file']
@@ -45,7 +58,7 @@ def fill_esprho(session, entry):
     file_obj=RHO_MAP_File
 
     id=entry['id']
-    old_record=get_prev_record(session,the_object, id)
+    old_record=get_prev_record_wrap(session,the_object, id)
 
     run_data=entry['run_data']
     del entry['run_data']
@@ -139,7 +152,7 @@ def fill_part(session, entry):
             return {"message": "Partitioning not processed. Ignoring."}
 
         id=entry['id']
-        prev_part=get_prev_record(session, the_object, id)
+        prev_part=get_prev_record_wrap(session, the_object, id)
         new_record=the_object(**entry)
         return prev_part, new_record
     except Exception as ex:
@@ -207,7 +220,7 @@ def fill_espdmp(session, entry: dict):
     stats_obj       = DMP_ESP_MAP_Stats
 
     id=entry['id']
-    old_record=get_prev_record(session,the_object, id)
+    old_record=get_prev_record_wrap(session,the_object, id)
 
     converged=entry['converged']
     if converged==RecordStatus.converged:
@@ -226,7 +239,7 @@ def fill_espcmp(
     stats_obj       = DMP_vs_RHO_MAP_Stats
     try:
         id=entry['id']
-        old_record=get_prev_record(session,the_object, id)
+        old_record=get_prev_record_wrap(session,the_object, id)
 
         converged=entry['converged']
         if converged==RecordStatus.converged:

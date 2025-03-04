@@ -36,11 +36,8 @@ def get_next_record_from_db(session, object, status=-1, prop_args={}):
 
 def get_prev_record(session, object, id):
     prev_record = session.get(object, id)
-    if prev_record is None:
-        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
-    if prev_record.converged == 1:
-        raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
     return prev_record
+
 def update_record(session, prev_record, record):
     record.timestamp = datetime.datetime.now().timestamp()
     prev_record.sqlmodel_update(record)

@@ -4,6 +4,7 @@
 # import modules.mod_utils as m_utl
 from . import *
 from util.environment import file
+from qc_global_utilities.run_processes.execution import  run_shell_command
 
 @validate_call
 def setup_environment(tracker: Tracker, record_id: str|int, worker_id: str, fchk_file: file, grid_fis: List[file]):
@@ -54,9 +55,7 @@ def execute(Tracker: Tracker, python_exc:file, script_exc:file, linked_file:file
     cmd=' ; '.join(shell_lines+[
         f"{python_exc} {script_exc} --dens {linked_file} --surf {grid_fis_str}"
     ])
-    horton=sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE, preexec_fn=os.setsid)
-    stdout, stderr = horton.communicate()
-    if horton.returncode!=0: raise Exception(f"The commannd {cmd} did terminate with error: {stderr.decode('utf-8')}")
+    stdout, stderr = run_shell_command(cmd)
     
     return Tracker
 
@@ -78,7 +77,11 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
 
     tracker,work_dir, dens_file, grid_fis=setup_environment(tracker, record_id, worker_id, fchk_file, grid_fis )
 
-    tracker=execute(tracker, python_exc, script_exc, dens_file, grid_fis, shell_lines=setup_lines) 
+    if tracker.no_error:
+        try:
+            tracker=execute(tracker, python_exc, script_exc, dens_file, grid_fis, shell_lines=setup_lines) 
+        except Exception as ex:
+            tacker.add_error(f"Error in execution {ex}")
     
     # Copy to target_dir
     if tracker.no_error:
