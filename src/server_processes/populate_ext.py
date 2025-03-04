@@ -225,8 +225,8 @@ def populate_conformation(session, conformations):
                     if the_compound is None:
                         the_compound=make_object(session, Compound, compound)[0]
                     else:
-                        raise Exception(f"Unexpectdelty found object of type {compound.__name__} for"+
-                                f" key=\"{compound['inchikey']}\" Updating object not defined yet")
+                        raise Exception(f"Unexpectdelty found object of type {Compound.__name__} for"+
+                                f" key=\"{compound['inchikey']}\": Cannot overwrite/update object yet.")
                 except Exception as ex:
                     raise Exception(analyse_exception(ex))
 

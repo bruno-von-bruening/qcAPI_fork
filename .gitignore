@@ -8,3 +8,4 @@ dist/
 **.egg-info/
 timer.dat
 install/env_config.yaml
+install/environment_for_server_config.yaml

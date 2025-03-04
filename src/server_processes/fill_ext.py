@@ -1,7 +1,7 @@
 from . import *
 
 @validate_call
-def get_previous_record_wrap(session, object, id: str|int)
+def get_previous_record_wrap(session, object, id: str|int):
     """ Get the previous record.
     If the record the calculation has been started with does not exist anymore then there is something wrong
     If it is already converged we will not overwrite it
