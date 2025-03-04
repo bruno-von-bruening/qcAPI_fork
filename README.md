@@ -50,3 +50,10 @@ In another terminal, you can check the progress with:
 ```bash
   python probe_server.py --address 127.0.0.1:8000 
 ```
+
+## Accessing server from a different machine
+In case the server runs on a machine that requires ssh access one can bind the remote server under a port at the local host:
+```bash
+ssh -L <port_local_host>:<remote_ip>:<port_remote_host> <username>@<remote_ip>
+```
+Assuming port 8080 has been bound at local machine we can reach the server via "http://localhost:8080"

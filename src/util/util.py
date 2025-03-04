@@ -19,6 +19,8 @@ def auto_inchi(coordinates, atom_types):
 
     return auto_inchi, auto_inchi_key
 
+FAVICON_KEY='QCAPI_FAVICON'
+
 from functools import partial
 import os, subprocess
 from enum import Enum
@@ -62,13 +64,15 @@ OP_DELETE       = 'delete'
 available_operations=[ OP_DELETE ]
 
 
+
 def make_available_properties(names: dict) -> List[float]:
     avail_prop=[]
     for k,v in names.items():
         avail_prop +=[k]+list(v) 
 available_properties=make_available_properties(names)
 
-def get_unique_tag(object, print_options=False):
+@validate_call
+def get_unique_tag(object:str, print_options: bool =False)-> str:
     def print_options():
         lines=[f"Following options are accepted:"]
         indent=4*' '

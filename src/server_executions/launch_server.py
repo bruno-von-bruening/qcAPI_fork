@@ -35,6 +35,7 @@ from server_processes.populate import populate_functions
 from server_processes.get import get_functions
 from server_processes.fill import  extend_app
 from server_processes.operations import operation_functions
+from server_processes.info import info_functions
 
 def make_app(app, SessionDep):
     """ Add all the methods to the app """
@@ -45,6 +46,8 @@ def make_app(app, SessionDep):
     extend_app(app, SessionDep)
 
     operation_functions(app, SessionDep)
+
+    info_functions(app, SessionDep)
 
 
 
@@ -199,6 +202,22 @@ def make_app(app, SessionDep):
 
 
 
+def make_favicon(app):
+    """Item to be displayed in browser as item when accessing the server
+    generate with favicon generator
+    """
+
+    
+    import os
+    favicon_path=f"{os.path.dirname(__file__)}/favicon.ico"
+    from fastapi.responses import FileResponse
+    if os.path.isfile(favicon_path):
+        @app.get('/favicon.ico', include_in_schema=False)
+        async def favicon():
+            return FileResponse(favicon_path)
+    else:
+        print(f"Could not find favicon under {favicon_path}")
+    return app
 
 def main(config_file, host, port):
     """ Starts the server """
@@ -248,4 +267,7 @@ def main(config_file, host, port):
     import uvicorn
     app = FastAPI(lifespan=lifespan)
     app=make_app(app, SessionDep)
+    app=make_favicon(app)
+    
+
     uvicorn.run(app,port=port, host=host)

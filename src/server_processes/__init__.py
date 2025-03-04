@@ -9,7 +9,7 @@ from http import HTTPStatus
 
 
 # Database imports
-from sqlmodel import select, Session, func
+from sqlmodel import select, Session, func, SQLModel
 from data_base.database_declaration import (
     Conformation,
     Compound,
@@ -28,7 +28,8 @@ from data_base.qcAPI_database import (
     Worker, RecordStatus
 )
 
-from util.util import analyse_exception
+from util.util import analyse_exception, available_properties as AVAILABLE_PROPERTIES
+from util import my_dict
 from util.sql_util import create_record, update_record, get_prev_record
 
 from util.sql_util import get_next_record_from_db, filter_db, sqlmodel, sqlmodel_cl_meta
@@ -45,7 +46,7 @@ from itertools import chain
 
 # Types import
 from pydantic import validate_call, ConfigDict, BaseModel
-from typing import List, Tuple
+from typing import List, Tuple, Annotated
 import uuid
 import time
 import requests
