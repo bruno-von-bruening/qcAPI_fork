@@ -73,7 +73,7 @@ available_properties=make_available_properties(names)
 
 @validate_call
 def get_unique_tag(object:str, print_options: bool =False)-> str:
-    def print_options():
+    def do_print_options():
         lines=[f"Following options are accepted:"]
         indent=4*' '
         max_leng=max([ len(the_key) for the_key in names.keys() ])
@@ -91,9 +91,9 @@ def get_unique_tag(object:str, print_options: bool =False)-> str:
             found_tags.append(prop)
     if len(found_tags)!=1:
         if not print_options:
-            raise Exception(f"could not associate {object}, found {len(object_tags)} properties")
+            raise Exception(do_print_options())
         else:
-            quit(print_options())
+            quit(do_print_options())
     else:
         object_tag=found_tags[0]
     return object_tag
@@ -209,7 +209,7 @@ def analyse_exception(ex):
     return f"{exc_type} {file}:{line_no}:\n{str(ex)}"
 
 
-from .environment import directory, file
+from util.environment import directory, file
 @validate_call
 def link_file(source:file, target:directory=os.getcwd()):
     link_file='ln_'+os.path.basename(source)

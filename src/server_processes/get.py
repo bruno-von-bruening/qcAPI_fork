@@ -1,33 +1,107 @@
 from . import *
 
-from .get_ext import  create_new_worker, get_next_record
+from .get_ext import  create_new_worker, get_next_record, get_objects
+
+from fastapi import Query
+
+class dummy(BaseModel):
+    object_tag: str
+    links: List[str]
+    filters: dict={}
+class dummy_list(BaseModel):
+    the_list: List[dummy]
 
 def get_functions(app, SessionDep):
-
     @app.get("/get/{object}")
-    async def get_object(
-        object: str,
+    async def get(
         session: SessionDep,
+        object: str,
+        links: List[str]=Query([]),
+        merge: List[str]=Query([]),
+        filters: dict={},
     ):
-        """ Get a list of all objects of the provided type. """
+        
         try:
-            # Assert that object can be assigned to a table
-            try:
-                object=get_unique_tag(object)
-                the_object=object_mapper[object]
-            except Exception as ex:
-                message=f"Could not match \'{object}\' to a table: {ex}"
-                raise Exception(message)
 
-            # Get all tables of the given type
-            try:
-                results= filter_db(session, object=the_object, filter_args={})
-                return {'message':'all good' ,'json':[r.model_dump() for r in results]}
-            except Exception as ex:
-                message=f"Could not get the entries for property {the_object.__name__}: {ex}"
-                raise Exception(message)
+            return_di={'entries':{},'primary_keys':{}}
+
+            the_object      =get_object_for_tag(object)
+            the_links           = [ get_object_for_tag(y) for y in links ]
+
+            
+            
+            # Get linker table
+            def get_prim_key_name(obj):
+                from sqlalchemy.inspection import inspect
+                primary_key=inspect(obj).primary_key
+                assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
+                primary_key=primary_key[0]
+
+                return primary_key.name
+            return_di['primary_keys'].update({object:get_prim_key_name(the_object)})
+            
+            if len(the_links)>0:
+                return_di.update({'links':{}})
+                for l, the_link in zip(links, the_links):
+                    return_di['links'].update({l:{}})
+
+                    def get_prim_key(the_object):
+                        return getattr(the_object, get_prim_key_name(the_object))
+                    
+                    primary_keys=[ get_prim_key(the_object), get_prim_key(the_link) ]
+                    primary_key_mapper=dict([  (k,v) for k,v in zip([object,l], [get_prim_key_name(x) for x in [the_object, the_link]])  ])
+                    # Get the table
+                    query=select( *primary_keys)
+                    for li in the_links:
+                        query=query.join(li)
+
+                    my_linker=[ list(r) for r in session.exec(query).all() ]
+                    return_di['links'][l].update({'linker':my_linker})
+                    return_di['primary_keys'].update({l:get_prim_key_name(the_link)})
+            
+
+            the_merge=[get_object_for_tag(m) for m in merge]
+            query=select(the_object, *the_merge)
+            for m in the_merge:
+                query=query.join(m)
+            #for l in the_links:
+            #    query=query.join(l)
+            results=session.exec(query).all()
+            for i,r in enumerate(results):
+                if issubclass(type(r), BaseModel):
+                    results[i]=r.model_dump()
+                elif hasattr(r, "__iter__"):
+                    results[i]=[ x.model_dump() for x in r]
+                else:
+                    raise Exception(f"Cannot handle type: {type(r)}")
+            return_di['entries']=results
+            return_di.update({'tables':[object,*merge]})
+            
+            # #results=get_objects(session, the_object, filters=filters)
+            # models=[]
+            # for super_row in results:
+            #     rel=dict([  (tag,val.model_dump()) for tag, val in zip([object]+links, super_row)  ])
+            #     models.append(rel)
+
+            return {'message':'all_good', 'json':return_di}
         except Exception as ex:
-            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, str(ex))
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"{analyse_exception(ex)}")
+                
+
+
+
+
+    #@app.get("/get/{object}")
+    #async def get_object(
+    #    object: str,
+    #    session: SessionDep,
+    #):
+    #    """ Get a list of all objects of the provided type. """
+    #    try:
+    #        results= get_objects_for_tag(session,object)
+    #        return {'message':'all good' ,'json':[r.model_dump() for r in results]}
+    #    except Exception as ex:
+    #        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, str(ex))
 
     
     @app.get("/get/{object}/{id}")

@@ -4,7 +4,7 @@
 # import modules.mod_utils as m_utl
 from . import *
 from util.environment import file
-from qc_global_utilities.run_processes.execution import  run_shell_command
+from qc_global_utilities.shell_processes.execution import  run_shell_command
 
 @validate_call
 def setup_environment(tracker: Tracker, record_id: str|int, worker_id: str, fchk_file: file, grid_fis: List[file]):

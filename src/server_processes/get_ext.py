@@ -1,5 +1,13 @@
 from . import *
 
+def get_objects(session, the_object, filters: dict={}):
+    # Get all tables of the given type
+    try:
+        results= filter_db(session, object=the_object, filter_args=filters)
+        return results
+    except Exception as ex:
+        message=f"Could not get the entries for property {the_object.__name__}: {ex}"
+        raise Exception(message)
 def make_production_data(record, UNIQUE_NAME):
     try:
         if UNIQUE_NAME==NAME_WFN:
@@ -38,7 +46,7 @@ def make_production_data(record, UNIQUE_NAME):
 
 
 @validate_call
-def get_next_record(session, object: SQLModel, prop_args:my_dict={}):
+def get_next_record(session, object, prop_args:my_dict={}):
     """ Get the next record to be processed
     if no unprocessed records are available break
     else create a worker
@@ -114,10 +122,10 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
         record= get_next_record(session, object, prop_args=prop_args)
         if record is None:
             worker_id=None
+            return record, worker_id
         else:
             host_address=f"{request.client.host}:{request.client.port}"
             worker_id=create_worker(session, host_address, record)
-        return record, worker_id
 
     except Exception as ex:
         raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error in retrieving record and worker id: {str(ex)}")

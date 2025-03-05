@@ -7,6 +7,7 @@ from qc_global_utilities.pydantic.pydantic import file, directory
 from functools import partial
 
 from pydantic import validate_call
+import os
 
 def the_function(cmd, worker_id ):
     stem=f"local_worker_{worker_id}"
@@ -20,8 +21,9 @@ def main(address:str, config:file, target_dir:directory, prop:str, num_processes
         method=f"--method {method}"
     else:
         method=''
+    loc=os.path.dirname(os.path.realpath(__file__))
     cmd=(
-        f"~/1-0_custom_software/qcAPI_add_esp/bin/client.py {address} --config {config} --delay 10" \
+            f"{loc}/client.py {address} --config {config} --delay 10" \
         +f" --num_threads {num_threads_per_proc}"
         +f" --target_dir {target_dir}  --property {prop} {method}"
     )
