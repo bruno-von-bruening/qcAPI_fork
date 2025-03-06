@@ -20,7 +20,7 @@ server_file=make_file('server.py',qcapi_bin)
 populate_script=make_file('populate_db.py',qcapi_bin)
 client_script=make_file('client.py', qcapi_bin)
 # data
-geom_file=make_file('tests/supplementary_files/test_sample.pkl', qcapi_home)
+geom_file=make_file('tests/supplementary_files/conformations/test_sample.pkl', qcapi_home)
 
 def is_running(process):
     """ The result of poll should be none if the process is running"""
