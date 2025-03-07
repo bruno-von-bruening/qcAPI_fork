@@ -92,7 +92,7 @@ def setup_env():
 def setup():
     whole_dic={}
     dic=setup_env()
-    whole_dic.update({'global':dic})
+    whole_dic.update({'environment':dic})
     
     env_file='environment_for_server_config.yaml'
     with open(env_file, 'w') as wr:

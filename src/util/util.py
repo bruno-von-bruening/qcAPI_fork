@@ -4,6 +4,9 @@ from . import *
 import rdkit.Chem as rdchem
 from rdkit.Chem import rdDetermineBonds, rdmolops
 
+from .auxiliary import my_exception, analyse_exception
+
+
 def auto_inchi(coordinates, atom_types):
     #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
     mol_block=f"{len(coordinates)}\n\n"
@@ -20,6 +23,7 @@ def auto_inchi(coordinates, atom_types):
     return auto_inchi, auto_inchi_key
 
 FAVICON_KEY='QCAPI_FAVICON'
+
 
 from functools import partial
 import os, subprocess
@@ -138,75 +142,9 @@ def check_dir_exists(dir):
 def check_response(response):
     status_code=response.status_code
 
-###### HANDLE CONFIG
-def load_config(config_file):
-    assert os.path.isfile(config_file), f"Not a file: {config_file}"
-    import yaml
-    with open(config_file,'r') as rd:
-        config=yaml.safe_load(rd)
-    assert isinstance(config, dict), f""
-    
-    import_key='import'
-    if import_key in config.keys():
-        imports=config[import_key]
-        def add(config, add_config):
-            def add_loop(the_dict, ref_dict):
-                for k,v in the_dict.items():
-                    if not k in ref_dict.keys():
-                        ref_dict.update({k:v})
-                    else:
-                        if isinstance(v, dict):
-                            ref_dict[k]=add_loop(v, ref_dict[k])
-                        elif v==ref_dict[k]:
-                            pass
-                        else:
-                            raise Exception(f"Key {k} appears in input {config_file} but also in import {imports} with contradictory values")
-                return ref_dict
-
-            config=add_loop(add_config, config)
-            return config
-        
-        if isinstance(imports, list):
-            for x in imports:
-                assert isinstance(x, str)
-                add_config=load_config(x)
-                config=add(config, add_config)
-        elif isinstance(imports, str):
-            add_config=load_config(imports)
-            config=add(config, add_config)
-        else:
-            raise Exception()
-
-    
-    return config
-# Outdate use query config instead
-def load_global_config(config_file):
-    config=load_config(config_file)
-    global_key='global'
-    if global_key in config.keys():
-        global_conf=config[global_key]
-    else:
-        print(f"Did not find key {global_key} in {config_file}: {config.keys()}")
-        global_conf={}
-    return global_conf
-
-def query_config(config_file, query: tuple=(), target=None):
-    """
-    
-    target: """
-    config=load_config(config_file)
-    frame=copy.deepcopy(config)
-    for i,key in enumerate(query): # Maybe key occurs double
-        assert key in frame.keys(), f"Could not find {i}th key in {config_file} of query: {query}"
-        frame=frame[key]
-    return frame
 
 
-def analyse_exception(ex):
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    file=exc_tb.tb_frame.f_code.co_filename
-    line_no=exc_tb.tb_lineno
-    return f"{exc_type} {file}:{line_no}:\n{str(ex)}"
+
 
 
 from util.environment import directory, file
@@ -233,8 +171,6 @@ def copy_file(
         return copied_file
 
 
-def my_exception(text:str, exception:Exception) -> None:
-    raise Exception(f"{str}:\n{analyse_exception(exception)}")
 
 
 

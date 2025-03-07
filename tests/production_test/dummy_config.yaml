@@ -1,0 +1,3 @@
+database_file: dummy_database.db
+environment: null
+imports: /home/bruno/1-0_custom_software/qcAPI_fork/install/environment_for_server_config.yaml

@@ -10,21 +10,11 @@ from run_routines.run_espcmp import run_espcmp
 # import modules.mod_objects as m_obj
 # import modules.mod_utils as m_utl
 
-from util.util import load_global_config, query_config
 from util.environment import get_python_from_conda_env
 
 # Associated (satelite) module
 from util.util import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR
 
-@validate_call
-def get_env(config_file:file, the_key:str):
-    """ """
-    query=('global', the_key)
-    python_env=query_config(config_file, (*query,'python_env') )
-    script_exc=query_config(config_file, (*query, 'script' ))
-    python_exc=get_python_from_conda_env(python_env)
-    
-    return python_exc, script_exc
 
 def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
     
@@ -77,8 +67,8 @@ def prepare_idsurf_script(config_file, fchk_file):
 
     # Get the config for the current file
     idsurf_key='iso_density_surface'
-    query=('global', idsurf_key)
-    python_env=query_config(config_file, (*query,'python_env') )
+    query=('environment', idsurf_key)
+    python_env=query_config( config_file, (*query,'python_env') )
     script_exc=query_config(config_file, (*query, 'script' ))
     python_exc=get_python_from_conda_env(python_env)
 
@@ -90,7 +80,7 @@ def prepare_espmap_script(config_file, fchk_file, surface_file):
     the_key='density_esp'
     the_script=run_esp_surf
 
-    query=('global', the_key)
+    query=('environment', the_key)
     python_env=query_config(config_file, (*query,'python_env') )
     script_exc=query_config(config_file, (*query, 'script' ))
     python_exc=get_python_from_conda_env(python_env)
@@ -112,7 +102,7 @@ def prepare_espdmp_script(
     """ """
     the_script=run_dmp_esp
     the_key='multipolar_esp'
-    query=('global', the_key)
+    query=('environment', the_key)
     python_env=query_config(config_file, (*query,'python_env') )
     script_exc=query_config(config_file, (*query, 'script' ))
     python_exc=get_python_from_conda_env(python_env)
@@ -124,7 +114,7 @@ def prepare_espcmp_script(config_file:file, dmp_map_file:file, rho_map_file:file
     the_script=run_espcmp
     
     the_key='esp_comparison'
-    query=('global', the_key)
+    query=('environment', the_key)
     python_env=query_config(config_file, (*query,'python_env') )
     script_exc=query_config(config_file, (*query, 'script' ))
     python_exc=get_python_from_conda_env(python_env)
