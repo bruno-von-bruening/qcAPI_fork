@@ -1,10 +1,6 @@
 from . import *
 import numpy as np
 
-import sys, os ; sys.path.insert(1, os.environ['SCR'])
-origin=os.path.realpath('..'); sys.path.insert(1, origin)
-
-import modules.mod_utils as m_utl
 #import modules.mod_objects as m_obj
 from qc_objects.objects.property import multipoles as obj_multipoles
 from qc_objects.objects.basis import molecular_radial_basis
