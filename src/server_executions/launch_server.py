@@ -16,24 +16,25 @@ from data_base.qcAPI_database import (
     Worker,
     RecordStatus,
 )
-from data_base.database_declaration import (
-    Compound,
-    Conformation,
-    Wave_Function,
-    Hirshfeld_Partitioning,
-    ISA_Weights,
-    Distributed_Multipoles,
-    #get_conformation_id,
-    #QCRecord,
-    #get_record_id,
-    #RecordStatus,
-    #hirshfeld_partitioning,
-    #Distributed_Multipoles,
-)
+# from data_base.database_declaration import (
+#     Compound,
+#     Conformation,
+#     Wave_Function,
+#     Hirshfeld_Partitioning,
+#     ISA_Weights,
+#     Distributed_Multipoles,
+#     #get_conformation_id,
+#     #QCRecord,
+#     #get_record_id,
+#     #RecordStatus,
+#     #hirshfeld_partitioning,
+#     #Distributed_Multipoles,
+# )
 
 from server_processes.populate import populate_functions
 from server_processes.get import get_functions
 from server_processes.fill import  extend_app
+from server_processes.operations import operation_functions
 
 def make_app(app, SessionDep):
     """ Add all the methods to the app """
@@ -42,6 +43,9 @@ def make_app(app, SessionDep):
     populate=populate_functions(app, SessionDep)
 
     extend_app(app, SessionDep)
+
+    operation_functions(app, SessionDep)
+
 
 
     def get_progress_info(session, property, method, delay):

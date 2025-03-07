@@ -5,4 +5,7 @@ test_full_run/
 test_config*.yaml
 build/
 dist/
-
+**.egg-info/
+timer.dat
+install/env_config.yaml
+install/environment_for_server_config.yaml

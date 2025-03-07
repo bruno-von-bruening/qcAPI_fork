@@ -1,97 +1,8 @@
-import psi4
+from . import *
+from util.environment import get_python_from_conda_env
 
-import numpy as np
-import time
-import multiprocessing as mp
-import os ; from os.path import isfile, isdir
-import sys
-from functools import partial
-import subprocess as sp
-import json
-
-import requests
-from http import HTTPStatus
-
-# Custom modules
-sys.path.insert(1, os.environ['SCR'])
-from run_routines.run_psi4_grac import compute_wave_function
-from run_routines.run_partitioning import exc_partitioning
-import modules.mod_objects as m_obj
-import modules.mod_utils as m_utl
-
-from util.util import load_global_config
-
-# Associated (satelite) module
-from util.util import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR, print_flush
-
-def prepare_wfn_script(config_file, record, serv_adr):
-    
-    def get_psi4_script(config_file):
-        sys.path.insert(1,os.path.realpath('..'))
-        global_config=load_global_config(config_file)
-        psi4_script=global_config['psi4_script']
-        return psi4_script
-    def get_geometry(id):
-        request_code=f"{serv_adr}/get/geom/{id}"
-        response=requests.get(request_code)
-        status_code=response.status_code
-        if status_code!=HTTPStatus.OK:
-            raise Exception(f"Failed to get geometry (request={request_code} status_code={status_code}, error={response.text})")
-        geom=response.json()
-        geom.update({'conf_id':id})
-
-        return geom
-
-    # Get geometry
-    conf_id_key='conformation_id'
-    assert conf_id_key in record.keys()
-    id=record[conf_id_key]
-    geom=get_geometry(id)
-    psi4_script=get_psi4_script(config_file)
-    script=partial(compute_wave_function, psi4_script, geom=geom)
-    return script
-
-def prepare_part_script(config_file, record, serv_adr):
-    def get_horton_script(config_file):
-        sys.path.insert(1,os.path.realpath('..'))
-        global_config=load_global_config(config_file)
-        horton_key='horton_script'
-        assert horton_key in global_config.keys(), f"Cannot find {horton_key} in \'{config_file}\': {global_config}"
-        psi4_script=global_config['horton_script']
-        return psi4_script
-
-    def get_wave_function_file(id):
-        request_code=f"{serv_adr}/get/fchk/{id}"
-        response=requests.get(request_code)
-        status_code=response.status_code
-        if status_code!=HTTPStatus.OK:
-            raise Exception(f"Failed to get fchk (request={request_code} status_code={status_code}, error={response.text})")
-        fchk_info=response.json()
-
-        return fchk_info
-    
-    def gen_fchk_file(fchk_info):
-        target_host=fchk_info['hostname']
-        this_host=os.uname()[1]
-        assert this_host==target_host, f"File from a different hostname!: here=\'{this_host}\', there=\'{target_host}\'"
-
-        to_storage  =fchk_info['path_to_container']
-        to_file     =fchk_info['path_in_container']
-        file        =fchk_info['file_name']
-        path=os.path.realpath(os.path.join(os.environ['HOME'], to_storage, to_file, file))
-        assert os.path.isfile(path), f"Not a existing file: {path}"
-        return path
-        
-
-    horton_script=get_horton_script(config_file)
-    wfn_id=record['wave_function_id']
-    fchk_info=get_wave_function_file(wfn_id)
-    fchk_file=gen_fchk_file(fchk_info)
-
-    script=partial(exc_partitioning, horton_script, fchk_file)
-    return script
-
-
+from .client_server_ext import prepare_espdmp_script, prepare_espmap_script, prepare_idsurf_script, prepare_part_script, prepare_wfn_script, prepare_espcmp_script
+from util.util import print_flush
 
 def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, do_test=False, property='wfn', method=None, fchk_link_file=None):
     """ """
@@ -101,26 +12,23 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         The job may be done by another worker, then return this info in job_already_done variable"""
 
         job_already_done = False # Should stay false for regular termination
+        entry=None
         while not job_already_done:
             try:
                 delay = np.random.uniform(0.8, 1.2) * delay
                 entry = res.get(timeout=delay)
                 break
             except mp.TimeoutError:
-                if property=='wfn':
-                    response = requests.get(f"http://{url}:{port}/get_record_status/{record['id']}?worker_id={worker_id}")
-                elif property=='part':
-                    response = requests.get(f"http://{url}:{port}/get_part_status/{record['id']}?worker_id={worker_id}")
-                else:
-                    raise Exception()
-                if response.status_code != 200:
+                response = requests.get(f"http://{url}:{port}/get_status/{property}/{record['id']}?worker_id={worker_id}")
+                if response.status_code != HTTPStatus.OK:
                     print_flush(
                         f"Error getting record status. Got status code: {response.status_code} , text={response.text}"
                     )
                     continue
                 job_status = response.json()
                 print_flush("JOB STATUS: ", job_status)
-                job_already_done = job_status == 1
+                job_already_done = ( job_status in [1,0] )
+        
         if isinstance(entry, dict):
             
             # Recovering the avaible information
@@ -139,22 +47,19 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
 
         return entry, job_already_done
 
-    def get_next_record(serv_adr, property='part', method='lisa'):
+    def get_next_record(serv_adr, property='part', method='lisa', for_production=True):
         """ Get a the next record to be worked at (in case there is none, return none) """
         while True:
 
             request_code='/'.join([
                     'get_next', property ])
-            opts=[('method',method)]
+            opts=[('method',method), ('for_production',True)]
             opts=[ f"{k}={v}" for k,v in opts if v!=None]
-            request_code+=f"?{' '.join(opts)}"
+            request_code+=f"?{'&'.join(opts)}"
 
             the_request=os.path.join(serv_adr, request_code)
-            try:
-                response = requests.get(the_request)
-                status_code=response.status_code
-            except:
-                raise Exception(f"Could not communicate with server (address: {serv_adr}, request={request_code}, status_code={status_code})")
+            response = requests.get(the_request)
+            status_code=response.status_code
             
             # Break because there are no jobs left
             if status_code == HTTPStatus.OK:
@@ -188,20 +93,52 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         if isinstance(worker_id, type(None)):
             break
 
+        UNIQUE_NAME =get_unique_tag(property)
+
         # Decide which function to use and define arguments
-        if property in ['wfn']:
-            script=prepare_wfn_script(config_file, record, serv_adr)
-        elif property in ['part']:
-            script=prepare_part_script(config_file, record, serv_adr)
+        prod_key='production_data' # Key under which production data is dumped
+        assert prod_key in record.keys()
+        prod_data=record[prod_key]
+        del record[prod_key]
+        if UNIQUE_NAME==NAME_WFN:
+            script = prepare_wfn_script(config_file, record, serv_adr, max_iter=max_iter)
+        elif UNIQUE_NAME==NAME_PART:
+            script = prepare_part_script(config_file, record, serv_adr, max_iter=max_iter)
+        elif UNIQUE_NAME==NAME_IDSURF:
+            fchk_file=prod_data['fchk_file']
+            script = prepare_idsurf_script(config_file, fchk_file=fchk_file)
+        elif NAME_ESPRHO==UNIQUE_NAME:
+            fchk_file=prod_data['fchk_file']
+            surface_file=prod_data['surface_file']
+            script = prepare_espmap_script(config_file, fchk_file=fchk_file, surface_file=surface_file)
+        elif NAME_ESPDMP==UNIQUE_NAME:
+            moment_file=prod_data['moment_file']
+            surface_file=prod_data['surface_file']
+            script = prepare_espdmp_script(config_file, moment_file=moment_file, surface_file=surface_file)
+        elif NAME_ESPCMP == UNIQUE_NAME:
+            rho_map_file=prod_data['rho_map_file']
+            dmp_map_file=prod_data['dmp_map_file']
+            script = prepare_espcmp_script(config_file, dmp_map_file=dmp_map_file, rho_map_file=rho_map_file)
         else:
-            raise Exception()
+            raise Exception(f"No routine defined for {UNIQUE_NAME}")
+        # After extraction clean the record
+
         args=(record, worker_id)
-        kwargs={'do_test':do_test , 'num_threads':num_threads, 'max_iter':max_iter, 'target_dir':target_dir}
+        kwargs={'do_test':do_test , 'num_threads':num_threads,'target_dir':target_dir}
         # Start the job
         pool = mp.Pool(1) # Why is this here
         proc = pool.apply_async(script, args=args, kwds=kwargs)
         # Check return of job
         entry, job_already_done =wait_for_job_completion(proc, delay, property)
+
+        if do_test:
+            if entry['converged']!=1:
+                message=f"Failed to comput with script={script}:"
+                for e in json.loads(entry['errors']):
+                    message+=f'\n{e}'
+                raise Exception(message)
+        if 'run_info' in entry.keys():
+            del entry['run_info']
         
         # In case the has been done by another worker I still want to kill the worker 
         if job_already_done:
@@ -210,15 +147,22 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
             pool.join()
             entry = record
         else:
-            if property in ['wfn']:
+            if UNIQUE_NAME==NAME_WFN:
                 request=f"{serv_adr}/fill/wfn/{worker_id}"
-                response = requests.put(request, json=entry)
-            elif property in ['part']:
+            elif UNIQUE_NAME==NAME_PART:
                 request=f"{serv_adr}/fill/part/{worker_id}"
-                response = requests.put(request, json=entry )
+            elif UNIQUE_NAME==NAME_IDSURF:
+                request=f"{serv_adr}/fill/isosurf/{worker_id}"
+            elif NAME_ESPRHO == UNIQUE_NAME:
+                request=f"{serv_adr}/fill/esprho/{worker_id}"
+            elif NAME_ESPDMP == UNIQUE_NAME:
+                request=f"{serv_adr}/fill/espdmp/{worker_id}"
+            elif NAME_ESPCMP == UNIQUE_NAME:
+                request=f"{serv_adr}/fill/espcmp/{worker_id}"
             else:
-                raise Exception()
+                raise Exception(f"Did not implement case for {UNIQUE_NAME}")
         
+        response = requests.put(request, json=entry )
         # Check success of request
         status_code=response.status_code
         if status_code == HTTPStatus.OK: # desired
@@ -232,5 +176,3 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
             error= f"Undescribed error"
         if not isinstance(error, type(None)):
             raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")
-        # Make sure to clean the file system!
-        psi4.core.clean()

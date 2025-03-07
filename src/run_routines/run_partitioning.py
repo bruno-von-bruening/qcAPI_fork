@@ -14,16 +14,7 @@ import numpy as np
 from util.util import analyse_exception
 
 
-def prepare_input(worker_id, record, horton_script, fchk_file, warnings):
-    def get_conda_python():
-        """"""
-        # Check conda
-        env_name='horton_wpart'
-        python=m_utl.get_conda_env(env_name)
-        if isinstance(python, type(None)): raise Exception(f"Could not get python executable")
-        assert os.path.isfile(os.path.realpath(python)), os.path.relpath(python)
-
-        return python
+def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     def get_script(config_file):
         # get horton script
@@ -40,7 +31,7 @@ def prepare_input(worker_id, record, horton_script, fchk_file, warnings):
         
         # Backup
         if isinstance(script, type(None)):
-            warnings.append(f"Resorting to default value of horton script but should be designated in config file.")
+            tracker.add_warning(f"Resorting to default value of horton script but should be designated in config file.")
             script=f"{os.environ['SCR']}/execution/run_horton_wpart.py"
         if isinstance(script, type(None)): raise Exception(f"Failed in finding horton script")
         assert isfile(script), f"Not a file: {script}"
@@ -89,7 +80,6 @@ def prepare_input(worker_id, record, horton_script, fchk_file, warnings):
 
     try:
         # Get environment dependent python and run script
-        python = get_conda_python()
         script = horton_script#get_script(config_file)
     except Exception as ex:
         raise Exception(f"Error while getting python executable and script: {ex}")
@@ -120,15 +110,15 @@ def prepare_input(worker_id, record, horton_script, fchk_file, warnings):
     except Exception as ex:
         raise Exception(f"Error while generating horton input file: {ex}")
     
-    return python, script, input_file, jobname, work_dir
+    return tracker, script, input_file, jobname, work_dir
 
 ####
-def execute_horton(python, script, input_file):
+def execute_horton(tracker, python, script, input_file, num_threads=1):
     # Execute Horton
     output_file=input_file.split('.')[0]+'.hrtout'
     error_file=input_file.split('.')[0]+'.hrterr'
     
-    cmd=f"export OMP_NUM_THREADS=1; {python} {script} -inp {input_file} 1> {output_file} 2> {error_file}"
+    cmd=f"export OMP_NUM_THREADS={num_threads}; {python} {script} -inp {input_file} 1> {output_file} 2> {error_file}"
     horton=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
     stdout, stderr = horton.communicate()
 
@@ -141,7 +131,9 @@ def execute_horton(python, script, input_file):
     error_message=f"The commannd \'{cmd}\' did terminate with error: stderr={stderr.decode('utf-8')}\nhorton_stderr={horton_stderr}"
     if horton.returncode!=0: raise Exception(error_message)
 
-def recover_horton_results(record, jobname, work_dir, target_dir, error, warnings):
+    return tracker
+
+def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
     def load_results_overview():
         """ horton execution drops a files that contains all the location of the generated file 
         add the absolute path to this dir (files are defined relative to this)
@@ -169,7 +161,7 @@ def recover_horton_results(record, jobname, work_dir, target_dir, error, warning
             moms_json=json.dumps(moms)
         except Exception as ex:
             raise Exception(f"Error in reading moment from file {mom_file} with {obj_multipoles}: {analyse_exception(ex)}")
-        return ranks,moms_json
+        return mom_file, ranks,moms_json
     def get_solution(results):
         try:
             file_tag='files'
@@ -242,7 +234,7 @@ def recover_horton_results(record, jobname, work_dir, target_dir, error, warning
 
 
 
-    def copying_results(error):
+    def copying_results(tracker):
         try:
             os.chdir('..')
             if os.path.realpath(target_dir)!=os.getcwd():
@@ -252,17 +244,27 @@ def recover_horton_results(record, jobname, work_dir, target_dir, error, warning
                 assert len(source_files)>0, f"No output files in {os.path.realpath(work_dir)}!"
                 [ shutil.move(file, target) for file in source_files ]
                 os.rmdir(work_dir)
+            else:
+                target=jobname
         except Exception as ex:
-            error.append(f"Problems in copying results: {str(ex)}")
-        return error
+            tracker.add_error(f"Problems in copying results: {str(ex)}")
+        return tracker, target
 
     results=load_results_overview()
-    ranks,moms_json=get_moments(results)
+    mom_file,ranks,moms_json=get_moments(results)
     solution=get_solution(results)
     ranks='|'.join([' '.join(['']+ [str(y) for y in x]+['']) for x in ranks] )
 
     # copy the results to target directory and append errors if encountered
-    error=copying_results(error)
+    tracker, target_dir=copying_results(tracker)
+    new_mom_file=os.path.join( target_dir, os.path.basename(mom_file) )
+    assert os.path.isfile(new_mom_file)
+    mom_fi_di={
+        'hostname':os.uname()[1],
+        'path_to_container': os.path.relpath(os.path.dirname(new_mom_file), os.environ['HOME']),
+        'path_in_container': '.',
+        'file_name':os.path.basename(new_mom_file)
+    }
 
     multipoles=dict(
         id=record['id'],
@@ -273,54 +275,41 @@ def recover_horton_results(record, jobname, work_dir, target_dir, error, warning
         traceless=True,
         multipoles=moms_json,
     )
-    return multipoles,solution, error
+    return tracker, mom_fi_di, multipoles,solution
 
-def exc_partitioning(horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
+def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
     # Create warnings and errors that get change permanently in the exception blog
-    warnings=[]
-    errors=[]
-    def array_to_str(array):
-        return '|'.join(array)
+    tracker=Tracker()
     
     try:
         # Input generation
         try:
-            python, script, input_file, jobname, work_dir = prepare_input(worker_id, record, horton_script, fchk_file, warnings)
+            tracker, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
         except Exception as ex:
-            raise Exception(f"Error in preparing data: {ex}")
+            raise Exception(f"Error in preparing data: {analyse_exception(ex)}")
 
         # Execution            
         try:
-            execute_horton(python, script, input_file)
+            tracker=execute_horton(tracker,python_exc, script, input_file,num_threads=num_threads)
         except Exception as ex:
-            raise Exception(f"Error in executing horton: {ex}")
+            raise Exception(f"Error in executing horton: {analyse_exception(ex)}")
 
         # Recovering Results
         try:
-            error=[]
-            multipoles, solution, errors=recover_horton_results(record, jobname, work_dir, target_dir, errors, warnings)
+            tracker, mom_file, multipoles, solution=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
         except Exception as ex:
-            raise Exception(f"Error in postprocessing horton run : {str(ex)}")
+            raise Exception(f"Error in postprocessing horton run : {analyse_exception(ex)}")
         
         # Evaluate succes of run
         try:
             # Process message and error
-            if len(error)>0:
-                message=f"Successful run (albeit not critical errors occured)"
-                error_string=array_to_str(errors)
-            else:
-                message=f"Succesful run"
-                error_string=None
             # Update convergence of record 
-            record['converged']=1    
-            return {
-                'part':record,
+            converged=1    
+            run_data={
                 'multipoles':multipoles,
+                'mom_file': mom_file,
                 'solution':solution,
-                'message': message,
-                'warnings': array_to_str(warnings),
-                'error': error_string,
             }
         except Exception as ex:
             raise Exception(f"Error in returning results: {ex}")
@@ -329,15 +318,13 @@ def exc_partitioning(horton_script, fchk_file, record, worker_id, num_threads=1,
             raise Exception(f"Run failed with error: {ex}")
         else:
             print(f"Run failed with error: {str(ex)}")
-        record['converged']=0
-        return {
-            'part': record,
-            'multipoles': None,
-            'solution':None,
-            'message': f"Record did not converge",
-            'error': str(ex),
-            'warnings': array_to_str(warnings),
-        }
+        run_data=None
+        converged=0
+    
+    record.update({'converged':converged, **tracker.model_dump()})
+    run_info={'status':tracker.status, 'status_code':tracker.status_code}
+    record.update({'run_data':run_data, 'run_info':run_info})
+    return record
 
 if __name__=='__main__':
 
