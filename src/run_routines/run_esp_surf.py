@@ -69,6 +69,9 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
     record_id=record['id']
     grid_fis=[surface_file]
 
+    converged=0
+    run_data=None
+
     ##
     ## autodelete fchk file?
     ##
@@ -81,7 +84,7 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
         try:
             tracker=execute(tracker, python_exc, script_exc, dens_file, grid_fis, shell_lines=setup_lines) 
         except Exception as ex:
-            tacker.add_error(f"Error in execution {ex}")
+            tracker.add_error(f"Error in execution {ex}")
     
     # Copy to target_dir
     if tracker.no_error:
@@ -148,8 +151,6 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
             run_data={'map_file':esp_map_di, 'stats': stats}
             converged=1
         except Exception as ex:
-            converged=0
-            run_data=None
             if do_test:
                 raise Exception(f"Error in recovering results: {str(ex)}")
     

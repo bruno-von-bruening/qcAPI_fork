@@ -233,7 +233,8 @@ def copy_file(
         return copied_file
 
 
-
+def my_exception(text:str, exception:Exception) -> None:
+    raise Exception(f"{str}:\n{analyse_exception(exception)}")
 
 
 

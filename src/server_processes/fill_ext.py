@@ -63,29 +63,31 @@ def fill_esprho(session, entry):
     run_data=entry['run_data']
     del entry['run_data']
 
-    map_key='map_file'
-    if map_key in run_data.keys():
-        the_file=run_data[map_key]
-        if isinstance(the_file, dict):
-            the_file.update({'id':id})
-            create_record(session, file_obj, the_file)
-        else:
-            entry['converged']=0
-    else:
-        entry['converged']=0
-    
-    stats_key='stats'
-    if stats_key:
-        stats=run_data[stats_key]
-        if stats is not None:
-            assert isinstance(stats, dict),  f"Expected dictinoary for stats, got {type(stats)}"
-            stats.update({'id':id})
-            stats=create_record(session, RHO_ESP_MAP_Stats, stats)
-    
     if entry['converged'] < 0:
         return {"message": "Record not processed. Ignoring."}
-    else:
-        pass
+    elif entry['converged']!=0:
+        if run_data is None:
+            entry['converged']=0
+        else:
+            map_key='map_file'
+            if map_key in run_data.keys():
+                the_file=run_data[map_key]
+                if isinstance(the_file, dict):
+                    the_file.update({'id':id})
+                    create_record(session, file_obj, the_file)
+                else:
+                    entry['converged']=0
+            else:
+                entry['converged']=0
+    
+        stats_key='stats'
+        if stats_key in run_data.keys():
+            stats=run_data[stats_key]
+            if stats is not None:
+                assert isinstance(stats, dict),  f"Expected dictinoary for stats, got {type(stats)}"
+                stats.update({'id':id})
+                stats=create_record(session, RHO_ESP_MAP_Stats, stats)
+    
     new_record=the_object(**entry)
     return old_record, new_record
 

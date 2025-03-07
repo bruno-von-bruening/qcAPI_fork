@@ -19,7 +19,10 @@ def get_functions(app, SessionDep):
         links: List[str]=Query([]),
         merge: List[str]=Query([]),
         filters: dict={},
+        ids: List[str|int]=Query(None)
     ):
+        if ids is []:
+            raise HTTPException(HTTPStatus.BAD_REQUEST, f"Provided empty ids!")
         
         try:
 
@@ -62,6 +65,12 @@ def get_functions(app, SessionDep):
 
             the_merge=[get_object_for_tag(m) for m in merge]
             query=select(the_object, *the_merge)
+            if not ids is None:
+                if the_object.__name__ is 'Compound':
+                    id_key='inchikey'
+                else:
+                    id_key='id'
+                query=query.where(getattr(the_object,id_key).in_(ids))
             for m in the_merge:
                 query=query.join(m)
             #for l in the_links:

@@ -36,6 +36,7 @@ from server_processes.get import get_functions
 from server_processes.fill import  extend_app
 from server_processes.operations import operation_functions
 from server_processes.info import info_functions
+from server_processes.sending_files import file_functions
 
 def make_app(app, SessionDep):
     """ Add all the methods to the app """
@@ -48,6 +49,8 @@ def make_app(app, SessionDep):
     operation_functions(app, SessionDep)
 
     info_functions(app, SessionDep)
+
+    app=file_functions(app, SessionDep)
 
 
 
