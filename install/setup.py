@@ -85,6 +85,8 @@ def setup_env():
         {'QC_DENSITY_OPERATIONS_LIB': qc_dens_lib}
     })
 
+
+
     return envs
 
 def setup():
@@ -97,7 +99,6 @@ def setup():
         yaml.safe_dump(whole_dic, wr)
         string=yaml.safe_dump(whole_dic)
 
-    #yaml.safe_load(env_file)
 
 
 if __name__=='__main__':

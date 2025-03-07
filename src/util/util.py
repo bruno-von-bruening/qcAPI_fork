@@ -19,6 +19,8 @@ def auto_inchi(coordinates, atom_types):
 
     return auto_inchi, auto_inchi_key
 
+FAVICON_KEY='QCAPI_FAVICON'
+
 from functools import partial
 import os, subprocess
 from enum import Enum
@@ -62,14 +64,16 @@ OP_DELETE       = 'delete'
 available_operations=[ OP_DELETE ]
 
 
+
 def make_available_properties(names: dict) -> List[float]:
     avail_prop=[]
     for k,v in names.items():
         avail_prop +=[k]+list(v) 
 available_properties=make_available_properties(names)
 
-def get_unique_tag(object, print_options=False):
-    def print_options():
+@validate_call
+def get_unique_tag(object:str, print_options: bool =False)-> str:
+    def do_print_options():
         lines=[f"Following options are accepted:"]
         indent=4*' '
         max_leng=max([ len(the_key) for the_key in names.keys() ])
@@ -87,9 +91,9 @@ def get_unique_tag(object, print_options=False):
             found_tags.append(prop)
     if len(found_tags)!=1:
         if not print_options:
-            raise Exception(f"could not associate {object}, found {len(object_tags)} properties")
+            raise Exception(do_print_options())
         else:
-            quit(print_options())
+            quit(do_print_options())
     else:
         object_tag=found_tags[0]
     return object_tag
@@ -205,7 +209,7 @@ def analyse_exception(ex):
     return f"{exc_type} {file}:{line_no}:\n{str(ex)}"
 
 
-from .environment import directory, file
+from util.environment import directory, file
 @validate_call
 def link_file(source:file, target:directory=os.getcwd()):
     link_file='ln_'+os.path.basename(source)
@@ -229,7 +233,8 @@ def copy_file(
         return copied_file
 
 
-
+def my_exception(text:str, exception:Exception) -> None:
+    raise Exception(f"{str}:\n{analyse_exception(exception)}")
 
 
 

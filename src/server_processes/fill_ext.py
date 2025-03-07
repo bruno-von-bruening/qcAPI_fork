@@ -40,7 +40,7 @@ def get_from_run_data(data:dict, keys: List):
 def fill_idsurf(session, entry):
     object=IsoDens_Surface
     id=entry['id']
-    old_record=get_prev_record_wrap(session, object, id)
+    old_record=get_previous_record_wrap(session, object, id)
 
     run_data=entry['run_data']
     surface_file=run_data['surface_file']
@@ -58,34 +58,36 @@ def fill_esprho(session, entry):
     file_obj=RHO_MAP_File
 
     id=entry['id']
-    old_record=get_prev_record_wrap(session,the_object, id)
+    old_record=get_previous_record_wrap(session,the_object, id)
 
     run_data=entry['run_data']
     del entry['run_data']
 
-    map_key='map_file'
-    if map_key in run_data.keys():
-        the_file=run_data[map_key]
-        if isinstance(the_file, dict):
-            the_file.update({'id':id})
-            create_record(session, file_obj, the_file)
-        else:
-            entry['converged']=0
-    else:
-        entry['converged']=0
-    
-    stats_key='stats'
-    if stats_key:
-        stats=run_data[stats_key]
-        if stats is not None:
-            assert isinstance(stats, dict),  f"Expected dictinoary for stats, got {type(stats)}"
-            stats.update({'id':id})
-            stats=create_record(session, RHO_ESP_MAP_Stats, stats)
-    
     if entry['converged'] < 0:
         return {"message": "Record not processed. Ignoring."}
-    else:
-        pass
+    elif entry['converged']!=0:
+        if run_data is None:
+            entry['converged']=0
+        else:
+            map_key='map_file'
+            if map_key in run_data.keys():
+                the_file=run_data[map_key]
+                if isinstance(the_file, dict):
+                    the_file.update({'id':id})
+                    create_record(session, file_obj, the_file)
+                else:
+                    entry['converged']=0
+            else:
+                entry['converged']=0
+    
+        stats_key='stats'
+        if stats_key in run_data.keys():
+            stats=run_data[stats_key]
+            if stats is not None:
+                assert isinstance(stats, dict),  f"Expected dictinoary for stats, got {type(stats)}"
+                stats.update({'id':id})
+                stats=create_record(session, RHO_ESP_MAP_Stats, stats)
+    
     new_record=the_object(**entry)
     return old_record, new_record
 
@@ -152,7 +154,7 @@ def fill_part(session, entry):
             return {"message": "Partitioning not processed. Ignoring."}
 
         id=entry['id']
-        prev_part=get_prev_record_wrap(session, the_object, id)
+        prev_part=get_previous_record_wrap(session, the_object, id)
         new_record=the_object(**entry)
         return prev_part, new_record
     except Exception as ex:
@@ -220,7 +222,7 @@ def fill_espdmp(session, entry: dict):
     stats_obj       = DMP_ESP_MAP_Stats
 
     id=entry['id']
-    old_record=get_prev_record_wrap(session,the_object, id)
+    old_record=get_previous_record_wrap(session,the_object, id)
 
     converged=entry['converged']
     if converged==RecordStatus.converged:
@@ -239,7 +241,7 @@ def fill_espcmp(
     stats_obj       = DMP_vs_RHO_MAP_Stats
     try:
         id=entry['id']
-        old_record=get_prev_record_wrap(session,the_object, id)
+        old_record=get_previous_record_wrap(session,the_object, id)
 
         converged=entry['converged']
         if converged==RecordStatus.converged:

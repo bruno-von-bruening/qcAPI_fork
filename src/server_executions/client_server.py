@@ -97,7 +97,7 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
 
         # Decide which function to use and define arguments
         prod_key='production_data' # Key under which production data is dumped
-        assert prod_key in record.keys()
+        assert prod_key in record.keys(), f"Could not find key \'{prod_key}\' in record keys ({list(record.keys())})"
         prod_data=record[prod_key]
         del record[prod_key]
         if UNIQUE_NAME==NAME_WFN:

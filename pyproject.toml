@@ -8,3 +8,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
+
+[tool.setuptools.package-data]
+server_executions= ["*.py","*.ico"]
+

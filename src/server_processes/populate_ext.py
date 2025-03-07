@@ -310,8 +310,8 @@ def populate_espcmp(session, espdmp_ids=None, espwfn_ids=None):
         fill_it=[]
         for id in surf_ids:
             surface=session.get(IsoDens_Surface, id)
-            dmp_maps=surface.esp_dmp_maps
-            rho_maps=surface.esp_rho_maps
+            dmp_maps=[ x for x in surface.esp_dmp_maps if x.converged==1]
+            rho_maps=[ x for x in surface.esp_rho_maps if x.converged==1]
 
             if dmp_maps!=[] and rho_maps!=[]:
                 for rho_map in rho_maps: 
