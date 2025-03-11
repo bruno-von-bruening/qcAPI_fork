@@ -49,6 +49,7 @@ NAME_IDSURF     ='isodensity_surface'
 NAME_ESPRHO     ='density_esp'
 NAME_ESPDMP     ='multipolar_esp'
 NAME_ESPCMP     ='compare_esp'
+NAME_ESPCMP_FILE='espcmp_file'
 def make_name_dict():
     names={
         NAME_CONF:[],
@@ -57,7 +58,7 @@ def make_name_dict():
         NAME_IDSURF: ['isosurf'],
         NAME_ESPRHO: ['esprho'],
         NAME_ESPDMP: ['espdmp'],
-        NAME_ESPCMP: ['espcmp']
+        NAME_ESPCMP: ['espcmp'],
     }
     # Names for functions, key will be added to list
     [ names[k].append(k) for k in names.keys()]
@@ -65,7 +66,9 @@ def make_name_dict():
 names=make_name_dict()
 
 OP_DELETE       = 'delete'
-available_operations=[ OP_DELETE ]
+OP_CLEAN_DOUBLE       = 'clean_double'
+OP_CLEAN_PENDING    ='clean_pending'
+available_operations=[ OP_DELETE , OP_CLEAN_DOUBLE, OP_CLEAN_PENDING]
 
 
 
@@ -101,6 +104,7 @@ def get_unique_tag(object:str, print_options: bool =False)-> str:
     else:
         object_tag=found_tags[0]
     return object_tag
+
 
 print_flush = partial(print, flush=True)
 

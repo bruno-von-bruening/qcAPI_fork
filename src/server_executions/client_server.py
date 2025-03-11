@@ -137,8 +137,9 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                 for e in json.loads(entry['errors']):
                     message+=f'\n{e}'
                 raise Exception(message)
-        if 'run_info' in entry.keys():
-            del entry['run_info']
+        if not entry is None:
+            if 'run_info' in entry.keys():
+                del entry['run_info']
         
         # In case the has been done by another worker I still want to kill the worker 
         if job_already_done:

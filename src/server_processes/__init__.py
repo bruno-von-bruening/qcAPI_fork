@@ -42,8 +42,10 @@ object_mapper={
     NAME_ESPDMP: DMP_ESP_Map,
     NAME_ESPRHO: RHO_ESP_Map,
     NAME_ESPCMP: DMP_vs_RHO_ESP_Map,
+    NAME_CONF   : Conformation,
 }
-
+from typing import Optional
+from pydantic import Field
 
 def get_object_for_tag(tag):
     try:

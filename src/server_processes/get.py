@@ -11,6 +11,18 @@ class dummy(BaseModel):
 class dummy_list(BaseModel):
     the_list: List[dummy]
 
+
+# Get linker table
+def get_prim_key_name(obj):
+    from sqlalchemy.inspection import inspect
+    primary_key=inspect(obj).primary_key
+    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
+    primary_key=primary_key[0]
+
+    return primary_key.name
+def get_prim_key(the_object):
+    return getattr(the_object, get_prim_key_name(the_object))
+
 def get_functions(app, SessionDep):
     @app.get("/get/{object}")
     async def get(
@@ -18,64 +30,55 @@ def get_functions(app, SessionDep):
         object: str,
         links: List[str]=Query([]),
         merge: List[str]=Query([]),
-        filters: dict={},
-        ids: List[str|int]=Query(None)
+        filters: List[str]=Query([]),
+        ids: List[str|int]=Query(None),
+        deps: List[str]|None=Query([]),
     ):
         if ids is []:
             raise HTTPException(HTTPStatus.BAD_REQUEST, f"Provided empty ids!")
+        elif 'all' in ids:
+            get_all=True
+        else:
+            get_all=False
         
         try:
+            new_filters={}
+            for x in filters:
+                sep='--'
+                ar=x.split(sep)
+                assert len(ar)==2, f"Expected separator \'{sep}\' in filters option but got {x}"
+                new_filters.update({ar[0]:ar[1]})
+            filters=new_filters
+        except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Filters argument has error: {analyse_exception(ex)}\nfilters={filters}")
+        
+        try:
+            return_di={'entries':{},'primary_keys':{},'dependants':{},'links':{}}
 
-            return_di={'entries':{},'primary_keys':{}}
+            # Get the object table
+            object_table=get_object_for_tag(object)
+            # Get 
+            the_link_tabs    = [ get_object_for_tag(y) for y in links ]
+            the_dep_tabs     = [ get_object_for_tag(y) for y in deps ]
+            the_merge_tabs   = [ get_object_for_tag(y) for y in merge]
 
-            the_object      =get_object_for_tag(object)
-            the_links           = [ get_object_for_tag(y) for y in links ]
+            if get_all:
+                ids=session.exec(
+                    select( get_prim_key(object_table))
+                ).all()
 
-            
-            
-            # Get linker table
-            def get_prim_key_name(obj):
-                from sqlalchemy.inspection import inspect
-                primary_key=inspect(obj).primary_key
-                assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
-                primary_key=primary_key[0]
-
-                return primary_key.name
-            return_di['primary_keys'].update({object:get_prim_key_name(the_object)})
-            
-            if len(the_links)>0:
-                return_di.update({'links':{}})
-                for l, the_link in zip(links, the_links):
-                    return_di['links'].update({l:{}})
-
-                    def get_prim_key(the_object):
-                        return getattr(the_object, get_prim_key_name(the_object))
-                    
-                    primary_keys=[ get_prim_key(the_object), get_prim_key(the_link) ]
-                    primary_key_mapper=dict([  (k,v) for k,v in zip([object,l], [get_prim_key_name(x) for x in [the_object, the_link]])  ])
-                    # Get the table
-                    query=select( *primary_keys)
-                    for li in the_links:
-                        query=query.join(li)
-
-                    my_linker=[ list(r) for r in session.exec(query).all() ]
-                    return_di['links'][l].update({'linker':my_linker})
-                    return_di['primary_keys'].update({l:get_prim_key_name(the_link)})
+            for tab in [object_table]+the_dep_tabs+the_link_tabs:
+                return_di['primary_keys'].update({tab.__name__:get_prim_key_name(tab)})
             
 
-            the_merge=[get_object_for_tag(m) for m in merge]
-            query=select(the_object, *the_merge)
-            if not ids is None:
-                if the_object.__name__ is 'Compound':
-                    id_key='inchikey'
-                else:
-                    id_key='id'
-                query=query.where(getattr(the_object,id_key).in_(ids))
-            for m in the_merge:
+            query=select(object_table, *the_merge_tabs)
+            for m in the_merge_tabs:
                 query=query.join(m)
-            #for l in the_links:
-            #    query=query.join(l)
+            for k,v in filters.items():
+                assert hasattr(object_table, k), f"{object_table.__name__} does not have attribute {k}: {object_table.__dict__.keys()}"
+                query=query.where(getattr(object_table, k)==v)
+            query=query.where(get_prim_key(object_table).in_(ids))
             results=session.exec(query).all()
+
             for i,r in enumerate(results):
                 if issubclass(type(r), BaseModel):
                     results[i]=r.model_dump()
@@ -84,9 +87,37 @@ def get_functions(app, SessionDep):
                 else:
                     raise Exception(f"Cannot handle type: {type(r)}")
             return_di['entries']=results
+            
+            if len(links)>0:
+                for l, the_link in zip(links, the_link_tabs):
+                    return_di['links'].update({l:{}})
+
+                    
+                    primary_keys=[ get_prim_key(object_table), get_prim_key(the_link) ]
+                    primary_key_mapper=dict([  (k,v) for k,v in zip([object,l], [get_prim_key_name(x) for x in [object_table, the_link]])  ])
+                    # Get the table
+                    query=select( *primary_keys)
+                    for li in the_link_tabs:
+                        query=query.join(li)
+
+                    my_linker=[ list(r) for r in session.exec(query).all() ]
+                    return_di['links'][l].update({'linker':my_linker})
+                    return_di['primary_keys'].update({l:get_prim_key_name(the_link)})
+
+            if len(deps)>0:
+                dep_di=return_di['dependants']
+                for id in ids:
+                    dep_di.update({id:{}})
+                    for dep_tab in the_dep_tabs:
+                        # quite inefficient but okay for the moment
+                        childs=[ x[1].model_dump() for x in session.exec(
+                            select(object_table, dep_tab).join(dep_tab).where(get_prim_key(object_table)==id)
+                        )]
+                        dep_di[id].update({dep_tab.__name__:childs})
+
             return_di.update({'tables':[object,*merge]})
             
-            # #results=get_objects(session, the_object, filters=filters)
+            # #results=get_objects(session, object_table, filters=filters)
             # models=[]
             # for super_row in results:
             #     rel=dict([  (tag,val.model_dump()) for tag, val in zip([object]+links, super_row)  ])
@@ -113,30 +144,33 @@ def get_functions(app, SessionDep):
     #        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, str(ex))
 
     
-    @app.get("/get/{object}/{id}")
-    async def gen_get_object(
-        object : str ,
-        session: SessionDep,
-        id : str | int, 
-    ):
-        try:
-            if object == 'conformation':
-                record = session.get(Conformation, id).model_dump()
-            elif object == 'geom':
-                conf = session.get(Conformation, id)
-                comp=conf.compound.to_dict(unpack=True)
-                record=dict(
-                    coordinates=conf.to_dict(unpack=True)['coordinates'],
-                    nuclear_charges=comp['nuclear_charges'],
-                    multiplicity=comp['multiplicity'],
-                    charge=comp['charge'],
-                )
-            elif object in ['fchk']:
-                wfn=session.get(Wave_Function, id)
-                fchk=wfn.wave_function_file.model_dump()
-                record=fchk
-            else:
-                raise Exception(f"Do not know how to handle {object}")
+    # @app.get("/get/{object}/{id}")
+    # async def gen_get_object(
+    #     object : str ,
+    #     session: SessionDep,
+    #     id : str | int, 
+    # ):
+    #     try:
+    #         # Find the record in the database
+    #         if 'geom' == object:
+    #             conf = session.get(Conformation, id)
+    #             comp=conf.compound.to_dict(unpack=True)
+    #             record=dict(
+    #                 coordinates=conf.to_dict(unpack=True)['coordinates'],
+    #                 nuclear_charges=comp['nuclear_charges'],
+    #                 multiplicity=comp['multiplicity'],
+    #                 charge=comp['charge'],
+    #             )
+    #         elif 'fchk' == object:
+    #             wfn=session.get(Wave_Function, id)
+    #             fchk=wfn.wave_function_file.model_dump()
+    #             record=fchk
+    #         else:
+    #             raise Exception()
+
+                
+
+            
             return record
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failure in execution: {analyse_exception(ex)}")
