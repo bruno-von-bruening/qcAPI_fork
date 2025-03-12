@@ -3,12 +3,13 @@ from . import *
 from pydantic import BeforeValidator
 from typing import Annotated
 
+
 @validate_call
-def check_server_responsiveness(address:str):
+def check_server_responsiveness(address:str, timemout:float|int=3):
     try:
-        requests.get(address)
+        response=requests.get(address, timeout=timemout)
     except Exception as ex:
-        raise Exception(f"Could not reach server under address {address}")
+        raise Exception(f"Could not reach server under address {address}: {ex}")
 
 @validate_call
 def check_address(address:str):
