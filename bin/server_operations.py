@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 
-from util.util import available_operations, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, available_properties, check_address
+from util.util import available_operations, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, available_properties, check_address
 
 import requests
 from http import HTTPStatus
 
 def main(mode, address, prop, force=False):
     # map mode to function
+    def make_request(code, args={}):
+        request_code=f"{address}/{code.lstrip('/')}"
+        if len(args)>0: request_code=request_code+'?'+'&'.join([ f"{k}={v}" for k,v in args.items() ])
+        response=requests.post(request_code)
+        return_code=response.status_code
+        if return_code != HTTPStatus.OK:
+            raise Exception(f"Http request ({request_code}) failed with code {return_code}: {response.text}")
     if OP_DELETE == mode:
         request_code=f"{address}/delete/{prop}?force={force}"
         response=requests.post(request_code)
@@ -25,6 +32,9 @@ def main(mode, address, prop, force=False):
         return_code=response.status_code
         if return_code != HTTPStatus.OK:
             raise Exception(f"Http request ({request_code}) failed with code {return_code}: {response.text}")
+    elif OP_RESET == mode:
+        make_request(f"/reset/{prop}", args={'force':force})
+
 
 
 

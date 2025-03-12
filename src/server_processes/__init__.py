@@ -4,8 +4,10 @@ import json, sys, os
 import datetime
 
 # HTTP imports
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Query
 from http import HTTPStatus
+from pydantic import validate_call; validate_call=validate_call(config=dict(arbitrary_types_allowed=True))
+from typing import Annotated
 
 
 # Database imports
@@ -45,7 +47,7 @@ object_mapper={
     NAME_CONF   : Conformation,
 }
 from typing import Optional
-from pydantic import Field
+from pydantic import Field, BeforeValidator
 
 def get_object_for_tag(tag):
     try:
@@ -61,11 +63,14 @@ def get_object_for_tag(tag):
             if not key is None:
                 mapper[name].append(key)
             return mapper
+        
         mapper=update(mapper, Compound, 'compound')
         mapper=update(mapper, Conformation, 'conformation')
         mapper=update(mapper, DMP_vs_RHO_ESP_Map)
         mapper=update(mapper, DMP_vs_RHO_MAP_Stats)
         mapper=update(mapper, DMP_vs_RHO_MAP_File)
+        for x in [DMP_ESP_Map,RHO_ESP_Map,DMP_ESP_MAP_Stats,DMP_vs_RHO_MAP_File, DMP_vs_RHO_ESP_Map, DMP_ESP_MAP_Stats, DMP_MAP_File, RHO_MAP_File, RHO_ESP_MAP_Stats]:
+            mapper=update(mapper, x)
 
         # Values may be double prevent that
         mapper=dict([  (k,list(set([vv.lower() for vv in v]))) for k,v in mapper.items()])
@@ -79,6 +84,13 @@ def get_object_for_tag(tag):
         return classes[found[0]]
     except Exception as ex:
         raise Exception(f"Problem in {get_object_for_tag}: {analyse_exception(ex)}")
+
+
+@validate_call
+def get_prop_pdtc(input):
+    assert isinstance(input, str)
+    return get_unique_tag(input)
+pdtc_prop=Annotated[str, BeforeValidator(get_prop_pdtc)]
     
 def get_link(obj, tag:str):
     linked_obj=get_object_for_tag(tag)

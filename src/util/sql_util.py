@@ -75,3 +75,15 @@ def create_record(session, object, data: sqlmodel):
     session.add(instance)
     session.commit()
     return isinstance
+
+# Get linker table
+def get_primary_key_name(obj):
+    from sqlalchemy.inspection import inspect
+    primary_key=inspect(obj).primary_key
+    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
+    primary_key=primary_key[0]
+
+    return primary_key.name
+def get_primary_key(the_object):
+    """  """
+    return getattr(the_object, get_primary_key_name(the_object))
