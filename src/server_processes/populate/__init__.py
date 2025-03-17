@@ -10,7 +10,8 @@ from util.util import (
     NAME_CONF,NAME_ESPCMP,NAME_ESPCMP_FILE,NAME_ESPDMP,NAME_ESPRHO,NAME_IDSURF,NAME_PART,NAME_WFN
 )
 from util.sql_util import create_record, get_primary_key, get_primary_key_name
+import numpy as np
 
 from data_base.database_declaration import (
-    Wave_Function,ISA_Weights,IsoDens_Surf_File,IsoDens_Surface,Hirshfeld_Partitioning, RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map
+    Wave_Function,ISA_Weights,IsoDens_Surf_File,IsoDens_Surface,Hirshfeld_Partitioning, RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map, Compound, Conformation,
 )

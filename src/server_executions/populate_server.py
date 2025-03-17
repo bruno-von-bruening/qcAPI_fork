@@ -115,15 +115,7 @@ from util.util import part_method_choice
 def make_part(address, method:part_method_choice, do_test=False):
     """ """
     response = requests.post(f"{address}/populate/part?method={method}", json={'ids':'all'})
-    status_code=response.status_code
-    if status_code!=HTTPStatus.OK:
-        raise Exception(f"Could not populate: server returned: status_code={response.status_code} detail=\'{response.text}\'")
-    else:
-        json_obj=response.json()
-        if 'message' in json_obj:
-            print(f"Successful population with message: {json_obj['message']}")
-        else:
-            print(f"Successful population without message.")
+    process_return(response)
 
     return None # Only execution nothing to return
 

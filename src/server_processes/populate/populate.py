@@ -20,30 +20,32 @@ def populate_wrapper(object, session, conformations=None,
 
     try:
         def gen_populate(UNIQUE_TAG):
-            counter=None
-            if UNIQUE_TAG == NAME_CONF:
-                counter = populate_conformation(session, conformations)
-            elif UNIQUE_TAG == NAME_WFN:
-                assert not isinstance(method, type(None))
-                assert not isinstance(basis, type(None))
-                assert not isinstance(ids, type(None))
-                populate_wfn(session, method, basis, ids)
-            elif UNIQUE_TAG == NAME_PART:
-                assert not isinstance(method, type(None))
-                assert not isinstance(ids, type(None))
-                populate_part(session, method, ids)
-            elif UNIQUE_TAG == NAME_IDSURF:
-                assert not isinstance(grid_pairs, type(None)), f"Did not provide grid_pairs!"
-                populate_isodens_surf(session, grid_pairs, ids)
-            elif UNIQUE_TAG == NAME_ESPRHO:
-                populate_esprho(session,ids)
-            elif UNIQUE_TAG == NAME_ESPDMP:
-                counter=populate_espdmp(session, surf_ids=ids, part_ids=None)
-            elif NAME_ESPCMP    == UNIQUE_TAG:
-                counter=populate_espcmp(session, espdmp_ids=None, espwfn_ids=None)
-            else:
-                raise Exception(f"Did not implement function for UNIQUE_TAG type: \'{UNIQUE_TAG}\'")
-            return counter
+            try: 
+                counter=None
+                if UNIQUE_TAG == NAME_CONF:
+                    counter = populate_conformation(session, conformations)
+                elif UNIQUE_TAG == NAME_WFN:
+                    assert not isinstance(method, type(None))
+                    assert not isinstance(basis, type(None))
+                    assert not isinstance(ids, type(None))
+                    populate_wfn(session, method, basis, ids)
+                elif UNIQUE_TAG == NAME_PART:
+                    assert not isinstance(method, type(None))
+                    assert not isinstance(ids, type(None))
+                    populate_part(session, method, ids)
+                elif UNIQUE_TAG == NAME_IDSURF:
+                    assert not isinstance(grid_pairs, type(None)), f"Did not provide grid_pairs!"
+                    populate_isodens_surf(session, grid_pairs, ids)
+                elif UNIQUE_TAG == NAME_ESPRHO:
+                    populate_esprho(session,ids)
+                elif UNIQUE_TAG == NAME_ESPDMP:
+                    counter=populate_espdmp(session, surf_ids=ids, part_ids=None)
+                elif NAME_ESPCMP    == UNIQUE_TAG:
+                    counter=populate_espcmp(session, espdmp_ids=None, espwfn_ids=None)
+                else:
+                    raise Exception(f"Did not implement function for UNIQUE_TAG type: \'{UNIQUE_TAG}\'")
+                return counter
+            except Exception as ex: my_exception(f"Error in populating for Tag \'{UNIQUE_TAG}\':", ex)
         return gen_populate(UNIQUE_TAG)
     except Exception as ex:
         raise Exception(f"Population did not work for object {UNIQUE_TAG}: {analyse_exception(ex)}")

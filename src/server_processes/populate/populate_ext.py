@@ -1,5 +1,5 @@
 from . import *
-from .util import get_ids_for_object, message_tracker, counter, get_rows
+from .util import get_ids_for_object, message_tracker, counter, get_rows, track_ids
 
 def populate_conformation(session, conformations):
     count=counter()
@@ -17,7 +17,7 @@ def populate_conformation(session, conformations):
 
                     the_compound=session.get(Compound, compound['inchikey'])
                     if the_compound is None:
-                        the_compound=make_object(session, Compound, compound)[0]
+                        the_compound=create_record(session, Compound, compound)[0]
                     else:
                         raise Exception(f"Unexpectdelty found object of type {Compound.__name__} for"+
                                 f" key=\"{compound['inchikey']}\": Cannot overwrite/update object yet.")
@@ -34,7 +34,7 @@ def populate_conformation(session, conformations):
             elements=conformation['species']
             coordinates=conformation['coordinates']
             new_conf=dict(compound_id=compound_id, elements=elements, coordinates=coordinates)
-            conf=make_object(session, Conformation, new_conf)[0]
+            conf=create_record(session, Conformation, new_conf)[0]
 
             count.populated +=1
             id_tracker.add_successful(conf.id)
@@ -70,7 +70,7 @@ def populate_part(session, method, wave_function_ids: str | List):
         raise Exception(f"Unkown type {type(wave_function_ids)}")
 
     for id in wave_function_ids:
-        the_wave_function=session.get(Wave_Function, id)
+        old_part=session.get(Wave_Function, id)
 
         new_part=Hirshfeld_Partitioning(wave_function_id=id, method=method)
         session.add(new_part)
@@ -81,35 +81,39 @@ def populate_part(session, method, wave_function_ids: str | List):
 def populate_isodens_surf(session, grid_pairs, ids=None):
     """Filtering inside this function does not make so much sense --> should be put in a utility anywar, 
     take the ids and load them """
-    if isinstance(ids, type(None)):
-        ids=get_ids_for_object(session,Wave_Function)
-    assert isinstance(grid_pairs, (list,np.ndarray)), f"Expected list type"
-    assert isinstance(grid_pairs[0], (tuple,list)), f"Expexcted list of tuples or lists, got {type(grid_pairs[0])}"
-    
-    for wfn_id in ids:
-        for isod, spac in grid_pairs:
-            surf=IsoDens_Surface(wave_function_id=wfn_id, iso_density=isod, spacing=spac, algorithm='marching_cubes',
-                    num_vertices=-1, num_faces=-1)
-            session.add(surf)
-    session.commit()
+    try:
+        if isinstance(ids, type(None)):
+            ids=get_ids_for_object(session,Wave_Function)
+        assert isinstance(grid_pairs, (list,np.ndarray)), f"Expected list type"
+        assert isinstance(grid_pairs[0], (tuple,list)), f"Expexcted list of tuples or lists, got {type(grid_pairs[0])}"
+        
+        for wfn_id in ids:
+            for isod, spac in grid_pairs:
+                surf=IsoDens_Surface(wave_function_id=wfn_id, iso_density=isod, spacing=spac, algorithm='marching_cubes',
+                        num_vertices=-1, num_faces=-1)
+                session.add(surf)
+        session.commit()
+    except Exception as ex: my_exception(f"Failure in {populate_isodens_surf}:", ex)
+
 def populate_esprho(session, surf_ids, wfn_ids=None):
     """ """
-    if isinstance(surf_ids, type(None)):
-        surf_ids=get_ids_for_object(session,IsoDens_Surface)
-    if not wfn_ids is None: raise Exception(f"Supplied wave function ids but their handling is not yet implemented.")
-    wfn_ids= [ session.get(IsoDens_Surface, id).wave_function.id for id in surf_ids ]
-    
-    assert len(surf_ids)==len(wfn_ids)
-    dicts=[]
-    for surf_id,wfn_id in zip(surf_ids, wfn_ids):
-        dicts.append(dict(
-            wave_function_id=wfn_id, 
-            surface_id=surf_id,
-            density_grid='insane',
-        ))
-    # ids not yet implemented in function
-    for di in dicts:
-        create_record(session, RHO_ESP_Map, dicts, comit=True)
+    try: 
+        if isinstance(surf_ids, type(None)):
+            surf_ids=get_ids_for_object(session,IsoDens_Surface)
+        if not wfn_ids is None: raise Exception(f"Supplied wave function ids but their handling is not yet implemented.")
+        wfn_ids= [ session.get(IsoDens_Surface, id).wave_function.id for id in surf_ids ]
+        
+        assert len(surf_ids)==len(wfn_ids)
+        dicts=[]
+        for surf_id,wfn_id in zip(surf_ids, wfn_ids):
+            dicts.append(dict(
+                wave_function_id=wfn_id, 
+                surface_id=surf_id,
+                density_grid='insane',
+            ))
+        # ids not yet implemented in function
+        create_record(session, RHO_ESP_Map, dicts, commit=True)
+    except Exception as ex: my_exception(f"Failure of {populate_esprho}:", ex)
 
 def populate_espdmp(session, surf_ids, part_ids, method=None):
     """ """
