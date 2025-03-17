@@ -1,27 +1,9 @@
 from . import *
 
 from .get_ext import  create_new_worker, get_next_record, get_objects
-
-from fastapi import Query
-
-class dummy(BaseModel):
-    object_tag: str
-    links: List[str]
-    filters: dict={}
-class dummy_list(BaseModel):
-    the_list: List[dummy]
+from util.sql_util import get_primary_key_name, get_primary_key
 
 
-# Get linker table
-def get_prim_key_name(obj):
-    from sqlalchemy.inspection import inspect
-    primary_key=inspect(obj).primary_key
-    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
-    primary_key=primary_key[0]
-
-    return primary_key.name
-def get_prim_key(the_object):
-    return getattr(the_object, get_prim_key_name(the_object))
 
 def get_functions(app, SessionDep):
     @app.get("/get/{object}")
@@ -63,11 +45,11 @@ def get_functions(app, SessionDep):
 
             if get_all:
                 ids=session.exec(
-                    select( get_prim_key(object_table))
+                    select( get_primary_key(object_table))
                 ).all()
 
             for tab in [object_table]+the_dep_tabs+the_link_tabs:
-                return_di['primary_keys'].update({tab.__name__:get_prim_key_name(tab)})
+                return_di['primary_keys'].update({tab.__name__:get_primary_key_name(tab)})
             
 
             query=select(object_table, *the_merge_tabs)
@@ -76,7 +58,7 @@ def get_functions(app, SessionDep):
             for k,v in filters.items():
                 assert hasattr(object_table, k), f"{object_table.__name__} does not have attribute {k}: {object_table.__dict__.keys()}"
                 query=query.where(getattr(object_table, k)==v)
-            query=query.where(get_prim_key(object_table).in_(ids))
+            query=query.where(get_primary_key(object_table).in_(ids))
             results=session.exec(query).all()
 
             for i,r in enumerate(results):
@@ -93,8 +75,8 @@ def get_functions(app, SessionDep):
                     return_di['links'].update({l:{}})
 
                     
-                    primary_keys=[ get_prim_key(object_table), get_prim_key(the_link) ]
-                    primary_key_mapper=dict([  (k,v) for k,v in zip([object,l], [get_prim_key_name(x) for x in [object_table, the_link]])  ])
+                    primary_keys=[ get_primary_key(object_table), get_primary_key(the_link) ]
+                    primary_key_mapper=dict([  (k,v) for k,v in zip([object,l], [get_primary_key_name(x) for x in [object_table, the_link]])  ])
                     # Get the table
                     query=select( *primary_keys)
                     for li in the_link_tabs:
@@ -102,7 +84,7 @@ def get_functions(app, SessionDep):
 
                     my_linker=[ list(r) for r in session.exec(query).all() ]
                     return_di['links'][l].update({'linker':my_linker})
-                    return_di['primary_keys'].update({l:get_prim_key_name(the_link)})
+                    return_di['primary_keys'].update({l:get_primary_key_name(the_link)})
 
             if len(deps)>0:
                 dep_di=return_di['dependants']
@@ -111,7 +93,7 @@ def get_functions(app, SessionDep):
                     for dep_tab in the_dep_tabs:
                         # quite inefficient but okay for the moment
                         childs=[ x[1].model_dump() for x in session.exec(
-                            select(object_table, dep_tab).join(dep_tab).where(get_prim_key(object_table)==id)
+                            select(object_table, dep_tab).join(dep_tab).where(get_primary_key(object_table)==id)
                         )]
                         dep_di[id].update({dep_tab.__name__:childs})
 

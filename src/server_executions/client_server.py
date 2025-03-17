@@ -169,6 +169,9 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         if status_code == HTTPStatus.OK: # desired
             print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
             error=None
+        elif status_code == HTTPStatus.NO_CONTENT:
+            print(f"Record already converged:\n Will not update")
+            error=None
         elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
             error=f"Error in processing"
         elif status_code == HTTPStatus.UNPROCESSABLE_ENTITY: # error in function definition

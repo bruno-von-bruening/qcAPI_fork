@@ -68,7 +68,8 @@ names=make_name_dict()
 OP_DELETE       = 'delete'
 OP_CLEAN_DOUBLE       = 'clean_double'
 OP_CLEAN_PENDING    ='clean_pending'
-available_operations=[ OP_DELETE , OP_CLEAN_DOUBLE, OP_CLEAN_PENDING]
+OP_RESET        = 'reset'
+available_operations=[ OP_DELETE , OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET]
 
 
 
