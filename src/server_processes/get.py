@@ -31,13 +31,13 @@ def get_functions(app, SessionDep):
                 assert len(ar)==2, f"Expected separator \'{sep}\' in filters option but got {x}"
                 new_filters.update({ar[0]:ar[1]})
             filters=new_filters
+            object_table=get_object_for_tag(object)
         except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Filters argument has error: {analyse_exception(ex)}\nfilters={filters}")
         
         try:
             return_di={'entries':{},'primary_keys':{},'dependants':{},'links':{}}
 
             # Get the object table
-            object_table=get_object_for_tag(object)
             # Get 
             the_link_tabs    = [ get_object_for_tag(y) for y in links ]
             the_dep_tabs     = [ get_object_for_tag(y) for y in deps ]

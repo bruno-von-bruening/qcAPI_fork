@@ -3,7 +3,6 @@ import numpy as np
 
 #import modules.mod_objects as m_obj
 from qc_objects.objects.property import multipoles as obj_multipoles
-from qc_objects.objects.basis import molecular_radial_basis
 from os.path import isfile, isdir
 import subprocess, json, shutil, glob
 import numpy as np
@@ -165,64 +164,9 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
             sol_file=results[file_tag][sol_tag]
 
             sol=molecular_radial_basis(sol_file)
-            sol=sol.to_dict()
+            sol=sol.for_qcAPI()
 
-            def to_table(sol):
-                # get this into the sqlmodel database format (list of list)
-                required_keys=['exponent_scales','exponent_orders','coefficients','normalizations']
-                optional_keys=['initial_coefficients']
-                sol_dic=dict([(x,[]) for x in required_keys+optional_keys])
-                the_lengths=[]
-                for at in sol['shape_functions']:
-                    
-                    # Assertions
-                    assert isinstance(at, dict), f"Not a dict: {at}"
-                    for k in required_keys:
-                        assert k in at.keys()
-                        assert isinstance(at[k], (list, np.ndarray)), f"Calue of key {k} is of wrong type: {type(at[k])}"
-                    for k in optional_keys:
-                        assert k in at.keys()
-                        assert isinstance(at[k], (list, np.ndarray, type(None))), f"Calue of key {k} is of wrong type: {type(at[k])}"
-
-                    # check that the lengths all match                
-                    lenghts=[ len(at[x]) for x in required_keys if not isinstance(x, type(None))]
-                    assert len(set(lenghts))==1, f"Multipole lengths detected {lenghts}: {at}"
-
-
-                    lenght=lenghts[0]
-                    the_lengths.append(lenght)
-                    for k in required_keys:
-                        sol_dic[k].append(at[k])
-                for k,i in sol_dic.items():
-                    if any( isinstance(x,type(None)) for x in i ):
-                        assert all([ isinstance(x, type(None))  for x in i ])
-                        sol_dic[k]=None
-                sol_dic.update({'functions_per_site':the_lengths})
-                sol_dic.update({'coordinates_of_sites': sol['coordinates'], 'types_of_sites': sol['atom_types']})
-
-
-
-                # Map the keys to the new ones
-                try:
-                    the_map=dict([
-                        ('decay_factors','exponent_scales'),
-                        ('decay_orders','exponent_orders'),
-                        ('normalizations','normalizations'),
-                        ('coefficients','coefficients'),
-                        ('initial_coefficiens','initial_coefficients'),
-                        ('functions_per_site','functions_per_site'),
-                        ('types_of_sites','types_of_sites'),
-                        ('coordinates_of_sites','coordinates_of_sites')
-                    ])
-                    sol_dic=dict([ 
-                        (k,sol_dic[the_map[k]]) for k in the_map.keys() 
-                    ])
-                except Exception as ex:
-                    raise Exception(f"Failure in remapping the solution structure: {ex}")
-
-                return sol_dic
-            sol_dic=to_table(sol)
-            return sol_dic
+            return sol
             
         except Exception as ex:
             raise Exception(f"Failure in getting solution fomr {results['the_file']}: {ex}")

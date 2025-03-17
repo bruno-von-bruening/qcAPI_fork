@@ -5,41 +5,16 @@ import rdkit.Chem as rdchem
 from rdkit.Chem import rdDetermineBonds, rdmolops
 
 from .auxiliary import my_exception, analyse_exception
-
-
-def auto_inchi(coordinates, atom_types):
-    #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
-    mol_block=f"{len(coordinates)}\n\n"
-    for ty,coor in zip( atom_types, coordinates):
-        bohr_to_angstrom=0.529177249
-        fac=bohr_to_angstrom
-        coor=[f"{float(x)*fac:.8f}" for x in coor]
-        mol_block+=f"{ty} {' '.join(coor)}\n"
-    rdmol=rdchem.MolFromXYZBlock(mol_block)
-    rdDetermineBonds.DetermineBonds(rdmol, charge=0)
-    auto_inchi=rdchem.inchi.MolToInchi(rdmol)
-    auto_inchi_key=rdchem.inchi.MolToInchiKey(rdmol)
-
-    return auto_inchi, auto_inchi_key
-
-FAVICON_KEY='QCAPI_FAVICON'
-
+from typing import Literal
 
 from functools import partial
 import os, subprocess
 from enum import Enum
-# Replacers for Thomas script
-PERIODIC_TABLE_STR = """
-H                                                                                                                           He
-Li  Be                                                                                                  B   C   N   O   F   Ne
-Na  Mg                                                                                                  Al  Si  P   S   Cl  Ar
-K   Ca  Sc                                                          Ti  V   Cr  Mn  Fe  Co  Ni  Cu  Zn  Ga  Ge  As  Se  Br  Kr
-Rb  Sr  Y                                                           Zr  Nb  Mo  Tc  Ru  Rh  Pd  Ag  Cd  In  Sn  Sb  Te  I   Xe
-Cs  Ba  La  Ce  Pr  Nd  Pm  Sm  Eu  Gd  Tb  Dy  Ho  Er  Tm  Yb  Lu  Hf  Ta  W   Re  Os  Ir  Pt  Au  Hg  Tl  Pb  Bi  Po  At  Rn
-Fr  Ra  Ac  Th  Pa  U   Np  Pu  Am  Cm  Bk  Cf  Es  Fm  Md  No  Lr  Rf  Db  Sg  Bh  Hs  Mt  Ds  Rg  Cn  Nh  Fl  Mc  Lv  Ts  Og
-"""
-BOHR = 0.52917721067
-ANGSTROM_TO_BOHR=1./BOHR
+
+from qc_global_utilities.encoding_and_conversion.encoding import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
+from qc_global_utilities.encoding_and_conversion.constants import BOHR, BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR
+
+FAVICON_KEY='QCAPI_FAVICON'
 
 # The unique names:
 NAME_CONF       ='conformation'
@@ -71,7 +46,25 @@ OP_CLEAN_PENDING    ='clean_pending'
 OP_RESET        = 'reset'
 available_operations=[ OP_DELETE , OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET]
 
+NAME_BSISA='BSISA'
+NAME_LISA='LISA'
+NAME_GDMA='GDMA'
+NAME_MBIS='MBIS'
 
+
+def auto_inchi(coordinates, atom_types):
+    #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
+    mol_block=f"{len(coordinates)}\n\n"
+    for ty,coor in zip( atom_types, coordinates):
+        fac=BOHR_TO_ANGSTROM
+        coor=[f"{float(x)*fac:.8f}" for x in coor]
+        mol_block+=f"{ty} {' '.join(coor)}\n"
+    rdmol=rdchem.MolFromXYZBlock(mol_block)
+    rdDetermineBonds.DetermineBonds(rdmol, charge=0)
+    auto_inchi=rdchem.inchi.MolToInchi(rdmol)
+    auto_inchi_key=rdchem.inchi.MolToInchiKey(rdmol)
+
+    return auto_inchi, auto_inchi_key
 
 def make_available_properties(names: dict) -> List[float]:
     avail_prop=[]
@@ -109,12 +102,11 @@ def get_unique_tag(object:str, print_options: bool =False)-> str:
 
 print_flush = partial(print, flush=True)
 
-def atomic_charge_to_atom_type(Z):
-    """ Return atom type when given an atomic Number """
-    atom_types=PERIODIC_TABLE_STR.split()
-    Z_to_atty_di=dict([ (i+1, at_ty) for i, at_ty in enumerate(atom_types)])
-    assert Z in Z_to_atty_di.keys()
-    return Z_to_atty_di[Z]
+@validate_call
+def make_upper(string:str):
+    return string.upper()
+part_method_choice=Annotated[ Literal['MBIS','LISA','GDMA','BSISA'], BeforeValidator(make_upper)]
+
 
 @validate_call
 def make_jobname(id: int|str, worker_id: str, job_tag: str=None):
