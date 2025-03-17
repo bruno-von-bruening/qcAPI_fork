@@ -102,7 +102,7 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         del record[prod_key]
         if UNIQUE_NAME==NAME_WFN:
             script = prepare_wfn_script(config_file, record, serv_adr, max_iter=max_iter)
-        elif UNIQUE_NAME==NAME_PART:
+        elif NAME_PART==UNIQUE_NAME:
             script = prepare_part_script(config_file, record, serv_adr, max_iter=max_iter)
         elif UNIQUE_NAME==NAME_IDSURF:
             fchk_file=prod_data['fchk_file']
@@ -127,9 +127,11 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         kwargs={'do_test':do_test , 'num_threads':num_threads,'target_dir':target_dir}
         # Start the job
         pool = mp.Pool(1) # Why is this here
+        assert hasattr(script, '__call__'), f"Provide function for execution, got {script}"
         proc = pool.apply_async(script, args=args, kwds=kwargs)
         # Check return of job
         entry, job_already_done =wait_for_job_completion(proc, delay, property)
+        assert isinstance(entry, dict), f"Expect return of production script to return new row as dictionary, got {type(entry)}"
 
         if do_test:
             if entry['converged']!=1:

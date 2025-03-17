@@ -157,6 +157,10 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
     fl=dict(
         populate_wfn        =True  ,
         compute_wfn         =True  ,
+        populate_bsisa      =True  ,
+        compute_bsisa       =True  ,
+        populate_gdma       =True  ,
+        compute_gdma        =True  ,
         populate_lisa       =True  ,
         compute_lisa        =True  ,
         populate_mbis       =True  ,
@@ -197,6 +201,36 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             cmd=f"{python} {client_script} {address} --num_threads 4 --target_dir {target_dir} --property wfn --config {config_file} --test"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
 
+        method='BSISA'
+        tag='populate_bsisa'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address {address} --property part --method {method}"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
+        tag='compute_bsisa'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property part --method {method} --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+
+        
+        method='GDMA'
+        tag='populate_gdma'
+        if fl[tag]:
+            python=python # qcapi python
+            #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
+            cmd=f"{python} {populate_script} --address {address} --property part --method {method}"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
+        tag='compute_gdma'
+        if fl[tag]:
+            # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+            python=python
+            cmd=f"{python} {client_script} {address} --property part --method {method} --target_dir {target_dir} --config {config_file} --test"
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+
+        
         tag='populate_lisa'
         if fl[tag]:
             python=python # qcapi python

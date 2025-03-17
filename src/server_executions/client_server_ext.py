@@ -6,6 +6,7 @@ from run_routines.run_isodens_surf import run_isodens_surf
 from run_routines.run_esp_surf import run_esp_surf
 from run_routines.run_dmp_esp_surf import run_dmp_esp
 from run_routines.run_espcmp import run_espcmp
+from run_routines.run_partitioning_camcasp import exc_partitioning_camcasp
 # sys.path.insert(1, os.environ['SCR'])
 # import modules.mod_objects as m_obj
 # import modules.mod_utils as m_utl
@@ -13,21 +14,27 @@ from run_routines.run_espcmp import run_espcmp
 from util.environment import get_python_from_conda_env
 
 # Associated (satelite) module
-from util.util import atomic_charge_to_atom_type, BOHR, ANGSTROM_TO_BOHR
 
 
 def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
     
     def get_geometry(id):
-        request_code=f"{serv_adr}/get/geom/{id}"
+        request_code=f"{serv_adr}/get/Conformation?ids={id}&merge=Compound"
         response=requests.get(request_code)
         status_code=response.status_code
         if status_code!=HTTPStatus.OK:
             raise Exception(f"Failed to get geometry (request={request_code} status_code={status_code}, error={response.text})")
-        geom=response.json()
-        geom.update({'conf_id':id})
-
-        return geom
+        entries=response.json()['json']['entries']
+        assert len(entries)==1, f"Expected one return for id={id} combined with Compound got {len(conf)}"
+        conf,comp = entries[0]
+        print(conf,comp)
+        return {
+            'conf_id':conf['id'],
+            'coordinates':conf['coordinates'],
+            'nuclear_charges':conf['elements'].split(),
+            'multiplicity': comp['multiplicity'],
+            'charge':comp['charge']
+        }
 
     # Get geometry
     conf_id_key='conformation_id'
@@ -44,23 +51,32 @@ def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
 def prepare_part_script(config_file, record, serv_adr, max_iter=None):
 
     def get_wave_function_file(id):
-        request_code=f"{serv_adr}/get/fchk/{id}"
+        request_code=f"{serv_adr}/get/FCHK_File?ids={id}"
         response=requests.get(request_code)
         status_code=response.status_code
         if status_code!=HTTPStatus.OK:
             raise Exception(f"Failed to get fchk (request={request_code} status_code={status_code}, error={response.text})")
-        fchk_info=response.json()
+        fchk_info=response.json()['json']['entries']
+        assert len(fchk_info)==1, f"Did not found exately one FCHK_file for {id}: {fchk_info}"
 
-        return fchk_info
+        return fchk_info[0]
     
-        
-    python_exc, horton_script = get_env(config_file, 'horton')
-
     wfn_id=record['wave_function_id']
     fchk_info=get_wave_function_file(wfn_id)
     fchk_file=File_Model(**fchk_info).path
+    method=record['method']
+    if method in ['GDMA','BSISA']:
+        CAMCASP='CAMCASP'
+        assert CAMCASP in os.environ.keys(), f"Variable \'{CAMCASP}\' is not defined!"
+        camcasp_path=os.environ[CAMCASP]
+        script=partial(exc_partitioning_camcasp, camcasp_path, fchk_file, max_iter=max_iter)
 
-    script=partial(exc_partitioning, python_exc, horton_script, fchk_file, max_iter=max_iter)
+    elif method in ['LISA','MBIS']:
+        python_exc, horton_script = get_env(config_file, 'horton')
+
+        script=partial(exc_partitioning, python_exc, horton_script, fchk_file, max_iter=max_iter)
+    else:
+        raise Exception(f"Unknown Method")
     return script
 
 def prepare_idsurf_script(config_file, fchk_file):

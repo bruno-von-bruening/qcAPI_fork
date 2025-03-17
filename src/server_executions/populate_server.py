@@ -1,6 +1,7 @@
 import pickle
 from fastapi.encoders import jsonable_encoder
-from util.util import auto_inchi, atomic_charge_to_atom_type
+from util.util import auto_inchi
+from qc_global_utilities.encoding_and_conversion.encoding import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
 
 from . import *
 
@@ -29,7 +30,7 @@ def make_wfn(filenames,address, method, basis, do_test=False):
         # get inchikey
         for conformation in conformations:
             coordinates=np.array(conformation['coordinates'], dtype=np.float64)
-            species=[ atomic_charge_to_atom_type(x) for x in conformation['species'] ]
+            species=[ nuclear_charge_to_element_symbol(x) for x in conformation['species'] ]
 
             inchi, inchi_key=auto_inchi(coordinates, species)
             compound= dict(
@@ -51,7 +52,7 @@ def make_wfn(filenames,address, method, basis, do_test=False):
             response_content=response.json()
             first_id = response_content["ids"]['succeeded'][0]
 
-            request_str=f"{address}/get/conformation/{first_id}"
+            request_str=f"{address}/get/conformation?ids={first_id}"
             load_request = requests.get(request_str)
             status_code=load_request.status_code
             if status_code!=HTTPStatus.OK:
@@ -78,14 +79,10 @@ def make_wfn(filenames,address, method, basis, do_test=False):
 
     wfn_ids=make_wave_functions(method, basis, conf_ids)
 
-def make_part(address, method, do_test=False):
-    """ """
-    
-    # Check if method in available methods
-    avail_methods=['MBIS','LISA']
-    if not method.upper() in avail_methods: raise Exception(f"Method is not implemented yet: {method.upper()}\nAvailable Methods are {avail_methods}")
-    
 
+from util.util import part_method_choice
+def make_part(address, method:part_method_choice, do_test=False):
+    """ """
     response = requests.post(f"{address}/populate/part?method={method}", json={'ids':'all'})
     status_code=response.status_code
     if status_code!=HTTPStatus.OK:
