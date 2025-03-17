@@ -49,6 +49,7 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
 def get_row(address: pdtc_address, object:str, id:str|int, dependencies: List[str]|None=None, merges: List[str]|None=None,
     filters: dict|None=None,         
 ):
+    """ Makes HTTP Request according to the provided arguments and returns the resultof this request"""
     the_object=object
     
     request_code=f"{address}/get/{the_object}?ids={id}"

@@ -69,6 +69,7 @@ def get_object_for_tag(tag):
         mapper=update(mapper, DMP_vs_RHO_ESP_Map)
         mapper=update(mapper, DMP_vs_RHO_MAP_Stats)
         mapper=update(mapper, DMP_vs_RHO_MAP_File)
+        mapper=update(mapper, FCHK_File)
         for x in [DMP_ESP_Map,RHO_ESP_Map,DMP_ESP_MAP_Stats,DMP_vs_RHO_MAP_File, DMP_vs_RHO_ESP_Map, DMP_ESP_MAP_Stats, DMP_MAP_File, RHO_MAP_File, RHO_ESP_MAP_Stats]:
             mapper=update(mapper, x)
 

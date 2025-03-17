@@ -15,17 +15,18 @@ def get_previous_record_wrap(session, object, id: str|int):
 
 @validate_call
 def get_run_data(entry:dict):
-    run_data_key='run_data'
-    assert run_data_key in entry.keys(), f"Expected key \'{run_data_key}\' in entry!"
-    run_data=entry[run_data_key]
-    assert isinstance(run_data, dict)
-    del entry[run_data_key]
+    try:
+        run_data_key='run_data'
+        assert run_data_key in entry.keys(), f"Expected key \'{run_data_key}\' in entry!"
+        run_data=entry[run_data_key]
+        del entry[run_data_key]
 
-    run_info_key='run_info'
-    if run_info_key in entry.keys():
-        del entry[run_info_key]
+        run_info_key='run_info'
+        if run_info_key in entry.keys():
+            del entry[run_info_key]
 
-    return entry, run_data
+        return entry, run_data
+    except Exception as ex: my_exception(f"Problem in processing run_data:", ex)
 
 @validate_call
 def get_from_run_data(data:dict, keys: List):
@@ -101,6 +102,7 @@ def fill_part(session, entry):
         # Recover the data
         try:
             entry, run_data=get_run_data(entry)
+            assert isinstance(run_data, dict), f"Expected entry for key run_data to be dictionary, got {type(run_data)}: {run_data}"
 
             mul_key='multipoles'
             sol_key='solution'
@@ -135,17 +137,34 @@ def fill_part(session, entry):
                 raise Exception(f"No moment file provided although converged!")
         
         # Update the soltuions
-        if not isinstance(solution, type(None)):
+        def make_solution(solution,id):
             try:
-                solution.update({'id':entry['id']})
+                solution.update({'id':id})
                 sol=ISA_Weights(**solution)
                 session.add(sol)
                 session.commit()
             except Exception as ex:
                 raise Exception(f"Could not create ISA_weights: {analyse_exception(ex)}")
-        else:
-            if converged==1:
-                raise Exception(f"No multipoles provided although converged!")
+        
+
+        from util.util import NAME_BSISA, NAME_LISA , NAME_GDMA , NAME_MBIS 
+        try:
+            # Shorcut the variables
+            solution_is_none=solution is None
+            method=entry['method']
+            converged= entry['converged']==1
+
+            # In the cases where a shape function is expected raise Exception if solution not there else make a row for solution
+            if method in [NAME_BSISA, NAME_LISA, NAME_MBIS]:
+                if solution_is_none and converged: raise Exception(f"Expected solution file for {method}")
+                else: make_solution(solution, entry['id'])
+            # in the case of GDMA the existence of a solution is unexpected -> kill 
+            elif method in [NAME_GDMA]:
+                if not solution_is_none: raise Exception(f"Got entry for shape_function which is unexpected for method=\'{method}\'")
+            else:
+                raise Exception(f"Cannot understand method key \'{method}\'")
+        except Exception as ex:
+            raise Exception(f"Error in processing Soltuon: {analyse_exception(ex)}")
         
     # Update the partitioning
     the_object=Hirshfeld_Partitioning
