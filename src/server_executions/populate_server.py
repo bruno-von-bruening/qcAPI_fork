@@ -4,6 +4,37 @@ from util.util import auto_inchi, atomic_charge_to_atom_type
 
 from . import *
 
+@validate_call
+def indent(text:List[str]|str,indent_length:int=4, indent_character=' ', line_length=120):
+    import textwrap
+    the_indent=indent_length * indent_character
+    break_length=line_length-len(the_indent)
+
+    # We allways start with one block of text
+    if isinstance(text, list):
+        text='\n'.join(text)
+
+    # break to lon lines 
+    broken_text='\n'.join([ '\n'.join(textwrap.wrap(line,width=break_length)) for line in text.split('\n')])
+    # indent text
+    indented_text=textwrap.indent(broken_text, the_indent)
+
+    return indented_text
+
+def process_return(response):
+    status_code=response.status_code
+    if status_code!=HTTPStatus.OK:
+        raise Exception(f"Request \'{response.url}\' failed with code {status_code}:\n{indent(response.json()['detail'],indent_length=1, indent_character='|   ')}")
+    else:
+        json_obj=response.json()
+        if json_obj is not None:
+            if 'message' in json_obj:
+                message=indent(json_obj['message'])
+                print(f"Successful population with message:\n{message}")
+            else:
+                print(f"Successful population without message.")
+        else:
+            print(f"Successful population without message.")
 
 def make_wfn(filenames,address, method, basis, do_test=False):
     """" """
@@ -92,18 +123,16 @@ def make_part(address, method, do_test=False):
         raise Exception(f"Could not populate: server returned: status_code={response.status_code} detail=\'{response.text}\'")
     else:
         json_obj=response.json()
-        print(f"Successful population with return: {json_obj}")
+        if 'message' in json_obj:
+            print(f"Successful population with message: {json_obj['message']}")
+        else:
+            print(f"Successful population without message.")
 
     return None # Only execution nothing to return
 
 def post_populate(request_code, json=None):
     response = requests.post( request_code, json=json)
-    status_code=response.status_code
-    if status_code!=HTTPStatus.OK:
-        raise Exception(f"Request \'{request_code}\' failed with code {status_code}:\n{response.text}")
-    else:
-        json_obj=response.json()
-        print(f"Successful population with return: {json_obj}")
+    process_return(response)
 def make_grid(address, do_test=False):
     """"""
     if do_test:

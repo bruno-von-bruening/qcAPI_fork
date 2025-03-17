@@ -1,7 +1,7 @@
 import numpy as np
 import sys, os, copy, json, yaml
 from pydantic import ValidationError, validate_call, field_validator
-validate_call=validate_call(config=dict(arbitray_types_allowed=True))
+my_val=validate_call(config=dict(arbitrary_types_allowed=True))
 from pydantic import BaseModel, Field, BeforeValidator, PlainSerializer
 from typing import Annotated, Union
 import time
@@ -12,7 +12,6 @@ import datetime
 import subprocess as sp
 
 from typing import List
-from pydantic import validate_call
 
 
 def check_dict(input):

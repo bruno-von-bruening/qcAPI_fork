@@ -34,7 +34,7 @@ from util.util import analyse_exception, available_properties as AVAILABLE_PROPE
 from util import my_dict
 from util.sql_util import create_record, update_record, get_prev_record
 
-from util.sql_util import get_next_record_from_db, filter_db, sqlmodel, sqlmodel_cl_meta
+from util.sql_util import get_next_record_from_db, filter_db, pdtc_sql_row, SQLModelMetaclass
 from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, get_unique_tag
 from util.util import my_exception
 object_mapper={

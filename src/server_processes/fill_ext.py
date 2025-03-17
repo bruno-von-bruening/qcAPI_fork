@@ -165,7 +165,7 @@ def fill_part(session, entry):
     
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 def fill_map_file(
-    session,file_obj:sqlmodel_cl_meta, stats_obj:sqlmodel_cl_meta, entry:dict
+    session,file_obj:SQLModelMetaclass, stats_obj:SQLModelMetaclass, entry:dict
 ) -> dict:
 
     def inner_func():
@@ -235,7 +235,7 @@ def fill_espdmp(session, entry: dict):
 def fill_espcmp(
     session, 
     entry:dict,
-) -> Tuple[sqlmodel, sqlmodel]:
+) -> Tuple[pdtc_sql_row, pdtc_sql_row]:
     the_object      = DMP_vs_RHO_ESP_Map
     file_obj        = DMP_vs_RHO_MAP_File
     stats_obj       = DMP_vs_RHO_MAP_Stats

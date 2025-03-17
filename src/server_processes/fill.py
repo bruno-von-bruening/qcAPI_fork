@@ -8,7 +8,7 @@ def kill_woker(session,worker_id):
     # Kill worker
     worker = session.get(Worker, uuid.UUID(worker_id))
     if worker is None:
-        raise HTTPException(statudmp_s_code=HTTPStatus.PRECONDITION_FAILED, detail="Worker does not exist")
+        raise HTTPException(HTTPStatus.PRECONDITION_FAILED, detail="Worker does not exist")
     session.delete(worker)
     session.commit()
 
