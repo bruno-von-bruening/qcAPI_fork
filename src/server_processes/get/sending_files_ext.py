@@ -1,5 +1,5 @@
 
-from . import *
+from .. import *
 
 # Solution https://stackoverflow.com/questions/60716529/download-file-using-fastapi
 from starlette.responses import FileResponse

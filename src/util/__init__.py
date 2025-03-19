@@ -11,7 +11,7 @@ import shutil
 import datetime
 import subprocess as sp
 
-from typing import List
+from typing import List, Tuple, Callable
 
 
 def check_dict(input):

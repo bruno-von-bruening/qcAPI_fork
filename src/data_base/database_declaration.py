@@ -3,7 +3,7 @@
 from . import *
 
 from property_database.linked_tables import (
-    Compound, Conformation, Wave_Function, 
+    Compound, Conformation, Wave_Function, Group, 
     ISA_Weights, 
     Distributed_Multipoles,
     Hirshfeld_Partitioning, 
