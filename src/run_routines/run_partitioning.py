@@ -170,6 +170,26 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
             
         except Exception as ex:
             raise Exception(f"Failure in getting solution fomr {results['the_file']}: {ex}")
+    def get_kld(results):
+        try:
+            file_tag='files'
+            kld_tag='kld_history'
+            kld_file=results[file_tag][kld_tag]
+
+            assert os.path.isfile(kld_file)
+            with open(kld_file, 'r') as rd:
+                lines=rd.readlines()
+                lines=[ l.strip() for l in lines]
+                lines=[ l for l in lines if not l.startswith('#')]
+                kld_his=[]
+                for l in lines:
+                    try:
+                        kld_his.append(float(l))
+                    except Exception as ex: my_exception(f"Cannot convert to float ({l})", ex)
+            kld=kld_his[-1]
+            return kld
+        except Exception as ex: my_exception(f"Problem in recovering kld:",ex)
+
     results=load_results_overview()
 
 
@@ -193,6 +213,7 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
     results=load_results_overview()
     mom_file,ranks,moms_json=get_moments(results)
     solution=get_solution(results)
+    kld=get_kld(results)
     ranks='|'.join([' '.join(['']+ [str(y) for y in x]+['']) for x in ranks] )
 
     # copy the results to target directory and append errors if encountered
@@ -215,7 +236,7 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
         traceless=True,
         multipoles=moms_json,
     )
-    return tracker, mom_fi_di, multipoles,solution
+    return tracker, mom_fi_di, multipoles,solution, kld
 
 def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
@@ -226,33 +247,25 @@ def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, nu
         # Input generation
         try:
             tracker, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
-        except Exception as ex:
-            raise Exception(f"Error in preparing data: {analyse_exception(ex)}")
+        except Exception as ex: my_exception(f"Error in preparing data:", ex)
 
         # Execution            
         try:
             tracker=execute_horton(tracker,python_exc, script, input_file,num_threads=num_threads)
-        except Exception as ex:
-            raise Exception(f"Error in executing horton: {analyse_exception(ex)}")
+        except Exception as ex: my_exception(f"Error in executing horton:", ex)
 
         # Recovering Results
         try:
-            tracker, mom_file, multipoles, solution=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
-        except Exception as ex:
-            raise Exception(f"Error in postprocessing horton run : {analyse_exception(ex)}")
+            tracker, mom_file, multipoles, solution, KLD=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
+        except Exception as ex: my_exception(f"Error in postprocessing horton run :", ex)
         
-        # Evaluate succes of run
-        try:
-            # Process message and error
-            # Update convergence of record 
-            converged=1    
-            run_data={
-                'multipoles':multipoles,
-                'mom_file': mom_file,
-                'solution':solution,
-            }
-        except Exception as ex:
-            raise Exception(f"Error in returning results: {ex}")
+        record.update({'KLD':KLD})
+        converged=1    
+        run_data={
+            'multipoles':multipoles,
+            'mom_file': mom_file,
+            'solution':solution,
+        }
     except Exception as ex:
         if do_test:
             raise Exception(f"Run failed with error: {ex}")
