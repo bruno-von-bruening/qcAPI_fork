@@ -19,15 +19,17 @@ from util.environment import get_python_from_conda_env
 def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
     
     def get_geometry(id):
-        request_code=f"{serv_adr}/get/Conformation?ids={id}&merge=Compound"
+        request_code=f"{serv_adr}/get/Conformation?ids={id}&links=Compound"
         response=requests.get(request_code)
         status_code=response.status_code
         if status_code!=HTTPStatus.OK:
             raise Exception(f"Failed to get geometry (request={request_code} status_code={status_code}, error={response.text})")
         entries=response.json()['json']['entries']
         assert len(entries)==1, f"Expected one return for id={id} combined with Compound got {len(conf)}"
-        conf,comp = entries[0]
-        print(conf,comp)
+        links=response.json()['json']['links']['Compound'][0]
+        assert len(links)==1, f"Found not one but {len(links)} Compounds for Conformation: {links}"
+        comp=links[0]
+        conf = entries[0]
         return {
             'conf_id':conf['id'],
             'coordinates':conf['coordinates'],

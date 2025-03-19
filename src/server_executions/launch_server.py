@@ -32,11 +32,11 @@ from data_base.qcAPI_database import (
 # )
 
 from server_processes.populate.populate import populate_functions
-from server_processes.get import get_functions
+from server_processes.get.get import get_functions
 from server_processes.fill import  extend_app
 from server_processes.operations import operation_functions
 from server_processes.info import info_functions
-from server_processes.sending_files import file_functions
+#from server_processes.sending_files import file_functions
 
 from util.config import load_config_from_file
 
@@ -52,7 +52,6 @@ def make_app(app, SessionDep):
 
     info_functions(app, SessionDep)
 
-    app=file_functions(app, SessionDep)
 
 
 

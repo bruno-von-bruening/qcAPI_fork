@@ -6,8 +6,6 @@ class counter():
     populated    = 0
     failed = 0
 
-
-
 @validate_call
 def get_rows(session, sql_table, selection, filter_args:dict={}):
     try:

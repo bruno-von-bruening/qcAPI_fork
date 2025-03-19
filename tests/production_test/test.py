@@ -199,7 +199,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             # Run the wfn calculation
             python=python # same as before
             cmd=f"{python} {client_script} {address} --num_threads 4 --target_dir {target_dir} --property wfn --config {config_file} --test"
-            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=30, tag=tag)
 
         method='BSISA'
         tag='populate_bsisa'

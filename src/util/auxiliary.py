@@ -7,3 +7,4 @@ def analyse_exception(ex):
     return f"{exc_type} {file}:{line_no}:\n{str(ex)}"
 def my_exception(text:str, exception:Exception) -> None:
     raise Exception(f"{text}:\n{analyse_exception(exception)}")
+
