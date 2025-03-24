@@ -1,6 +1,7 @@
 from . import *
 from util.sql_util import get_primary_key, get_primary_key_name
 
+from .util.util import object_mapper
 @validate_call
 def parse_dict(filters_plain:List[str]):
     try:

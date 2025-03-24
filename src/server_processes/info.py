@@ -1,5 +1,6 @@
 from . import *
 
+from .util.util import object_mapper
 
 def info_functions(app, SessionDep):
 

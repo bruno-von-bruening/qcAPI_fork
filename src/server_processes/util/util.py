@@ -172,7 +172,7 @@ def get_mapper(session,path:List[str]):
             if i < len(path)-1:
                 
                 pair=[ get_object_for_tag(x) for x in path[i:i+2]]
-                combinations=session.exec( select(get_primary_key(pair[0]), get_primary_key(pair[1])) )
+                combinations=session.exec( select(get_primary_key(pair[0]), get_primary_key(pair[1])).join(pair[1]) ).all()
                 dic={}
                 for k,v in combinations:
                     if not k in dic.keys():
@@ -183,12 +183,18 @@ def get_mapper(session,path:List[str]):
         if len(id_mappers)==1:
             return id_mappers[0]
         else:
-            total_mapper=dict(**id_mappers[0])
+            try:
+                total_mapper={}
+                total_mapper.update(id_mappers[0])
+            except Exception as ex:
+                raise Exception(id_mappers[0])
             for dic in id_mappers[1:]:
                 for k,v in total_mapper.items():
                     new_vals=[]
                     for x in v:
-                        new_vals+=dic[x]
+                        try:
+                            new_vals+=dic[x]
+                        except Exception as ex: Exception(f"Do not find {x} in keys of mapping dicitonary: {list(dic.keys())[:3]} ...")
                     total_mapper[k]=new_vals
             return total_mapper
     except Exception as ex: my_exception(f"Problem in generating mapper", ex)

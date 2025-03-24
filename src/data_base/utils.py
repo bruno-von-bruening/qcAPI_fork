@@ -8,6 +8,7 @@ def table_mapper(tag:str) -> SQLModel:
         DMP_MAP_File,
         RHO_MAP_File,
         DMP_vs_RHO_MAP_File,
+        MOM_File,
     ]
     mapper=dict( [(k, [k.__name__])  for k in table])
 

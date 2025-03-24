@@ -128,7 +128,7 @@ def make_grid(address, do_test=False):
         pairs=[(1.e-4, 0.5)]
     else:
         pairs=[ 
-                (3.e-4, 0.3),
+                (3.e-5, 0.4),
                 #(2.e-4, 0.4),
                 #(1.e-3, 0.1),
         ]

@@ -103,10 +103,9 @@ def get_functions(app, SessionDep):
                     else:
                         raise Exception(f"Cannot handle type: {type(r)}")
                     
-                return_di['entries']=results
 
                 messanger.stop_timing(f"Getting result for main item")
-            except: my_exception(f"Problem in making query and executing it:", ex)
+            except Exception as ex: my_exception(f"Problem in making query and executing it:", ex)
             #the_merge_tabs=[]
             #query=select(object_table, *the_merge_tabs)
             #for m in the_merge_tabs:
@@ -116,16 +115,23 @@ def get_functions(app, SessionDep):
             try:
                 messanger.start_timing()
 
-                if len(links)>0:
-                    prim_key=get_primary_key_name(object_table)
-                    ids=[ r[prim_key] for r in results]
-                    for l, the_link in zip(links, the_link_tabs):
-                        return_di['links'].update({l:[]})
-                        mapp=mapper[the_link.__name__]                        
-                        for id in ids:
-                            sub_ids=mapp[id]
-                            return_di['links'][l].append([ session.get(the_link, id).model_dump() for id in sub_ids])
 
+                if len(links)<1:
+                    new_results=results
+                else:
+                    new_results=[]
+                    prim_key=get_primary_key_name(object_table)
+                    for r in results:
+                        id=r[prim_key]
+                        r={object:r}
+                        for l, the_link in zip(links, the_link_tabs):
+                            mapp=mapper[the_link.__name__]                        
+                            sub_ids=mapp[id]
+                            r.update({l:[ session.get(the_link, id).model_dump() for id in sub_ids]})
+                        new_results.append(r)
+
+                return_di['entries']=new_results
+                
                 messanger.stop_timing(f"Finding links")
             except Exception as ex: my_exception(f"Problem in enriching results", ex)
 
