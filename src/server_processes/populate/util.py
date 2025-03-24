@@ -6,18 +6,6 @@ class counter():
     populated    = 0
     failed = 0
 
-class track_ids(BaseModel):
-    succeeded: List[int|str] = []
-    failed: List[int|str]= []
-    @validate_call
-    def add_successful(self, item: int|str ):
-        self.succeeded+=[ item ]
-    @validate_call
-    def add_failed(self, item:int|str ):
-        self.failed+=[ item ]
-
-
-
 @validate_call
 def get_rows(session, sql_table, selection, filter_args:dict={}):
     try:

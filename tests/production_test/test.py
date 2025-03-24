@@ -199,7 +199,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             # Run the wfn calculation
             python=python # same as before
             cmd=f"{python} {client_script} {address} --num_threads 4 --target_dir {target_dir} --property wfn --config {config_file} --test"
-            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=30, tag=tag)
 
         method='BSISA'
         tag='populate_bsisa'
@@ -286,7 +286,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
             cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
-            stdout, stderr = run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=20, tag=tag)
         
     
         prop='multipolar_esp'
@@ -301,7 +301,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
             cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
-            stdout, stderr = run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=30, tag=tag)
         
         prop='compare_esp'
         tag='populate_espcmp'
@@ -315,7 +315,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
             # python="/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
             python=python
             cmd=f"{python} {client_script} {address} --property {prop} --target_dir {target_dir} --config {config_file} --test"
-            stdout, stderr = run_process(cmd, limit_time=True, time_limit=20, tag=tag)
+            stdout, stderr = run_process(cmd, limit_time=True, time_limit=30, tag=tag)
         
         kill_process(server)
     except Exception as ex:

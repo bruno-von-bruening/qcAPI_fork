@@ -46,8 +46,9 @@ def operation_functions(app, SessionDep):
 
         try:
             #
-            status_converged=1
-            query=select(the_object).where(get_primary_key(the_object).in_(ids)).where(the_object.converged!=status_converged)
+            #status_converged=1
+            query=select(the_object).where(get_primary_key(the_object).in_(ids))
+            #.where(the_object.converged!=status_converged)
             for k,v in filters.items():
                 try:
                     attr=getattr(the_object,k)
@@ -64,7 +65,6 @@ def operation_functions(app, SessionDep):
                     # If clone is active clone the row by letting a new id get assigned
                     if clone:
                         setattr(r,get_primary_key_name(r),None)
-                    session.add(r)
                     session.add(r)
                 try:
                     session.commit()
@@ -86,13 +86,24 @@ def operation_functions(app, SessionDep):
     async def delete(
         prop: str,
         session: SessionDep,
+        force: bool=False,
+        filters: List[str] = Query([]),
     ):
         try:
+            filters=parse_dict(filters)
+        except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot parse {filters} to dictionary (via {parse_dict}): {str(ex)}")
+
+        try:
             the_object=object_mapper[prop]
-            entries= session.exec( select(the_object) ).all()
-            for entry in entries:
-                session.delete(entry)
-            session.commit()
+        except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot find table object for key \'{prop}\', available keys are {object_mapper.keys()}:\n{str(ex)}")
+
+        try:
+            entries=filter_db(session, the_object, filter_args=filters)
+            if force:
+                for entry in entries:
+                    session.delete(entry)
+                session.commit()
+            else: raise Exception(f"Safety-Mechanism: Provide Force for deletion:\nINFO: You scheduled the deletion of {len(entries)} objects of type {the_object.__name__}")
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute delete for {prop}: {analyse_exception(ex)}")
 
@@ -193,7 +204,13 @@ def operation_functions(app, SessionDep):
                             [ session.delete(session.get(the_object,the_id)) for the_id in pending ]
                 session.commit()
             elif the_object==DMP_vs_RHO_ESP_Map:
+                messanger=message_tracker()
+
+                # Get all entries
                 entries=session.exec( select(the_object.id, the_object.dmp_map_id, the_object.rho_map_id, the_object.converged) ).all()
+                messanger.add_message(f"Found {len(entries)} rows for table {the_object.__table__}")
+
+                # Make a dictinonary of comparison_id@rho_map_id@dmp_map_id
                 dic={}
                 for id, dmp_id, rho_id, conv in entries:
                     if not dmp_id in dic.keys():
@@ -202,15 +219,31 @@ def operation_functions(app, SessionDep):
                         dic[dmp_id].update({rho_id:[]})
 
                     dic[dmp_id][rho_id].append( (id, conv))
+                tot_num=sum([len(dic[k]) for k in dic.keys()])
+                messanger.add_message(f"Found {tot_num} pairs between multipolar and density maps")
+                
+                # Based for these pairs forming the elementary entries check which occur multiple times
+                deleted={'pending':[],'doubly_converged':[]}
                 for dmp_id, inner_dic in dic.items():
                     for rho_id, vals in inner_dic.items():
                         if len(vals)>1:
                             converged=[ x[0] for x in vals if x[1]==1]
                             pending=[ x[0] for x in vals if x[1]==-1]
-                            assert len(converged)<2
-                            if len(converged)>0:
-                                [ session.delete(session.get(the_object,the_id)) for the_id in pending ]
+                            to_delete=[]
+                            if len(converged)>1:
+                                if not force:
+                                    raise Exception(f"Found more than one row that appears to have converged for the given subset, provide force argument to delte the older one")
+                                else:
+                                    deleted['doubly_converged']+=converged
+                                    conv_items=sorted([session.get(the_object, the_id) for the_id in converged], key=lambda x:x.timestamp)
+                                    to_delete+=conv_items[1:]
+                            elif len(converged)>0:
+                                deleted['pending']+=pending
+                                to_delete+=[ session.get(the_object,the_id) for the_id in pending ]
+                            [ session.delete(e) for e in to_delete]
                 session.commit()
+                messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in deleted.items()])
+                return {'message':f"{messanger.message}"}
 
 
                                 
