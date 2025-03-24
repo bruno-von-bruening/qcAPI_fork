@@ -1,2 +1,2 @@
-database: database_test.db
+database_file: database_test.db
 import: ${QCAPI_HOME}/install/environment_for_server_config.yaml

@@ -15,7 +15,7 @@ from data_base.database_declaration import (
     DMP_vs_RHO_MAP_Stats, RHO_ESP_MAP_Stats, DMP_ESP_MAP_Stats,
     Group,
 )
-from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP
+from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, NAME_GROUP
 object_mapper={
     NAME_PART: Hirshfeld_Partitioning,
     NAME_WFN: Wave_Function,
@@ -24,6 +24,7 @@ object_mapper={
     NAME_ESPRHO: RHO_ESP_Map,
     NAME_ESPCMP: DMP_vs_RHO_ESP_Map,
     NAME_CONF   : Conformation,
+    NAME_GROUP  : Group,
 }
 def get_object_for_tag(tag):
     try:
@@ -166,6 +167,7 @@ def get_connections(table:sqlmodel_cl_meta):
 
 @val_cal
 def get_mapper(session,path:List[str]):
+
     try:
         id_mappers=[]
         for i in range(len(path)):

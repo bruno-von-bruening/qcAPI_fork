@@ -46,7 +46,7 @@ def get_functions(app, SessionDep):
                 messanger.start_timing()
 
                 the_link_tabs    = [ get_object_for_tag(y) for y in links ]
-                return_di={'entries':{},'primary_keys':{},'dependants':{},'links':{}}
+                return_di={'entries':{},'primary_keys':{}}
                 for tab in [object_table]+the_link_tabs:
                     return_di['primary_keys'].update({tab.__name__:get_primary_key_name(tab)})
 

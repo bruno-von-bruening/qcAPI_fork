@@ -26,10 +26,10 @@ def prepare_wfn_script(config_file, record, serv_adr, max_iter=None):
             raise Exception(f"Failed to get geometry (request={request_code} status_code={status_code}, error={response.text})")
         entries=response.json()['json']['entries']
         assert len(entries)==1, f"Expected one return for id={id} combined with Compound got {len(conf)}"
-        links=response.json()['json']['links']['Compound'][0]
+        links=response.json()['json']['entries'][0]['Compound']
         assert len(links)==1, f"Found not one but {len(links)} Compounds for Conformation: {links}"
         comp=links[0]
-        conf = entries[0]
+        conf = entries[0]['Conformation']
         return {
             'conf_id':conf['id'],
             'coordinates':conf['coordinates'],

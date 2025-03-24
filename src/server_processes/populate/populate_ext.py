@@ -291,3 +291,38 @@ def populate_espcmp(session, espdmp_ids:List[int|str]|None=None, espwfn_ids:List
     except Exception as ex: my_exception(f"Error creating rows for table {object.__name__}:\n {messanger.message}",ex)
 
     return {'message': messanger.message}
+
+@validate_call
+def populate_group(session, groups:List[dict]):
+    messanger=message_tracker()
+    try:
+        messanger.add_message(f"Provided {len(groups)} groups")
+        from qc_groups.groups import node
+        class node(node):
+            def gen_group(self):
+                return Group(id=self.id, name=self.name)
+            def gen_group_to_groups(self):
+                return [ Group_to_Group(lower_group_id=x, upper_group_id=self.id) for x in self.lower ]
+            def gen_compound_to_group(self):
+                return [Compound_to_Group(compound_id=key, group_id=self.id) for key in self.leaves]
+
+        counter={'Groups':0, 'Group_to_Group':0,'Compound_to_Group':0}
+        for group in groups:
+            try:
+                the_node=node(**group)
+                the_group=the_node.gen_group()
+                g_to_g=the_node.gen_group_to_groups()
+                comp_to_group=the_node.gen_compound_to_group()
+                session.add(the_group)        
+                counter['Groups']+=1
+                [ session.add(x) for x in g_to_g]
+                counter['Group_to_Group']+=len(g_to_g)
+                [ session.add(x) for x in comp_to_group]
+                counter['Compound_to_Group']+=len(comp_to_group)
+                session.commit()
+            except Exception as ex: my_exception(f"Could not create group for {group}:", ex)
+        tag=' '.join([ '\n'+4*' '+f"{k:<15} : {v}" for k,v in counter.items() ])
+        messanger.add_message(f"Following objects were updated succefully:{tag}")
+    except Exception as ex: my_exception(f"Problem in populating Groups:", ex)
+
+    return {'message':messanger.message}
