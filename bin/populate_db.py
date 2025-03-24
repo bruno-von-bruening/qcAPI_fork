@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument('--basis','-b', type=str, default="def2-tzvppd",help='Basis to use')
     # Method and LISA
     parser.add_argument('--test', action='store_true',help='test (less than 50 entries)')
+    parser.add_argument('--file', type=str ,help='Filed to store (yaml or json format)')
     args = parser.parse_args()
 
     filenames=args.filenames
@@ -26,9 +27,10 @@ if __name__ == "__main__":
 
     method=args.method
     basis=args.basis
+    content_file=args.file
     #
     do_test=args.test
 
-    main(filenames, address, property, method, basis, do_test=do_test)
+    main(filenames, address, property, method, basis, do_test=do_test, content_file=content_file)
     
     

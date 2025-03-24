@@ -25,6 +25,7 @@ NAME_ESPRHO     ='density_esp'
 NAME_ESPDMP     ='multipolar_esp'
 NAME_ESPCMP     ='compare_esp'
 NAME_ESPCMP_FILE='espcmp_file'
+NAME_GROUP      ='group'
 def make_name_dict():
     names={
         NAME_CONF:[],
@@ -34,6 +35,7 @@ def make_name_dict():
         NAME_ESPRHO: ['esprho'],
         NAME_ESPDMP: ['espdmp'],
         NAME_ESPCMP: ['espcmp'],
+        NAME_GROUP: [],
     }
     # Names for functions, key will be added to list
     [ names[k].append(k) for k in names.keys()]
@@ -92,9 +94,9 @@ def get_unique_tag(object:str, print_options: bool =False)-> str:
             found_tags.append(prop)
     if len(found_tags)!=1:
         if not print_options:
-            raise Exception(do_print_options())
+            raise Exception(f"Option {object} cannot be interpreted\n"+do_print_options())
         else:
-            quit(do_print_options())
+            quit(f"Option {object} cannot be interpredted\n"+do_print_options())
     else:
         object_tag=found_tags[0]
     return object_tag

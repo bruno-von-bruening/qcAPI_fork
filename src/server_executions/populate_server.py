@@ -25,7 +25,8 @@ def indent(text:List[str]|str,indent_length:int=4, indent_character=' ', line_le
 def process_return(response):
     status_code=response.status_code
     if status_code!=HTTPStatus.OK:
-        raise Exception(f"Request \'{response.url}\' failed with code {status_code}:\n{indent(response.json()['detail'],indent_length=1, indent_character='|   ')}")
+        detail=str(response.json()['detail'])
+        raise Exception(f"Request \'{response.url}\' failed with code {status_code}:\n{indent(detail,indent_length=1, indent_character='|   ')}")
     else:
         json_obj=response.json()
         if json_obj is not None:
@@ -165,7 +166,26 @@ def make_espcmp(address, do_test=False):
     the_json={}
     post_populate(request_code, json=the_json)
 
-def main(filenames,address, property, method, basis, do_test=False):
+def make_group(address, content_file:str, do_test=False):
+    """ """
+    request_code=f"{address}/populate/group"
+
+    assert os.path.isfile(content_file)
+    extension=os.path.basename(content_file).split('.')
+    assert len(extension)>1
+    extension=extension[-1].lower()
+
+    with open(content_file, 'r') as rd:
+        if extension=='json':
+            data=json.load(rd)
+        elif extension=='yaml':
+            data=yaml.safe_load(rd)
+        else:
+            raise Exception(f"Unkown extension of file \'{os.path.realpath(content_file)}\': {extension}")
+    
+    post_populate(request_code, json={'records':data})
+
+def main(filenames,address, property, method, basis, do_test=False, content_file=None):
     """ Switch dependant on which property to compute"""
     UNIQUE_NAME=get_unique_tag(property)
     if UNIQUE_NAME==NAME_WFN:
@@ -181,5 +201,7 @@ def main(filenames,address, property, method, basis, do_test=False):
         make_dmpesp(address, do_test=do_test)
     elif NAME_ESPCMP==UNIQUE_NAME:
         make_espcmp(address, do_test=do_test)
+    elif NAME_GROUP==UNIQUE_NAME:
+        make_group(address, content_file=content_file, do_test=do_test)
     else:
         raise Exception(f"No case implemented for handling property {property}")
