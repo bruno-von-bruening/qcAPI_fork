@@ -83,3 +83,9 @@ def get_row(address: pdtc_address, object:str, id:List[str|int]|str|int, links: 
 #@validate_call
 #def get_depencencies(address: pdtc_address, object:str, dependenices: List[str]):
 
+@validate_call
+def get_group_tree(address: pdtc_address):
+    """ """
+    print(address)
+    request_code=f"{address}/get/group_tree"
+    return get_request(request_code).json()['json']

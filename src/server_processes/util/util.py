@@ -13,7 +13,7 @@ from data_base.database_declaration import (
     DMP_ESP_Map, RHO_ESP_Map, DMP_vs_RHO_ESP_Map,
     RHO_MAP_File, DMP_MAP_File, DMP_vs_RHO_MAP_File,
     DMP_vs_RHO_MAP_Stats, RHO_ESP_MAP_Stats, DMP_ESP_MAP_Stats,
-    Group,
+    Group, Group_to_Group, Compound_to_Group, 
 )
 from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, NAME_GROUP
 object_mapper={
@@ -52,6 +52,8 @@ def get_object_for_tag(tag):
         mapper=update(mapper, Distributed_Multipoles)
         mapper=update(mapper, MOM_File)
         mapper=update(mapper, IsoDens_Surf_File)
+        for obj in [Group, Group_to_Group, Compound_to_Group]:
+            mapper=update(mapper, obj)
         for x in [DMP_ESP_Map,RHO_ESP_Map,DMP_ESP_MAP_Stats,DMP_vs_RHO_MAP_File, DMP_vs_RHO_ESP_Map, DMP_ESP_MAP_Stats, DMP_MAP_File, RHO_MAP_File, RHO_ESP_MAP_Stats]:
             mapper=update(mapper, x)
 
