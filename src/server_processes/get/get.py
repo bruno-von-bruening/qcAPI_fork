@@ -43,7 +43,9 @@ def get_functions(app, SessionDep):
                 messanger, return_di=get_object(session, messanger, object_table, ids, filters=filters, links=links)
             except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, analyse_exception(ex))
 
-        return {**messanger.dump(), 'json':return_di}
+        try:
+            return {**messanger.dump(), 'json':return_di}
+        except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Problem in returin data: {analyse_exception(ex)}")
 
     @app.get("/get_status/{property}/{id}")
     async def get_status(id: str, property: str, session: SessionDep, worker_id: str = None):

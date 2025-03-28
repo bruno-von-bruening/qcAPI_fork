@@ -120,10 +120,11 @@ def get_object(
             prim_key=get_primary_key_name(object_table)
             for r in results:
                 id=r[prim_key]
-                r={object:r}
+                r={object_table.__name__:r}
                 for l, the_link in zip(links, the_link_tabs):
                     mapp=mapper[the_link.__name__]                        
                     sub_ids=mapp[id]
+                    assert isinstance(l, str), f"Expected type of link to be string, got {l}"
                     r.update({l:[ session.get(the_link, id).model_dump() for id in sub_ids]})
                 new_results.append(r)
 
