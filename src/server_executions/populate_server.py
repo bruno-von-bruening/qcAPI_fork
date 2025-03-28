@@ -113,9 +113,9 @@ def make_wfn(filenames,address, method, basis, do_test=False):
 
 
 from util.util import part_method_choice
-def make_part(address, method:part_method_choice, do_test=False):
+def make_part(address, method:part_method_choice, basis:str|None=None,  do_test=False):
     """ """
-    response = requests.post(f"{address}/populate/part?method={method}", json={'ids':'all'})
+    response = requests.post(f"{address}/populate/part?method={method}&basis={basis}", json={'ids':'all'})
     process_return(response)
 
     return None # Only execution nothing to return
@@ -192,7 +192,7 @@ def main(filenames,address, property, method, basis, do_test=False, content_file
         assert all([ os.path.isfile(x) for x in filenames ])
         make_wfn(filenames, address, method, basis, do_test=do_test)
     elif UNIQUE_NAME==NAME_PART:
-        make_part(address, method, do_test=do_test)
+        make_part(address, method, basis, do_test=do_test)
     elif UNIQUE_NAME==NAME_IDSURF:
         make_grid(address,do_test=do_test)
     elif NAME_ESPRHO==UNIQUE_NAME:

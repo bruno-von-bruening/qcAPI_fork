@@ -32,7 +32,7 @@ def populate_wrapper(object, session, conformations=None,
                 elif UNIQUE_TAG == NAME_PART:
                     assert not isinstance(method, type(None))
                     assert not isinstance(ids, type(None))
-                    populate_part(session, method, ids)
+                    populate_part(session, method, ids, basis=basis)
                 elif UNIQUE_TAG == NAME_IDSURF:
                     assert not isinstance(grid_pairs, type(None)), f"Did not provide grid_pairs!"
                     populate_isodens_surf(session, grid_pairs, ids)

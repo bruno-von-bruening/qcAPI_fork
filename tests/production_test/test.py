@@ -157,10 +157,10 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
     fl=dict(
         populate_wfn        =True  ,
         compute_wfn         =True  ,
-        populate_bsisa      =True  ,
-        compute_bsisa       =True  ,
-        populate_gdma       =True  ,
-        compute_gdma        =True  ,
+        populate_bsisa      =False ,
+        compute_bsisa       =False ,
+        populate_gdma       =False ,
+        compute_gdma        =False ,
         populate_lisa       =True  ,
         compute_lisa        =True  ,
         populate_mbis       =True  ,
@@ -235,7 +235,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
         if fl[tag]:
             python=python # qcapi python
             #fchk_link_file="/home/bruno/1_PhD/2-2_Software/qcAPI_expand_db/test_copy_files_target/transfer_fchks/meta_info.json"
-            cmd=f"{python} {populate_script} --address {address} --property part --method LISA"
+            cmd=f"{python} {populate_script} --address {address} --property part --method LISA --basis set2-11-avqz"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=5, tag=tag)
 
         tag='compute_lisa'

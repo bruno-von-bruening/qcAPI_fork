@@ -49,7 +49,7 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
     return drop_name
     
 @validate_call
-def get_row(address: pdtc_address, object:str, id:List[str|int]|str|int, links: List[str|int]|None=None,
+def get_row(address: pdtc_address, object:str, id:List[str|int]|Literal['all']|str|int, links: List[str|int]|None=None,
             #dependencies: List[str]|None=None, merges: List[str]|None=None,
     filters: dict|None=None,         
 ):
@@ -86,6 +86,5 @@ def get_row(address: pdtc_address, object:str, id:List[str|int]|str|int, links: 
 @validate_call
 def get_group_tree(address: pdtc_address):
     """ """
-    print(address)
     request_code=f"{address}/get/group_tree"
     return get_request(request_code).json()['json']

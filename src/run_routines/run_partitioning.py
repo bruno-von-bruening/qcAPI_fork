@@ -49,8 +49,9 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
         )
         tmp_fchk_file=linked_file
         method=record['method']
-        return jobname, method, rep_di, tmp_fchk_file
-    def make_horton_input_file(rep_di, method, fchk_file):
+        basis=record['basis']
+        return jobname, method, basis, rep_di, tmp_fchk_file
+    def make_horton_input_file(rep_di, method, basis, fchk_file):
         # Make MBIS input file
         assert os.path.isfile(fchk_file), f"FCHK file \'{fchk_file}\' does not exist"
         moment_file=rep_di['dir_nam']+'.mom'
@@ -65,6 +66,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
             'MOMENTS_NAME': moment_file,
             'SOLUTION_NAME': solution_file,
             'KLD_HISTORY_NAME': kld_history_file,
+            'BASIS' : basis,
         }
         input_file= f"INPUT_{rep_di['dir_nam']}.inp"
         with open(input_file, 'w') as wr:
@@ -93,7 +95,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     try:
         # get the input needed to construct horton input
-        jobname, method, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
+        jobname, method, basis, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
         assert os.path.isfile(tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while preparing horton input arguments: {ex}")
@@ -101,7 +103,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     try:
         # construct horton input file
-        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, tmp_fchk_file)
+        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, basis, tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while generating horton input file: {ex}")
     

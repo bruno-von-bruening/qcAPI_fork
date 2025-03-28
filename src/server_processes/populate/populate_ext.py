@@ -57,7 +57,8 @@ def populate_wfn(session, method, basis, conformation_ids):
         ids.append(new_wfn.id)
     return {'message': "Data inserted succesfully", "ids": ids}
 
-def populate_part(session, method, wave_function_ids: str | List):
+@validate_call
+def populate_part(session, method, wave_function_ids: str | List, basis:str|None=None):
     ids=[]
     if isinstance(wave_function_ids, str):
         if wave_function_ids.lower()=='all':
@@ -72,7 +73,7 @@ def populate_part(session, method, wave_function_ids: str | List):
     for id in wave_function_ids:
         old_part=session.get(Wave_Function, id)
 
-        new_part=Hirshfeld_Partitioning(wave_function_id=id, method=method)
+        new_part=Hirshfeld_Partitioning(wave_function_id=id, method=method, basis=basis)
         session.add(new_part)
         session.commit()
         ids.append(new_part.id)
