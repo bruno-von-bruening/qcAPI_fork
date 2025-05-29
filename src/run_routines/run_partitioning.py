@@ -1,13 +1,8 @@
 from . import *
 import numpy as np
 
-import sys, os ; sys.path.insert(1, os.environ['SCR'])
-origin=os.path.realpath('..'); sys.path.insert(1, origin)
-
-import modules.mod_utils as m_utl
 #import modules.mod_objects as m_obj
 from qc_objects.objects.property import multipoles as obj_multipoles
-from qc_objects.objects.basis import molecular_radial_basis
 from os.path import isfile, isdir
 import subprocess, json, shutil, glob
 import numpy as np
@@ -54,8 +49,9 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
         )
         tmp_fchk_file=linked_file
         method=record['method']
-        return jobname, method, rep_di, tmp_fchk_file
-    def make_horton_input_file(rep_di, method, fchk_file):
+        basis=record['basis']
+        return jobname, method, basis, rep_di, tmp_fchk_file
+    def make_horton_input_file(rep_di, method, basis, fchk_file):
         # Make MBIS input file
         assert os.path.isfile(fchk_file), f"FCHK file \'{fchk_file}\' does not exist"
         moment_file=rep_di['dir_nam']+'.mom'
@@ -70,6 +66,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
             'MOMENTS_NAME': moment_file,
             'SOLUTION_NAME': solution_file,
             'KLD_HISTORY_NAME': kld_history_file,
+            'BASIS' : basis,
         }
         input_file= f"INPUT_{rep_di['dir_nam']}.inp"
         with open(input_file, 'w') as wr:
@@ -98,7 +95,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     try:
         # get the input needed to construct horton input
-        jobname, method, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
+        jobname, method, basis, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
         assert os.path.isfile(tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while preparing horton input arguments: {ex}")
@@ -106,7 +103,7 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
 
     try:
         # construct horton input file
-        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, tmp_fchk_file)
+        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, basis, tmp_fchk_file)
     except Exception as ex:
         raise Exception(f"Error while generating horton input file: {ex}")
     
@@ -169,67 +166,32 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
             sol_file=results[file_tag][sol_tag]
 
             sol=molecular_radial_basis(sol_file)
-            sol=sol.to_dict()
+            sol=sol.for_qcAPI()
 
-            def to_table(sol):
-                # get this into the sqlmodel database format (list of list)
-                required_keys=['exponent_scales','exponent_orders','coefficients','normalizations']
-                optional_keys=['initial_coefficients']
-                sol_dic=dict([(x,[]) for x in required_keys+optional_keys])
-                the_lengths=[]
-                for at in sol['shape_functions']:
-                    
-                    # Assertions
-                    assert isinstance(at, dict), f"Not a dict: {at}"
-                    for k in required_keys:
-                        assert k in at.keys()
-                        assert isinstance(at[k], (list, np.ndarray)), f"Calue of key {k} is of wrong type: {type(at[k])}"
-                    for k in optional_keys:
-                        assert k in at.keys()
-                        assert isinstance(at[k], (list, np.ndarray, type(None))), f"Calue of key {k} is of wrong type: {type(at[k])}"
-
-                    # check that the lengths all match                
-                    lenghts=[ len(at[x]) for x in required_keys if not isinstance(x, type(None))]
-                    assert len(set(lenghts))==1, f"Multipole lengths detected {lenghts}: {at}"
-
-
-                    lenght=lenghts[0]
-                    the_lengths.append(lenght)
-                    for k in required_keys:
-                        sol_dic[k].append(at[k])
-                for k,i in sol_dic.items():
-                    if any( isinstance(x,type(None)) for x in i ):
-                        assert all([ isinstance(x, type(None))  for x in i ])
-                        sol_dic[k]=None
-                sol_dic.update({'functions_per_site':the_lengths})
-                sol_dic.update({'coordinates_of_sites': sol['coordinates'], 'types_of_sites': sol['atom_types']})
-
-
-
-                # Map the keys to the new ones
-                try:
-                    the_map=dict([
-                        ('decay_factors','exponent_scales'),
-                        ('decay_orders','exponent_orders'),
-                        ('normalizations','normalizations'),
-                        ('coefficients','coefficients'),
-                        ('initial_coefficiens','initial_coefficients'),
-                        ('functions_per_site','functions_per_site'),
-                        ('types_of_sites','types_of_sites'),
-                        ('coordinates_of_sites','coordinates_of_sites')
-                    ])
-                    sol_dic=dict([ 
-                        (k,sol_dic[the_map[k]]) for k in the_map.keys() 
-                    ])
-                except Exception as ex:
-                    raise Exception(f"Failure in remapping the solution structure: {ex}")
-
-                return sol_dic
-            sol_dic=to_table(sol)
-            return sol_dic
+            return sol
             
         except Exception as ex:
             raise Exception(f"Failure in getting solution fomr {results['the_file']}: {ex}")
+    def get_kld(results):
+        try:
+            file_tag='files'
+            kld_tag='kld_history'
+            kld_file=results[file_tag][kld_tag]
+
+            assert os.path.isfile(kld_file)
+            with open(kld_file, 'r') as rd:
+                lines=rd.readlines()
+                lines=[ l.strip() for l in lines]
+                lines=[ l for l in lines if not l.startswith('#')]
+                kld_his=[]
+                for l in lines:
+                    try:
+                        kld_his.append(float(l))
+                    except Exception as ex: my_exception(f"Cannot convert to float ({l})", ex)
+            kld=kld_his[-1]
+            return kld
+        except Exception as ex: my_exception(f"Problem in recovering kld:",ex)
+
     results=load_results_overview()
 
 
@@ -253,6 +215,7 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
     results=load_results_overview()
     mom_file,ranks,moms_json=get_moments(results)
     solution=get_solution(results)
+    kld=get_kld(results)
     ranks='|'.join([' '.join(['']+ [str(y) for y in x]+['']) for x in ranks] )
 
     # copy the results to target directory and append errors if encountered
@@ -275,7 +238,7 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
         traceless=True,
         multipoles=moms_json,
     )
-    return tracker, mom_fi_di, multipoles,solution
+    return tracker, mom_fi_di, multipoles,solution, kld
 
 def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
@@ -286,33 +249,25 @@ def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, nu
         # Input generation
         try:
             tracker, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
-        except Exception as ex:
-            raise Exception(f"Error in preparing data: {analyse_exception(ex)}")
+        except Exception as ex: my_exception(f"Error in preparing data:", ex)
 
         # Execution            
         try:
             tracker=execute_horton(tracker,python_exc, script, input_file,num_threads=num_threads)
-        except Exception as ex:
-            raise Exception(f"Error in executing horton: {analyse_exception(ex)}")
+        except Exception as ex: my_exception(f"Error in executing horton:", ex)
 
         # Recovering Results
         try:
-            tracker, mom_file, multipoles, solution=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
-        except Exception as ex:
-            raise Exception(f"Error in postprocessing horton run : {analyse_exception(ex)}")
+            tracker, mom_file, multipoles, solution, KLD=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
+        except Exception as ex: my_exception(f"Error in postprocessing horton run :", ex)
         
-        # Evaluate succes of run
-        try:
-            # Process message and error
-            # Update convergence of record 
-            converged=1    
-            run_data={
-                'multipoles':multipoles,
-                'mom_file': mom_file,
-                'solution':solution,
-            }
-        except Exception as ex:
-            raise Exception(f"Error in returning results: {ex}")
+        record.update({'KLD':KLD})
+        converged=1    
+        run_data={
+            'multipoles':multipoles,
+            'mom_file': mom_file,
+            'solution':solution,
+        }
     except Exception as ex:
         if do_test:
             raise Exception(f"Run failed with error: {ex}")

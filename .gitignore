@@ -1,5 +1,5 @@
 *.db
-*.pkl
+*.back
 **__pycache__/
 test_full_run/
 test_config*.yaml
@@ -9,3 +9,5 @@ dist/
 timer.dat
 install/env_config.yaml
 install/environment_for_server_config.yaml
+**/dummy_config.yaml
+**/sandbox/

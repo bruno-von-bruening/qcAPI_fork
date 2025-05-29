@@ -31,11 +31,14 @@ from data_base.qcAPI_database import (
 #     #Distributed_Multipoles,
 # )
 
-from server_processes.populate import populate_functions
-from server_processes.get import get_functions
+from server_processes.populate.populate import populate_functions
+from server_processes.get.get import get_functions
 from server_processes.fill import  extend_app
 from server_processes.operations import operation_functions
 from server_processes.info import info_functions
+#from server_processes.sending_files import file_functions
+
+from util.config import load_config_from_file
 
 def make_app(app, SessionDep):
     """ Add all the methods to the app """
@@ -48,6 +51,7 @@ def make_app(app, SessionDep):
     operation_functions(app, SessionDep)
 
     info_functions(app, SessionDep)
+
 
 
 
@@ -222,19 +226,7 @@ def make_favicon(app):
 def main(config_file, host, port):
     """ Starts the server """
 
-    # Process the config file
-    def process_config_file(config_file):
-        # Load config
-        with open(config_file) as f:
-            config = yaml.safe_load(f)
-        db_key='database'
-        mand_keys=[db_key]
-        for key in mand_keys:
-            assert key in config.keys(), f"Expected key \'{key}\' to occur in {config_file}"
-
-        sqlite_file_name = config[db_key].replace('.db','') + ".db"
-        return sqlite_file_name
-    sqlite_file_name=process_config_file(config_file)
+    sqlite_file_name=load_config_from_file(config_file).database_file
 
     # Start a session
     def start_engine(sqlite_file_name):

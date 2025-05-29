@@ -42,7 +42,7 @@ def make_production_data(record, UNIQUE_NAME):
             raise Exception(f"Cannot process property \'{UNIQUE_NAME}\'")
         return production_data
     except Exception as ex:
-        raise Exception(f"Error in getting necessary related data for production of {UNIQUE_NAME}: {ex}")
+        raise Exception(f"Error in getting necessary related data for production of {UNIQUE_NAME}: {analyse_exception(ex)}")
 
 
 @validate_call

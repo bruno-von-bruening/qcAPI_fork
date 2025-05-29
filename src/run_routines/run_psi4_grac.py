@@ -424,7 +424,7 @@ def compute_wave_function(conda_env, psi4_script, record, workder_id, num_thread
             species = geom["nuclear_charges"]
             multiplicity=geom['multiplicity']
             total_charge=geom['charge']
-        atom_types=[ atomic_charge_to_atom_type(x) for x in species ]
+        atom_types=[ nuclear_charge_to_element_symbol(x) for x in species ]
         return {
             'atom_types':atom_types,
             'coordinates': coordinates,

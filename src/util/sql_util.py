@@ -1,5 +1,5 @@
 from . import *
-from .util import analyse_exception
+from .util import analyse_exception, my_exception
 
 from sqlmodel import select, Session, SQLModel
 #from sqlmodel.orm.session import Session as Session_type
@@ -10,13 +10,11 @@ from sqlmodel.main import SQLModelMetaclass as sqlmodel_cl_meta
 def sqlmodel_formatter(input):
     if isinstance(input, dict):
         return input
-    else:
-        if issubclass(type(input), BaseModel):
-            return input.model_dump()
-        else:
-            raise Exception(f"Type \'{type(input)}\' cannot be understood.")
+    elif issubclass(type(input), BaseModel):
+        return input.model_dump()
 
-sqlmodel=Annotated[dict, BeforeValidator(sqlmodel_formatter)]
+pdtc_sql_row=Annotated[dict, BeforeValidator(sqlmodel_formatter)]
+from sqlmodel.main import SQLModelMetaclass
 
 
 
@@ -33,7 +31,7 @@ def filter_db_query(object, filter_args: my_dict):
     except Exception as ex:
         raise Exception(f"Could not filter db (object={object.__name__}, filter_args={filter_args}): {analyse_exception(ex)}")
 
-@validate_call
+@my_val
 def filter_db(session, object, filter_args: my_dict={}):
     """Filter database for given arguments"""
     try:
@@ -69,9 +67,31 @@ def update_record(session, prev_record, record):
     session.commit()
     return {"message": "Record stored successfully. Thanks for your contribution!" ,'error':None}
 
-@validate_call
-def create_record(session, object, data: sqlmodel):
-    instance=object(**data)
-    session.add(instance)
-    session.commit()
-    return isinstance
+@my_val
+def create_record(session, object:SQLModelMetaclass, data: List[pdtc_sql_row|dict]|pdtc_sql_row|dict, commit=True):
+    try:
+        if not isinstance(data, list):
+            data=[ data ]
+
+        def my_add(data):
+            instance=object(**data)
+            session.add(instance)
+            return instance
+        instances=[my_add(d) for d in data]
+        if commit:
+            session.commit()
+        
+        return instances
+    except Exception as ex: my_exception(f"Problem in creating record for object: {object.__name__}")
+
+# Get linker table
+def get_primary_key_name(obj):
+    from sqlalchemy.inspection import inspect
+    primary_key=inspect(obj).primary_key
+    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
+    primary_key=primary_key[0]
+
+    return primary_key.name
+def get_primary_key(the_object):
+    """  """
+    return getattr(the_object, get_primary_key_name(the_object))

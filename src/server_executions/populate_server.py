@@ -1,9 +1,42 @@
 import pickle
 from fastapi.encoders import jsonable_encoder
-from util.util import auto_inchi, atomic_charge_to_atom_type
+from util.util import auto_inchi
+from qc_global_utilities.encoding_and_conversion.encoding import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
 
 from . import *
 
+@validate_call
+def indent(text:List[str]|str,indent_length:int=4, indent_character=' ', line_length=120):
+    import textwrap
+    the_indent=indent_length * indent_character
+    break_length=line_length-len(the_indent)
+
+    # We allways start with one block of text
+    if isinstance(text, list):
+        text='\n'.join(text)
+
+    # break to lon lines 
+    broken_text='\n'.join([ '\n'.join(textwrap.wrap(line,width=break_length)) for line in text.split('\n')])
+    # indent text
+    indented_text=textwrap.indent(broken_text, the_indent)
+
+    return indented_text
+
+def process_return(response):
+    status_code=response.status_code
+    if status_code!=HTTPStatus.OK:
+        detail=str(response.json()['detail'])
+        raise Exception(f"Request \'{response.url}\' failed with code {status_code}:\n{indent(detail,indent_length=1, indent_character='|   ')}")
+    else:
+        json_obj=response.json()
+        if json_obj is not None:
+            if 'message' in json_obj:
+                message=indent(json_obj['message'])
+                print(f"Successful population with message:\n{message}")
+            else:
+                print(f"Successful population without message.")
+        else:
+            print(f"Successful population without message.")
 
 def make_wfn(filenames,address, method, basis, do_test=False):
     """" """
@@ -29,7 +62,7 @@ def make_wfn(filenames,address, method, basis, do_test=False):
         # get inchikey
         for conformation in conformations:
             coordinates=np.array(conformation['coordinates'], dtype=np.float64)
-            species=[ atomic_charge_to_atom_type(x) for x in conformation['species'] ]
+            species=[ nuclear_charge_to_element_symbol(x) for x in conformation['species'] ]
 
             inchi, inchi_key=auto_inchi(coordinates, species)
             compound= dict(
@@ -51,7 +84,7 @@ def make_wfn(filenames,address, method, basis, do_test=False):
             response_content=response.json()
             first_id = response_content["ids"]['succeeded'][0]
 
-            request_str=f"{address}/get/conformation/{first_id}"
+            request_str=f"{address}/get/conformation?ids={first_id}"
             load_request = requests.get(request_str)
             status_code=load_request.status_code
             if status_code!=HTTPStatus.OK:
@@ -78,41 +111,27 @@ def make_wfn(filenames,address, method, basis, do_test=False):
 
     wfn_ids=make_wave_functions(method, basis, conf_ids)
 
-def make_part(address, method, do_test=False):
-    """ """
-    
-    # Check if method in available methods
-    avail_methods=['MBIS','LISA']
-    if not method.upper() in avail_methods: raise Exception(f"Method is not implemented yet: {method.upper()}\nAvailable Methods are {avail_methods}")
-    
 
-    response = requests.post(f"{address}/populate/part?method={method}", json={'ids':'all'})
-    status_code=response.status_code
-    if status_code!=HTTPStatus.OK:
-        raise Exception(f"Could not populate: server returned: status_code={response.status_code} detail=\'{response.text}\'")
-    else:
-        json_obj=response.json()
-        print(f"Successful population with return: {json_obj}")
+from util.util import part_method_choice
+def make_part(address, method:part_method_choice, basis:str|None=None,  do_test=False):
+    """ """
+    response = requests.post(f"{address}/populate/part?method={method}&basis={basis}", json={'ids':'all'})
+    process_return(response)
 
     return None # Only execution nothing to return
 
 def post_populate(request_code, json=None):
     response = requests.post( request_code, json=json)
-    status_code=response.status_code
-    if status_code!=HTTPStatus.OK:
-        raise Exception(f"Request \'{request_code}\' failed with code {status_code}:\n{response.text}")
-    else:
-        json_obj=response.json()
-        print(f"Successful population with return: {json_obj}")
+    process_return(response)
 def make_grid(address, do_test=False):
     """"""
     if do_test:
         pairs=[(1.e-4, 0.5)]
     else:
         pairs=[ 
-                (1.e-3, 0.3),
-                (3.e-3, 0.4),
-                (1.e-4, 0.5)
+                (3.e-5, 0.4),
+                #(2.e-4, 0.4),
+                #(1.e-3, 0.1),
         ]
         #pairs=[ 
         #    (1.e-3, 0.1 ), 
@@ -147,14 +166,33 @@ def make_espcmp(address, do_test=False):
     the_json={}
     post_populate(request_code, json=the_json)
 
-def main(filenames,address, property, method, basis, do_test=False):
+def make_group(address, content_file:str, do_test=False):
+    """ """
+    request_code=f"{address}/populate/group"
+
+    assert os.path.isfile(content_file)
+    extension=os.path.basename(content_file).split('.')
+    assert len(extension)>1
+    extension=extension[-1].lower()
+
+    with open(content_file, 'r') as rd:
+        if extension=='json':
+            data=json.load(rd)
+        elif extension=='yaml':
+            data=yaml.safe_load(rd)
+        else:
+            raise Exception(f"Unkown extension of file \'{os.path.realpath(content_file)}\': {extension}")
+    
+    post_populate(request_code, json={'records':data})
+
+def main(filenames,address, property, method, basis, do_test=False, content_file=None):
     """ Switch dependant on which property to compute"""
     UNIQUE_NAME=get_unique_tag(property)
     if UNIQUE_NAME==NAME_WFN:
         assert all([ os.path.isfile(x) for x in filenames ])
         make_wfn(filenames, address, method, basis, do_test=do_test)
     elif UNIQUE_NAME==NAME_PART:
-        make_part(address, method, do_test=do_test)
+        make_part(address, method, basis, do_test=do_test)
     elif UNIQUE_NAME==NAME_IDSURF:
         make_grid(address,do_test=do_test)
     elif NAME_ESPRHO==UNIQUE_NAME:
@@ -163,5 +201,7 @@ def main(filenames,address, property, method, basis, do_test=False):
         make_dmpesp(address, do_test=do_test)
     elif NAME_ESPCMP==UNIQUE_NAME:
         make_espcmp(address, do_test=do_test)
+    elif NAME_GROUP==UNIQUE_NAME:
+        make_group(address, content_file=content_file, do_test=do_test)
     else:
         raise Exception(f"No case implemented for handling property {property}")

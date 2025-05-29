@@ -1,2 +1,2 @@
-database: database_test.db
-import: /home/bruno/1-0_custom_software/qcAPI_add_esp/install/environment_for_server_config.yaml
+database_file: database_test.db
+import: ${QCAPI_HOME}/install/environment_for_server_config.yaml
