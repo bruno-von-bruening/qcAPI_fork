@@ -6,7 +6,7 @@ from util.requests import get_request
 
 
 @validate_call
-def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None):
+def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None, binary:bool|None=None):
 
 
     the_object=object
@@ -29,7 +29,7 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
     try:
         def get_extension(fname):
             ext=fname.split('.')
-            assert len(ext)>1, f"Found more than one extension!: {ext}"
+            assert len(ext)>1, f"File name without extension {fname}!: {ext}"
             ext=ext[-1]
             return ext
         extension=get_extension(fname)
@@ -38,14 +38,34 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
             provided_extension=get_extension(drop_name)
             assert extension.upper()==provided_extension.upper(), f"Extension of file found on database and provided output file disagree: databse_extension={extension} provided_extension={provided_extension}"
         else:
-            drop_name=drop_name+f".{extension.lower()}"
+            drop_name='.'.join(
+                [drop_name]+fname.split('.')[1:]
+            )
     except Exception as ex: raise Exception(f"Problem in processing extension: {ex}")
     
     #raise Exception(response.content)
 
-    with open(drop_name,'w') as wr:
-        wr.write(response.content.decode())
-        #json.dump(json.loads(response.content),wr)
+    if binary is None:
+        if extension.lower() in ['json','mom','yaml','fchk']: do_decode=True
+        elif extension.lower() in ['gz','xz']: do_decode=False
+        else:
+            default_decode=True
+            print(f"Do not know if extension {extension} should be interpreted as binary or not choosing {default_decode}")
+            do_decode=default_decode
+    else:
+        do_decode=binary
+    
+    try:
+        content=response.content
+        if do_decode: 
+            content=content.decode()
+            edit_code='w'
+        else:
+            edit_code='wb'
+        with open(drop_name,edit_code) as wr:
+            wr.write(content)
+    except Exception as ex: raise Exception(f"Probelm in processing file from content: {ex}")
+
     return drop_name
     
 @validate_call
@@ -74,7 +94,7 @@ def get_row(address: pdtc_address, object:str, id:List[str|int]|Literal['all']|s
         opts+=[ f"links={m}" for m in links ]
     if not filters is None:
         for k,v in filters.items():
-            opts+=[ f"filters={'--'.join([k,str(v)])}" ]
+            opts+=[ f"filters={'--'.join([k,json.dumps(v)])}" ]
 
     if len(opts)>0:
         request_code+='?'+'&'.join(opts)
