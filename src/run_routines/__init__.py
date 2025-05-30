@@ -2,6 +2,7 @@ import sys, os, re
 from util.util import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
 from util.util import BOHR, BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR, analyse_exception, my_exception
 
+
 from util.config import load_global_config
 from util.execution import run_command_in_shell
 

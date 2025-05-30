@@ -19,10 +19,11 @@ def get_functions(app, SessionDep):
             except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Error in recovering Group structure: {analyse_exception(ex)}")
         else:
             messanger.start_timing()
-            # Checks
+            # Parse filters into dictionary
             try:
                 filters=parse_dict(filters)
             except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Filters argument has error: {analyse_exception(ex)}\nfilters={filters}")
+            # Checks
             try: 
 
                 # Check table

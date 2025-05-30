@@ -169,6 +169,9 @@ def get_connections(table:sqlmodel_cl_meta):
 
 @val_cal
 def get_mapper(session,path:List[str]):
+    """ Get a dictinoary that links the ids of compounds 
+    Takes the path through which objects are connected.
+    """
 
     try:
         id_mappers=[]

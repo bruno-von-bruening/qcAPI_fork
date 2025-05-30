@@ -16,6 +16,7 @@ from http import HTTPStatus
 from fastapi import HTTPException, Request
 
 import datetime
+import json
 import uuid
 
 from data_base.qcAPI_database import Worker
@@ -26,6 +27,6 @@ from util.trackers import message_tracker
 from .get_ext import  create_new_worker, get_next_record, get_objects
 from .sending_files_ext import get_file_table, file_response, get_file_from_table
 
-from util.sql_util import get_primary_key_name, get_primary_key
+from util.sql_util import get_primary_key_name, get_primary_key, filter_db_query
 from .util import parse_dict
 from ..util.util import object_mapper, get_connections, get_mapper

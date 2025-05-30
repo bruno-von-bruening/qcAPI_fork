@@ -63,8 +63,11 @@ def wrapper_gen_fill(entry, session, worker_id, property):
         else:
             raise Exception(f"Unkown property \'{UNIQUE_NAME}\'")
         return update_record(session, old_record, new_record)
+    # Catch HTTP Exception to forward it. The receiver then has to print/interprete it
+    except HTTPException as ex:
+        raise HTTPException(ex.status_code, ex.detail)
     except Exception as ex:
-        raise Exception(f"Could not execute {wrapper_gen_fill}: {analyse_exception(ex)}")
+        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute {wrapper_gen_fill}: {analyse_exception(ex)}")
 
 
 

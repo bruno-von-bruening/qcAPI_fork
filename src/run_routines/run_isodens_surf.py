@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from . import *
+from qc_global_utilities.shell_processes.execution import run_shell_command
 
 
 @validate_call
@@ -40,9 +41,7 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
     if tracker.no_error:
         try:
             cmd=f"export OMP_NUM_THREADS={num_threads}; {python_exc} {esp_script} {linked_file} {isod_str} {gs_str}"
-            horton=sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE, preexec_fn=os.setsid)
-            stdout, stderr = horton.communicate()
-            if horton.returncode!=0: raise Exception(f"The commannd {cmd} did terminate with error: {stderr.decode('utf-8')}")
+            stdout, stderr=run_shell_command(cmd)
         except Exception as ex:
             tracker.add_error(f"Error in executing horton: {ex}")
 
@@ -90,10 +89,13 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
         except Exception as ex:
             tracker.add_error(ex)
 
-    record.update({'converged':converged, **tracker.model_dump()})
-    run_info={'status':tracker.status,'status_code':tracker.status_code}
-    record.update({'run_data':run_data, 'run_info':run_info})
-    return record
+    if tracker.no_error:
+        record.update({'converged':converged, **tracker.model_dump()})
+        run_info={'status':tracker.status,'status_code':tracker.status_code}
+        record.update({'run_data':run_data, 'run_info':run_info})
+        return record
+    else:
+        raise Exception(f"Could not run iso density surface: {tracker.errors}")
 
 if __name__=='__main__':
     raise Exception(f"Script execution not yet implemented")

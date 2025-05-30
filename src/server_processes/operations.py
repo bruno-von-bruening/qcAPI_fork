@@ -1,7 +1,7 @@
 from . import *
 from util.sql_util import get_primary_key, get_primary_key_name
 
-from .util.util import object_mapper
+from .util.util import object_mapper, get_object_for_tag
 @validate_call
 def parse_dict(filters_plain:List[str]):
     try:
@@ -18,10 +18,33 @@ def parse_dict(filters_plain:List[str]):
 def get_all_ids(session, object):
     return session.exec(select(get_primary_key(object))).all()
 
+
+class deleter(BaseModel):
+    class Config:
+        arbitrary_types_allowed=True
+    doubly_converged:List[int|str]=[]
+    pending: List[int|str]=[]
+    def delete(self,session, the_object, messanger, force=False):
+        if len(self.doubly_converged)>0 and not force:
+            messanger.add_message(f"Found {len(self.doubly_converged)} items that are at least doubly converged provide force keyword to remove them")
+        else:
+            to_delete=dict([ (k,getattr(self,k)) for k in ['doubly_converged','pending']])
+
+            for k,ids in to_delete.items():
+                object_to_delete=session.exec( 
+                    select(the_object).filter(get_primary_key(the_object).in_(ids))
+                )
+                [ session.delete(obj) for obj in object_to_delete]
+            session.commit()
+            messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in to_delete.items()])
+        return messanger
+
+
+
 def operation_functions(app, SessionDep):
     @app.post("/reset/{prop}")
     async def reset(
-        prop: str,
+            prop: str,
         session: SessionDep,
         ids: List[str|int] = Query(None),
         filters: List[str] = Query([]),
@@ -78,7 +101,7 @@ def operation_functions(app, SessionDep):
             else:
                 raise Exception(f"You are about to reset the status of {len(results)} files are you sure about that (could use the option clone instead for the moment and delete after)")
             
-            return {'message':f"Deleted {len(results)} of type {the_object.__name__} (with filter={filters})"}
+            return {'message':f"Reset Status to pending for {len(results)} rows from table \'{the_object.__name__}\' (with filter={filters})"}
         except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR,
                 f"Could not process delete request: {analyse_exception(ex)}")        
 
@@ -90,6 +113,7 @@ def operation_functions(app, SessionDep):
         force: bool=False,
         filters: List[str] = Query([]),
     ):
+        messanger=message_tracker()
         try:
             filters=parse_dict(filters)
         except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot parse {filters} to dictionary (via {parse_dict}): {str(ex)}")
@@ -100,13 +124,19 @@ def operation_functions(app, SessionDep):
 
         try:
             entries=filter_db(session, the_object, filter_args=filters)
-            if force:
-                for entry in entries:
-                    session.delete(entry)
-                session.commit()
-            else: raise Exception(f"Safety-Mechanism: Provide Force for deletion:\nINFO: You scheduled the deletion of {len(entries)} objects of type {the_object.__name__}")
+            if len(entries)==0:
+                messanger.add_message(f"Found no item that matches your search ({str(filters)})")
+            else:
+                messanger.add_message(f"Found {len(entries)} entries for your selection {str(filters)}")
+                if force:
+                    for entry in entries:
+                        session.delete(entry)
+                    session.commit()
+                    messanger.add_message(f"Deleted these entries!")
+                else: raise Exception(f"Safety-Mechanism: Provide Force for deletion:\nINFO: You scheduled the deletion of {len(entries)} objects of type {the_object.__name__}")
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute delete for {prop}: {analyse_exception(ex)}")
+        return {'message':f"{messanger.message}"}
 
     @app.post("/clean_pending/{prop}")
     async def clean_double(
@@ -135,6 +165,8 @@ def operation_functions(app, SessionDep):
     ):
         try:
             the_object=object_mapper[prop]
+            messanger=message_tracker()
+            to_delete=deleter()
             if the_object==IsoDens_Surface:
                 #entries = [ x for x in
                 #           session.exec( select(the_object.id, the_object.wave_function_id,the_object.iso_density, the_object.spacing, the_object.converged)).all()]
@@ -164,21 +196,19 @@ def operation_functions(app, SessionDep):
                             dic[wfn_id].append( (isod_id, converged) )
                         for wfn_id, row in dic.items():
                             converged=[ x[0] for x in row if x[1]==1]
-                            not_converged=[ x[0] for x in row if x[1]!=1]
-                            if len(converged)==0:
-                                pass
-                            elif len(converged)>1:
-                                if force:
-                                    # remove all except the lowest id
-                                    delete_ids=sorted(converged)[1:]
-                                    assert len(delete_ids)+1==len(converged),f"Problem in deleting, check failed."
-                                    [ 
-                                        session.delete( session.get(the_object,isod_id)) 
-                                        for isod_id  in delete_ids
-                                    ]
-                                    session.commit()
-                                else:    
-                                    raise Exception(f"Found more than one converged item (remove all except smallest id)")
+                            pending=[ x[0] for x in row if x[1]!=-1]
+                            failed=[ x[0] for x in row if x[1]!=0]
+                            if len(converged)>1:
+                                to_delete.doubly_converged+=sorted(converged)[1:]
+                                to_delete.pending+=sorted(pending)
+                            elif len(pending)>1:
+                                to_delete.pending+=sorted(pending)[1:]
+                                #to_delete['doubly_converged']+=failed
+
+                to_delete.delete(session, the_object, messanger, force=force) 
+
+                return {'message':f"{messanger.message}"}
+
             elif the_object==RHO_ESP_Map:
                 entries=session.exec( select(the_object.id, the_object.surface_id, the_object.converged) ).all()
                 dic={}
@@ -186,24 +216,21 @@ def operation_functions(app, SessionDep):
                     if not surf_id in dic.keys():
                         dic.update({surf_id:[]})
                     dic[surf_id].append( (id, conv))
+
                 for surf_id, vals in dic.items():
                     if len(vals)>1:
                         converged=[ x[0] for x in vals if x[1]==1]
                         pending=[ x[0] for x in vals if x[1]==-1]
-                        if len(converged)>1:
-                            if force:
-                                delete_ids=sorted(converged)[1:]
-                                assert len(delete_ids)+1==len(converged),f"Problem in deleting, check failed."
-                                [ 
-                                    session.delete( session.get(the_object,isod_id)) 
-                                    for isod_id  in delete_ids
-                                ]
-                                session.commit()
-                            else:    
-                                raise Exception(f"Found more than one converged item (remove all except smallest id)")
+                        failed=[ x[0] for x in vals if x[1]==0]
                         if len(converged)>0:
-                            [ session.delete(session.get(the_object,the_id)) for the_id in pending ]
-                session.commit()
+                            if len(converged)>1:
+                                to_delete.doubly_converged+=sorted(converged[1:])
+                            to_delete.pending+=pending
+                        elif len(pending)>1:
+                            to_delete.pending+=sorted(pending)[1:]
+                messanger=to_delete.delete(session, the_object,messanger, force=force)
+
+                return {'message':f"{messanger.message}"}
             elif the_object==DMP_vs_RHO_ESP_Map:
                 messanger=message_tracker()
 
@@ -245,6 +272,53 @@ def operation_functions(app, SessionDep):
                 session.commit()
                 messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in deleted.items()])
                 return {'message':f"{messanger.message}"}
+            elif the_object==DMP_ESP_Map:
+                messanger=message_tracker()
+
+                # Get all entries
+                entries=session.exec( select(the_object.id, the_object.surface_id, the_object.partitioning_id, the_object.ranks, the_object.converged) ).all()
+                messanger.add_message(f"Found {len(entries)} rows for table {the_object.__table__}")
+
+                # Make a dictinonary of comparison_id@rho_map_id@dmp_map_id
+                dic={}
+                for id, dmp_id, rho_id, ranks, conv in entries:
+                    if not dmp_id in dic.keys():
+                        dic.update({dmp_id:{}})
+                    if not rho_id in dic[dmp_id].keys():
+                        dic[dmp_id].update({rho_id:{}})
+                    if not ranks in dic[dmp_id][rho_id].keys():
+                        dic[dmp_id][rho_id].update({ranks:[]})
+
+                    dic[dmp_id][rho_id][ranks].append( (id, conv))
+                tot_num=sum([len(dic[k]) for k in dic.keys()])
+                messanger.add_message(f"Found {tot_num} pairs between partitioning and isodensity surface")
+                
+                # Based for these pairs forming the elementary entries check which occur multiple times
+                deleted={'pending':[],'doubly_converged':[]}
+                for dmp_id, inner_dic in dic.items():
+                    for rho_id, vvals in inner_dic.items():
+                        for ranks, vals in vvals.items():
+                            if len(vals)>1:
+                                converged=[ x[0] for x in vals if x[1]==1]
+                                pending=[ x[0] for x in vals if x[1]==-1]
+                                to_delete=[]
+                                if len(converged)>1:
+                                    if not force:
+                                        raise Exception(f"Found more than one row that appears to have converged for the given subset, provide force argument to delte the older one")
+                                    else:
+                                        deleted['doubly_converged']+=converged
+                                        conv_items=sorted([session.get(the_object, the_id) for the_id in converged], key=lambda x:x.timestamp)
+                                        to_delete+=conv_items[1:]
+                                elif len(converged)>0:
+                                    deleted['pending']+=pending
+                                    to_delete+=[ session.get(the_object,the_id) for the_id in pending ]
+                                [ session.delete(e) for e in to_delete]
+                session.commit()
+                messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in deleted.items()])
+                return {'message':f"{messanger.message}"}
+                
+            else:
+                raise Exception(f"Method {the_object.__name__} not implemented yet")
 
 
                                 
@@ -258,5 +332,5 @@ def operation_functions(app, SessionDep):
 
 
         except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR,
-            f"Couldn noe execute {clean_double}: {analyse_exception(ex)}")
+            f"Couldn not execute {clean_double}: {analyse_exception(ex)}")
 

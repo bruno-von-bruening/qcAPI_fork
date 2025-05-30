@@ -8,7 +8,7 @@ def parse_dict(dictionary:List[str]):
             sep='--'
             ar=x.split(sep)
             assert len(ar)==2, f"Expected separator \'{sep}\' in dictionary option but got {x}"
-            new_dictionary.update({ar[0]:ar[1]})
+            new_dictionary.update({ar[0]:json.loads(ar[1])})
         return new_dictionary
     except Exception as ex: my_exception(f"Could not read as dicitonary", ex)
 

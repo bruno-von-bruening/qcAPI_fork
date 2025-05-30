@@ -19,14 +19,45 @@ from sqlmodel.main import SQLModelMetaclass
 
 
 def filter_db_query(object, filter_args: my_dict):
-    """ Generate sqlmodel query"""
+    """ Generate sqlmodel query
+    And already provide filters
+    If the keys are integers or varchars then if a list is provided the filter will be interpreted as in command else as equals
+    """
     try:
-        #assert len(filter_args)>0, f"Did not provide arguments to filter for"
+        # The seed of the query
         query=( select(object) )
+        
+        def get_field(object, key): 
+            assert hasattr(object, key), f"{object.__name__} does not have attribute {key}: {object.__dict__.keys()}"
+            the_field=getattr(object, key)
+            field_type=the_field.type
+            return the_field, str(field_type)
+        def add_to_query(query, the_field, field_type, value):
+            # The filter commands differ for list of single item provided
+            
+            type_mapper={
+                'INTEGER':int,
+                'VARCHAR':str,
+            }
+            assert field_type in type_mapper.keys(), f"Unkown database type: {field_type}"
+            the_type=type_mapper[field_type]
+
+            if not isinstance(value, list):
+                assert isinstance(value, the_type)
+                query=(query
+                    .filter( the_field == value )
+                )
+            else:
+                assert isinstance(value[0], the_type ), f"Excpected data type {str(field_type)} but filters (list of values) gives values as {type(value)}: {value[0]}"
+                query=query.where( the_field.in_(val))
+            return query    
         for key,val in filter_args.items():
-            query=(query
-                .filter( getattr(object,key) == val )
-            )
+            # Check if field exists for given key and get this field
+            field,field_type=get_field(object, key)
+
+            # 
+            query=add_to_query(query, field, field_type, val)
+
         return query
     except Exception as ex:
         raise Exception(f"Could not filter db (object={object.__name__}, filter_args={filter_args}): {analyse_exception(ex)}")

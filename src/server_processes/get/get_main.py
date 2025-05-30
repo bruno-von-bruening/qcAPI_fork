@@ -33,7 +33,7 @@ def get_group_structure(session, messanger:message_tracker) -> Union[ message_tr
 
 @val_cal
 def get_object(
-    session, messanger:message_tracker, object_table: SQLModelMetaclass , ids: List[int|str], links: List[str]=[], filters={}
+    session, messanger:message_tracker, object_table: SQLModelMetaclass , ids: List[int|str], links: List[str]=[], filters:dict={}
 )->Union[message_tracker,dict]:
     # Prepare connections links and merge
 
@@ -85,12 +85,9 @@ def get_object(
     try:
         messanger.start_timing()
 
-        query=select(object_table)
-        for k,v in filters.items():
-            assert hasattr(object_table, k), f"{object_table.__name__} does not have attribute {k}: {object_table.__dict__.keys()}"
-            query=query.where(getattr(object_table, k)==v)
+        query_seed=filter_db_query(object_table, filters)
         
-        query=query.where(get_primary_key(object_table).in_(ids))
+        query=query_seed.where(get_primary_key(object_table).in_(ids))
         results=session.exec(query).all()
         for i,r in enumerate(results):
             if issubclass(type(r), BaseModel):
@@ -123,6 +120,7 @@ def get_object(
                 r={object_table.__name__:r}
                 for l, the_link in zip(links, the_link_tabs):
                     mapp=mapper[the_link.__name__]                        
+                    if not id in mapp.keys(): raise Exception(f"Cannot find key {id} in mapper for {the_link.__name__}")
                     sub_ids=mapp[id]
                     assert isinstance(l, str), f"Expected type of link to be string, got {l}"
                     r.update({l:[ session.get(the_link, id).model_dump() for id in sub_ids]})
