@@ -1,10 +1,10 @@
 # NEW
+from . import *
 import os, sys, shutil, json, re, copy
-import subprocess
-import time, datetime
 import numpy as np
 
-from . import *
+
+from util.trackers import message_tracker
 
 def psi4_copy(file, target_dir=None):
     if not isinstance(file, str):
@@ -224,18 +224,21 @@ def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
 
     return info_dic, new_files
 
+@val_call
 def make_psi4_input_file(make_psi4_input, 
-            atom_types, coordinates, method, basis_set,
+            atom_types: List[str], coordinates:List[Tuple[float,float,float]], method, basis_set,
             total_charge=0, multiplicity=1,
             jobname='test', hardware_settings=None,
             target_dir=None):
     """ Interface between this data and my generic run script """
     psi4_start_time=time.time()
     
+    coordinates=np.array(coordinates)
+    assert len(coordinates.shape)==2 and coordinates.shape[1]==3, f"Coordinates have wrong shape: {coordinates.shape}"
     # Make xyz_file
     xyz_file=jobname+'.xyz'
     with open(xyz_file,'w') as wr:
-        lines=[ f"{len(atom_types)}", "Generated for running job: \'{jobname}\'"]
+        lines=[ f"{len(atom_types)}", f"Generated for running job: \'{jobname}\'"]
         lines+=[    "{at_ty:<2} {coord_str}".format(
                             at_ty=at, coord_str=' '.join([f"{x:>12}" for x in coor])
                         )
@@ -316,7 +319,7 @@ def run_compute_wave_function(jobname, conda_env, psi4_script, psi4_di, target_d
 
     # Creates a local directory in which the files will be created
     local_dir=os.path.basename(target_dir)
-    assert os.path.realpath(target_dir)!=os.path.realpath(local_dir)
+    assert os.path.realpath(target_dir)!=os.path.realpath(local_dir), f"Local directory and target directory are the same!"
     if os.path.isdir(local_dir):
         raise Exception(f"Directory {local_dir} already exist, that should not happen")
     else:
@@ -371,24 +374,19 @@ def run_compute_wave_function(jobname, conda_env, psi4_script, psi4_di, target_d
         try:
             # if its a fchk file compress it first
             if fi.lower().endswith(f".fchk"):
-                p=subprocess.Popen(f"xz -6 {fi}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                stdout, stderr = p.communicate()
-                if p.returncode != 0:
-                    print(f"Errror when compressing {fi}: {stderr.decode()}")
-                else:
+                try:
+                    stdout, stderr = run_shell_command(f"xz -6 {fi}")
                     xz_file=fi+'.xz'
                     assert os.path.isfile(xz_file)
                     fi=xz_file
-            p=subprocess.Popen(f"cp -r {fi} {target_dir}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            stdout, stderr=p.communicate()
-            if p.returncode!=0:
-                raise Exception(stderr.decode())
+                except Exception as ex: print(f"Could not xzip '{fi}': {str(ex)}")
+            stdout, stderr=run_shell_command(f"cp -r {fi} {target_dir}")
         except Exception as ex:
-            print(f"error in copying {fi}: {str(ex)}")
+            raise Exception(f"error in copying {fi}: {str(ex)}")
     new_fchk_file=os.path.join( target_dir , os.path.basename(psi4_dict['final_fchk']) )+'.xz'
     new_storage_file=os.path.join( target_dir , os.path.basename(storage_file) )
-    assert os.path.isfile(new_fchk_file)
-    assert os.path.isfile(new_storage_file)
+    assert os.path.isfile(new_fchk_file)    , f"Not a file: {new_fchk_file}"
+    assert os.path.isfile(new_storage_file) , f"Not a file: {new_storage_file}"
     return dict(
         fchk_file=os.path.realpath(  new_fchk_file ),
         storage_file=os.path.realpath( new_storage_file)
@@ -398,6 +396,7 @@ def compute_wave_function(conda_env, psi4_script, record, workder_id, num_thread
     """ Cal psi4 calculation
     This routine only processes """
     start_time = time.time()
+    tracker=Tracker()
 
     def my_sep(message, sep, info_line=None, sep_times=1, print_hostname=True):
         """ Create headline to indicate status in output file (for orientation/debugging purposes)"""
@@ -424,7 +423,11 @@ def compute_wave_function(conda_env, psi4_script, record, workder_id, num_thread
             species = geom["nuclear_charges"]
             multiplicity=geom['multiplicity']
             total_charge=geom['charge']
-        atom_types=[ nuclear_charge_to_element_symbol(x) for x in species ]
+        if isinstance(species[0],int):
+            atom_types=[ nuclear_charge_to_element_symbol(x) for x in species ]
+        elif isinstance(species[0],str):
+            atom_types=species
+        else: raise Exception(f"Unkown atom types: {atom_types}")
         return {
             'atom_types':atom_types,
             'coordinates': coordinates,
@@ -473,41 +476,55 @@ def compute_wave_function(conda_env, psi4_script, record, workder_id, num_thread
 
         # If everything gone well return positive error code
         converged=1
-        error=None
         my_sep('SUCCESS in  psi4 calculation','#')
     except Exception as ex:
         # In case of a test we want errors to kill the job so we notice them immediately
         converged=0
-        error=str(ex)
+        tracker.add_error(ex)
         fchk_file=None
+        energy=None
+        gradient=None
         # Get hostname/ho
         hostname=os.popen("hostname").read().strip()
-        my_sep('FAILURE in  psi4 calculation ','!',info_line=f"ERROR: {error}", sep_times=2)
+        tracker.add_error( my_sep('FAILURE in  psi4 calculation ','!',info_line=f"ERROR: {str(ex)}", sep_times=2) )
+        do_test=True
         if do_test:
             raise Exception(f"Test was requested hence terminating:\n{ex}")
     
-    fchk_info={
-        'hostname': os.uname()[1],
-        'path_to_container': os.path.relpath(os.path.dirname(fchk_file), os.environ['HOME']),
-        'path_in_container': '.',
-        'file_name': os.path.basename(fchk_file),
-        'size_mb': os.path.getsize(fchk_file)/(1024**2)
-    }
+    #path_to_container=os.path.relpath(os.path.dirname(fchk_file), os.environ['HOME']) if not fchk_file is None else 'no file produced'
+    #file_name= os.path.basename(fchk_file) if fchk_file is not None else 'no file produced'
+    #size_mb=os.path.getsize(fchk_file)/(1024**2) if fchk_file is not None else -1.
+    #fchk_info={
+    #    'hostname': os.uname()[1],
+    #    'path_to_container': path_to_container,
+    #    'path_in_container': '.',
+    #    'file_name': file_name,
+    #    'size_mb': size_mb,
+    #}
     ### RETURN the ouptu
+    to_store=[
+        os.path.realpath(x) for x in glob.glob('*') if not ( bool(re.search(r'.fchk',x) or os.path.islink(x) )) 
+    ]
     # Immutable information
     output=dict(**record)
+    run_data=dict(
+        files={
+            FCHK_File.__name__:fchk_file,
+        },
+        run_directory=os.getcwd(),
+        to_store=to_store,
+    )
     output.update( dict(
-        fchk_info=fchk_info,
+        run_data=run_data,
         energy=energy,
         energy_gradient=gradient,
     ))
+    
     # Variable information, consider that this has to be the same otherwise the created unique identifier will be different
     elapsed_time=time.time()-start_time
     output.update(dict(
-        elapsed_time=elapsed_time,
+        #elapsed_time=elapsed_time,
         converged=converged,
-        error=error,
-        message=None,
-        warning=None
+        **tracker.model_dump()
     ))
     return output

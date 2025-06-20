@@ -1,0 +1,3 @@
+qcp_global_utils: '>=0.1.0'
+qcp_objects: '>=0.1.0'
+qcp_database: '>=0.1.0'

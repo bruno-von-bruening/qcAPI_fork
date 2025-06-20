@@ -2,14 +2,26 @@ from . import *
 import numpy as np
 
 #import modules.mod_objects as m_obj
-from qc_objects.objects.property import multipoles as obj_multipoles
+from qcp_objects.objects.properties import multipoles as obj_multipoles
 from os.path import isfile, isdir
 import subprocess, json, shutil, glob
 import numpy as np
 from util.util import analyse_exception
 
 
-def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
+
+def create_working_dir(jobname):
+    try:
+        # Make jobname
+        # Change to working directory
+        work_dir=make_dir(jobname)
+        os.chdir(work_dir)
+        return os.path.realpath(work_dir)
+    except Exception as ex:
+        raise Exception(f"Error while preparing directory: {ex}")
+
+
+def prepare_input(address,tracker, worker_id, record, horton_script, fchk_file, jobname):
 
     def get_script(config_file):
         # get horton script
@@ -32,25 +44,24 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
         assert isfile(script), f"Not a file: {script}"
 
         return script
-    def prepare_horton_arguments(src_fchk_file):
+    def prepare_horton_arguments(src_fchk_file, jobname):
 
-        # Get fchk_file and link it
-        file=src_fchk_file; assert isfile(file), f"FCHK file in record is not valid: {file}"
-        linked_file=f"ln_{os.path.basename(file)}"
-        if os.path.islink(linked_file):
-            os.unlink(linked_file)
-        p=subprocess.Popen(f'ln -s {file} {linked_file}', shell=True)
-        p.communicate()
-        assert p.returncode==0
+        ## Get fchk_file and link it
+        #file=src_fchk_file; assert isfile(file), f"FCHK file in record is not valid: {file}"
+        #linked_file=f"ln_{os.path.basename(file)}"
+        #if os.path.islink(linked_file):
+        #    os.unlink(linked_file)
+        #p=subprocess.Popen(f'ln -s {file} {linked_file}', shell=True)
+        #p.communicate()
+        #assert p.returncode==0
         rep_di=dict(
             GRIDHORTON='insane',
-            fchk_fi=linked_file,
+            fchk_fi=fchk_file,
             dir_nam=jobname,
         )
-        tmp_fchk_file=linked_file
         method=record['method']
         basis=record['basis']
-        return jobname, method, basis, rep_di, tmp_fchk_file
+        return method, basis, rep_di
     def make_horton_input_file(rep_di, method, basis, fchk_file):
         # Make MBIS input file
         assert os.path.isfile(fchk_file), f"FCHK file \'{fchk_file}\' does not exist"
@@ -78,36 +89,22 @@ def prepare_input(tracker, worker_id, record, horton_script, fchk_file):
     try:
         # Get environment dependent python and run script
         script = horton_script#get_script(config_file)
-    except Exception as ex:
-        raise Exception(f"Error while getting python executable and script: {ex}")
+    except Exception as ex: my_exception(f"Error while getting python executable and script:", ex)
 
-    try:
-        # Make jobname
-        id=record['id']
-        jobname=make_jobname(id, worker_id)
-        # Change to working directory
-        work_dir=make_dir(jobname)
-        os.chdir(work_dir)
-        print(work_dir)
-    except Exception as ex:
-        raise Exception(f"Error while preparing directory: {ex}")
 
 
     try:
         # get the input needed to construct horton input
-        jobname, method, basis, rep_di, tmp_fchk_file= prepare_horton_arguments(fchk_file)
-        assert os.path.isfile(tmp_fchk_file)
-    except Exception as ex:
-        raise Exception(f"Error while preparing horton input arguments: {ex}")
+        method, basis, rep_di= prepare_horton_arguments(fchk_file, jobname)
+    except Exception as ex: my_exception(f"Error while preparing horton input argumen",ex)
 
 
     try:
         # construct horton input file
-        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, basis, tmp_fchk_file)
-    except Exception as ex:
-        raise Exception(f"Error while generating horton input file: {ex}")
+        input_file, moment_file, solution_file, kld_history_file= make_horton_input_file(rep_di, method, basis, fchk_file)
+    except Exception as ex: my_exception(f"Error while generating horton input file:", ex)
     
-    return tracker, script, input_file, jobname, work_dir
+    return tracker, script, input_file
 
 ####
 def execute_horton(tracker, python, script, input_file, num_threads=1):
@@ -219,16 +216,17 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
     ranks='|'.join([' '.join(['']+ [str(y) for y in x]+['']) for x in ranks] )
 
     # copy the results to target directory and append errors if encountered
-    tracker, target_dir=copying_results(tracker)
-    new_mom_file=os.path.join( target_dir, os.path.basename(mom_file) )
-    assert os.path.isfile(new_mom_file)
-    mom_fi_di={
-        'hostname':os.uname()[1],
-        'path_to_container': os.path.relpath(os.path.dirname(new_mom_file), os.environ['HOME']),
-        'path_in_container': '.',
-        'file_name':os.path.basename(new_mom_file)
-    }
+    #tracker, target_dir=copying_results(tracker)
+    #new_mom_file=os.path.join( target_dir, os.path.basename(mom_file) )
+    #assert os.path.isfile(new_mom_file)
+    #mom_fi_di={
+    #    'hostname':os.uname()[1],
+    #    'path_to_container': os.path.relpath(os.path.dirname(new_mom_file), os.environ['HOME']),
+    #    'path_in_container': '.',
+    #    'file_name':os.path.basename(new_mom_file)
+    #}
 
+    solution.update({'id':record['id']})
     multipoles=dict(
         id=record['id'],
         length_units='ANGSTROM',
@@ -238,17 +236,33 @@ def recover_horton_results(tracker, record, jobname, work_dir, target_dir):
         traceless=True,
         multipoles=moms_json,
     )
-    return tracker, mom_fi_di, multipoles,solution, kld
-
-def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
+    return tracker, mom_file, multipoles,solution, kld
+def plain_exception(string, ex):
+    raise Exception(ex)
+def exc_partitioning(address,python_exc, horton_script, fchk_file_entry, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     
     # Create warnings and errors that get change permanently in the exception blog
     tracker=Tracker()
     
+    if do_test:
+        my_exception=plain_exception
+    try:
+        try:
+            id=record['id']
+            jobname=make_jobname(id, worker_id)
+            working_dir=create_working_dir(jobname)
+        except Exception as ex: my_exception(f"Problem in creating working directory", ex)
+
+        try:
+            loaded_fchk_file=load_fchk_file(address,fchk_file_entry)
+            temporary_fchk=temporary_file(loaded_fchk_file)
+        except Exception as ex: my_exception(f"Problem while loading fchk_file", ex)
+    except Exception as ex: my_exception(f"Probmel in sett up",ex)
+
     try:
         # Input generation
         try:
-            tracker, script, input_file, jobname, work_dir = prepare_input(tracker, worker_id, record, horton_script, fchk_file)
+            tracker, script, input_file = prepare_input(address,tracker, worker_id, record, horton_script, temporary_fchk.file, jobname)
         except Exception as ex: my_exception(f"Error in preparing data:", ex)
 
         # Execution            
@@ -258,26 +272,37 @@ def exc_partitioning(python_exc, horton_script, fchk_file, record, worker_id, nu
 
         # Recovering Results
         try:
-            tracker, mom_file, multipoles, solution, KLD=recover_horton_results(tracker, record, jobname, work_dir, target_dir)
+            tracker, mom_file, multipoles, solution, KLD=recover_horton_results(tracker, record, jobname, working_dir, target_dir)
         except Exception as ex: my_exception(f"Error in postprocessing horton run :", ex)
         
         record.update({'KLD':KLD})
         converged=1    
-        run_data={
-            'multipoles':multipoles,
-            'mom_file': mom_file,
-            'solution':solution,
+        sub_entries=dict(
+            distributed_multipoles=multipoles,
+            isa_weights=solution,
+        )
+        files={
+            MOM_File.__name__:mom_file,
         }
     except Exception as ex:
         if do_test:
             raise Exception(f"Run failed with error: {ex}")
         else:
-            print(f"Run failed with error: {str(ex)}")
-        run_data=None
+            tracker.add_error(f"Run failed with error: {str(ex)}")
+        run_data=None ; sub_entries=None ; files=None
         converged=0
+    finally:
+        temporary_fchk.delete_all()
+
     
-    record.update({'converged':converged, **tracker.model_dump()})
     run_info={'status':tracker.status, 'status_code':tracker.status_code}
+    run_data=dict(
+        sub_entries=sub_entries,
+        files=files,
+        run_directory=working_dir,
+        to_store=working_dir,
+    )
+    record.update({'converged':converged, **tracker.model_dump()})
     record.update({'run_data':run_data, 'run_info':run_info})
     return record
 

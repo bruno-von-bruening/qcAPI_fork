@@ -11,14 +11,17 @@ from functools import partial
 import os, subprocess
 from enum import Enum
 
-from qc_global_utilities.encoding_and_conversion.encoding import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
-from qc_global_utilities.encoding_and_conversion.constants import BOHR, BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR
+from qcp_global_utils.encoding_and_conversion.encoding import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol
+from qcp_global_utils.encoding_and_conversion.constants import BOHR, BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR
 
 FAVICON_KEY='QCAPI_FAVICON'
 
 # The unique names:
+NAME_COMP       ='compound'
 NAME_CONF       ='conformation'
 NAME_WFN        ='wave_function'
+NAME_WFN_FILE   ='FCHK_File'
+NAME_MOM_FILE   ='MOM_File'
 NAME_PART       ='partitioning'
 NAME_IDSURF     ='isodensity_surface'
 NAME_ESPRHO     ='density_esp'
@@ -26,7 +29,13 @@ NAME_ESPDMP     ='multipolar_esp'
 NAME_ESPCMP     ='compare_esp'
 NAME_ESPCMP_FILE='espcmp_file'
 NAME_GROUP      ='group'
+NAME_DISPOL     ='distributed_polarisabilities'
+NAME_PAIRPOL_FILE ='pairwise_polarisabilities_file'
+NAME_WFN_DAT    ='wave_function_run_data'
+NAME_PART_DAT   ='hirshfeld_partitioning_run_data'
+NAME_DISPOL_DAT   ='distributed_polarisabilities_run_data'
 def make_name_dict():
+    # Additional names added to key iteslf
     names={
         NAME_CONF:[],
         NAME_WFN:['wfn'],
@@ -36,6 +45,14 @@ def make_name_dict():
         NAME_ESPDMP: ['espdmp'],
         NAME_ESPCMP: ['espcmp'],
         NAME_GROUP: [],
+        NAME_COMP: [],
+        NAME_DISPOL: ['dispol'],
+        NAME_PAIRPOL_FILE: [],
+        NAME_WFN_FILE: [],
+        NAME_MOM_FILE: [],
+        NAME_WFN_DAT: [],
+        NAME_PART_DAT: [],
+        NAME_DISPOL_DAT: [],
     }
     # Names for functions, key will be added to list
     [ names[k].append(k) for k in names.keys()]

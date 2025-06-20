@@ -4,6 +4,7 @@ class counter():
     requested   = 0
     prerequisites_not_met=0
     populated    = 0
+    already_there=0
     failed = 0
 
 @validate_call

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from . import *
-from qc_global_utilities.shell_processes.execution import run_shell_command
+from qcp_global_utils.shell_processes.execution import run_shell_command
 
 
 @validate_call
@@ -18,8 +18,9 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
     linked_file=f"ln_{os.path.basename(fchk_file)}"
     if os.path.islink(linked_file):
         os.unlink(linked_file)
-    p=sp.Popen(f'ln -s {fchk_file} {linked_file}', shell=True)
-    p.communicate()
+    
+
+    run_shell_command(f'ln -s {fchk_file} {linked_file}')
 
     # Settings values
     isod_key='iso_density'
@@ -84,7 +85,15 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
             record['num_faces']=num_faces
             record['num_vertices']=num_vertices
 
-            run_data={'surface_file':surf_file}
+            run_data=dict(
+                files={IsoDens_Surf_File.__name__:surface_file},
+            )
+            working_directory=os.getcwd()
+            files_to_store=get_relevant_files(working_directory, run_data)
+            run_data.update(dict(
+                working_directory=working_directory,
+                files_to_store=files_to_store,
+            ))
             converged=1
         except Exception as ex:
             tracker.add_error(ex)

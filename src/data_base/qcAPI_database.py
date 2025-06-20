@@ -14,6 +14,7 @@ class Worker(SQLModel, table=True):
     hostname: str
     timestamp: float = Field(default=-1., index=True)
 
+
 #class BASE_Status(SQLModel, table=False):
 #    id: int=Field(default=None, primary_key=True)
 #

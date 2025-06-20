@@ -38,6 +38,13 @@ def make_production_data(record, UNIQUE_NAME):
                 'rho_map_file':rho_map_file,
                 'dmp_map_file':dmp_map_file,
             }
+        elif NAME_DISPOL == UNIQUE_NAME:
+            production_data=dict(
+                wfn_entry=record.wave_function,
+                fchk_file_id=record.wave_function.wave_function_file.id,
+                part=record.partitioning,
+                part_weights=record.partitioning.isa_weights,
+            )
         else:
             raise Exception(f"Cannot process property \'{UNIQUE_NAME}\'")
         return production_data
@@ -95,31 +102,35 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
         
     # Get the record and worker id for the next record
     try:
+        from ..util.util import get_object_for_tag
         UNIQUE_NAME=get_unique_tag(property)
+        the_object=get_object_for_tag(UNIQUE_NAME)
         if UNIQUE_NAME==NAME_WFN:
-            object=Wave_Function
+            #object=Wave_Function
             prop_args={}
         elif UNIQUE_NAME==NAME_PART:
             # Get result
-            object=Hirshfeld_Partitioning
+            #object=Hirshfeld_Partitioning
             prop_args={'method':method}
         elif    NAME_IDSURF == UNIQUE_NAME:
-            object=IsoDens_Surface
+            #object=IsoDens_Surface
             prop_args={}
         elif    NAME_ESPRHO == UNIQUE_NAME:
-            object=RHO_ESP_Map
+            #object=RHO_ESP_Map
             prop_args={}
         elif    NAME_ESPDMP == UNIQUE_NAME:
-            object=DMP_ESP_Map
+            #object=DMP_ESP_Map
             prop_args={}
         elif    NAME_ESPCMP == UNIQUE_NAME:
-            object=DMP_vs_RHO_ESP_Map
+            #object=DMP_vs_RHO_ESP_Map
+            prop_args={}
+        elif NAME_DISPOL == UNIQUE_NAME:
             prop_args={}
         else:
             raise Exception(f"Cannot process property \'{property}\'")
 
         # Get the next record and if there is another record create a worker
-        record= get_next_record(session, object, prop_args=prop_args)
+        record= get_next_record(session, the_object, prop_args=prop_args)
         if record is None:
             worker_id=None
             return record, worker_id
@@ -127,8 +138,7 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
             host_address=f"{request.client.host}:{request.client.port}"
             worker_id=create_worker(session, host_address, record)
 
-    except Exception as ex:
-        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error in retrieving record and worker id: {str(ex)}")
+    except Exception as ex: my_exception(f"Error in retrieving record and worker id:", ex)
     
     # If record is empty there is nothing pending anymore, and we can continue!
     if isinstance(record, type(None)): 

@@ -1,7 +1,12 @@
 from . import *
 from util.environment import get_python_from_conda_env
+from receiver.get_request import upload_file
 
-from .client_server_ext import prepare_espdmp_script, prepare_espmap_script, prepare_idsurf_script, prepare_part_script, prepare_wfn_script, prepare_espcmp_script
+from qcp_global_utils.pydantic.pydantic import file as pdtc_file, directory as pdtc_directory
+from .client_server_ext import (
+    prepare_espdmp_script, prepare_espmap_script, prepare_idsurf_script, prepare_part_script, prepare_wfn_script, prepare_espcmp_script,
+    prepare_dispol_script,
+)
 from util.util import print_flush
 
 def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, do_test=False, property='wfn', method=None, fchk_link_file=None):
@@ -81,7 +86,6 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                 print(f"{error} ({request_code}): Retrying in a bit. (received code {status_code}, detail={response.text})")
             time.sleep(0.5)
         return record, worker_id
-
     serv_adr=f"http://{url}:{port}" # address of server
     mp.set_start_method("spawn")
 
@@ -119,6 +123,8 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
             rho_map_file=prod_data['rho_map_file']
             dmp_map_file=prod_data['dmp_map_file']
             script = prepare_espcmp_script(config_file, dmp_map_file=dmp_map_file, rho_map_file=rho_map_file)
+        elif NAME_DISPOL == UNIQUE_NAME:
+            script=prepare_dispol_script(config_file, prod_data, serv_adr)
         else:
             raise Exception(f"No routine defined for {UNIQUE_NAME}")
         # After extraction clean the record
@@ -132,7 +138,7 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
         # Check return of job
         entry, job_already_done =wait_for_job_completion(proc, delay, property)
         
-        # In case the has been done by another worker I still want to kill the worker 
+        # In case the has been done by annother worker I still want to kill the worker 
         if job_already_done:
             print_flush("Job already done by another worker. Killing QC calculation and getting a new job.")
             pool.terminate()
@@ -151,9 +157,69 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                 if 'run_info' in entry.keys():
                     del entry['run_info']
 
-            if UNIQUE_NAME==NAME_WFN:
+
+            # !! FIX this mess
+            if 'run_data' in entry.keys():
+                run_data=entry['run_data']
+            else: run_data={}
+            if 'files' in run_data:
+                files=entry['run_data']['files']
+                #del entry['files']
+            else:
+                files={}
+            file_uploads=[]
+
+
+
+            the_model=get_object_for_tag(UNIQUE_NAME)
+            id=record[get_primary_key_name(the_model)]
+            #@val_call
+            #def push_file(file_uploads:List[Tuple[str,dict]],  object:str|sqlmodel_cl_meta, the_file:file, id):
+            #    try:
+            #        upload_model=object if isinstance(object, str) else object.__name__
+            #        file_uploads+=[
+            #            (upload_model, dict(id=id,file=the_file))
+            #        ]
+            #    except Exception as ex: raise Exception(ex)
+            #    return file_uploads
+            #@val_call
+            #def push_file_from_tag(files: dict,file_uploads:List[Tuple[str,dict]],  object:str|sqlmodel_cl_meta, tag:str, id):
+            #    try:
+            #        assert tag in files.keys(), f"Could not find \'{tag}\' in provided dictionary"
+            #        the_file=files[tag]
+            #    except Exception as ex: raise Exception(ex)
+            #    return push_file(file_uploads, object, the_file,id)
+            @val_call
+            def pack_run_directory(working_directory:directory, run_directory: List[str]|directory) -> pdtc_file:
+                
+                # Check that the working direcotry is the 
+                # This is not really elegant but a check is better than deleting something undesired
+                if isinstance(run_directory, str):
+                    assert os.path.realpath(run_directory)==os.path.realpath(working_directory)
+                else:
+                    for x in run_directory:
+                        assert any([ y(os.path.join(working_directory,x)) for y in [os.path.isdir,os.path.isfile]]) , x
+                    run_directory=[ os.path.join(working_directory,x) for x in run_directory]
+
+                the_tar=f"{the_model.__name__}_{id}_WID-{worker_id}"
+                if os.path.isdir(the_tar): run_shell_command(f"rm -r {the_tar}")
+                if isinstance(run_directory,str):
+                    run_shell_command(f"cp -r {run_directory} {the_tar}")
+                    pack_files=run_directory
+                else:
+                    os.mkdir(the_tar)
+                    run_shell_command( f"cp -r {' '.join(run_directory)} {the_tar}")
+
+                run_shell_command(f"tar --create --file={the_tar}.tar {the_tar} --remove-files")
+                run_shell_command(f"xz {the_tar}.tar")
+                compressed_file=f"{the_tar}.tar.xz"
+                return compressed_file
+
+
+            
+            if   NAME_WFN       == UNIQUE_NAME:
                 request=f"{serv_adr}/fill/wfn/{worker_id}"
-            elif UNIQUE_NAME==NAME_PART:
+            elif NAME_PART      == UNIQUE_NAME:
                 request=f"{serv_adr}/fill/part/{worker_id}"
             elif UNIQUE_NAME==NAME_IDSURF:
                 request=f"{serv_adr}/fill/isosurf/{worker_id}"
@@ -163,10 +229,50 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                 request=f"{serv_adr}/fill/espdmp/{worker_id}"
             elif NAME_ESPCMP == UNIQUE_NAME:
                 request=f"{serv_adr}/fill/espcmp/{worker_id}"
+            elif NAME_DISPOL == UNIQUE_NAME:
+                request=f"{serv_adr}/fill/dispol/{worker_id}"
             else:
                 raise Exception(f"Did not implement case for {UNIQUE_NAME}")
-        
-            response = requests.put(request, json=entry )
+
+             
+
+            
+            sub_entries=None
+            if 'run_data' in entry.keys():
+                if 'to_store' in entry['run_data']:
+                    assert 'run_directory' in entry['run_data'], f"Did not found key \'run_directory\' in return"
+                    run_directory=entry['run_data']['run_directory']
+                    the_file=pack_run_directory(run_directory, entry['run_data']['to_store'])
+                    upload_file( serv_adr, f"{the_model.__name__}_Run_Data", id,the_file)
+                if 'sub_entries' in entry['run_data']:
+                    sub_entries=entry['run_data']['sub_entries']
+                    assert isinstance(sub_entries, dict) or sub_entries is None, sub_entries
+                    if isinstance(sub_entries, dict):
+                        for k,v in sub_entries.items():
+                            assert isinstance(v,dict) or v is None, f"Expected dict or none, got: {v}"
+                            if isinstance(v, dict):
+                                the_model=get_object_for_tag(k)
+                                prim_key=get_primary_key_name(the_model)
+                                if not prim_key in v.keys():
+                                    v.update( {prim_key:id})
+                del entry['run_data']
+            if 'run_info' in entry.keys():
+                run_info=entry['run_info']
+                del entry['run_info']
+
+            # Push files will allways be the same array and files will not be changed
+            #the_push=partial(push_file_from_tag, files)
+            if entry['converged']==RecordStatus.converged:
+                for tag, file in files.items():
+                    the_model=get_object_for_tag(tag)
+                    assert isinstance(file, str), file
+                    upload_file(serv_adr,the_model, id,file)
+            
+            data=dict(
+                main_entry= entry,
+                sub_entries= sub_entries,
+            )
+            response = requests.put(request, json=data )
             # Check success of request
             status_code=response.status_code
             if status_code == HTTPStatus.OK: # desired
@@ -181,5 +287,5 @@ def main(config_file, url, port, num_threads, max_iter, delay, target_dir=None, 
                 error= f"Bad communication with function (check function argument)"
             else:
                 error= f"Undescribed error"
-            if not isinstance(error, type(None)):
+            if not error is None:
                 raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")

@@ -6,9 +6,9 @@ from util.requests import get_request
 
 
 @validate_call
-def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None, binary:bool|None=None):
+def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None, binary:bool|None=None) -> file:
 
-
+    
     the_object=object
     if drop_name is None:
         drop_name=f"{object}_{id}"
@@ -69,19 +69,23 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
     return drop_name
     
 @validate_call
-def get_row(address: pdtc_address, object:str, id:List[str|int]|Literal['all']|str|int, links: List[str|int]|None=None,
-            #dependencies: List[str]|None=None, merges: List[str]|None=None,
+def get_row(
+    address: pdtc_address, 
+    object:str, 
+    ids:List[str|int]|Literal['all']|str|int, 
+    links: List[str|int]|None=None,
     filters: dict|None=None,         
+            #dependencies: List[str]|None=None, merges: List[str]|None=None,
 ):
     """ Makes HTTP Request according to the provided arguments and returns the resultof this request"""
     the_object=object
     
-    if not isinstance(id, list):
-        id=[id]
+    if not isinstance(ids, list):
+        ids=[ids]
 
     request_code=f"{address}/get/{the_object}"
 
-    opts=[ f"ids={i}" for i in id]
+    opts=[ f"ids={i}" for i in ids]
     #if not dependencies is None:
     #    request_code+=''.join([ 
     #        f"&deps={dep}" for dep in dependencies
@@ -98,7 +102,9 @@ def get_row(address: pdtc_address, object:str, id:List[str|int]|Literal['all']|s
 
     if len(opts)>0:
         request_code+='?'+'&'.join(opts)
-    return get_request(request_code).json()
+    
+    content=get_request(request_code).json()
+    return content
     
 #@validate_call
 #def get_depencencies(address: pdtc_address, object:str, dependenices: List[str]):
@@ -108,3 +114,33 @@ def get_group_tree(address: pdtc_address):
     """ """
     request_code=f"{address}/get/group_tree"
     return get_request(request_code).json()['json']
+
+@val_call
+def upload_file(
+    srv_address:str, key:str|sqlmodel_meta, id:str|int, file:file, delete_old=False,
+):
+    if isinstance(key, sqlmodel_meta):
+        key=key.__name__
+
+    url=f"{srv_address}/upload_file/{key}/{id}"
+    with open(file,'rb') as rd:
+        files={"file": (rd.name, rd, "multipart/form-data")}
+        response=requests.post(url=url, files=files)
+
+    status_code=response.status_code
+    if status_code == HTTPStatus.OK: # desired
+        print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
+        error=None
+    #elif status_code == HTTPStatus.NO_CONTENT:
+    #    print(f"Record already converged:\n Will not update record and proceed to next task.")
+    #    error=None
+    elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
+        error=f"Error in processing"
+    elif status_code == HTTPStatus.UNPROCESSABLE_ENTITY: # error in function definition
+        error= f"Bad communication with function (check function argument)"
+    else:
+        error= f"Undescribed error"
+    if not error is None:
+        raise Exception(f"Error updating record ({url}) with code {status_code}: {error}\n{response.text}")
+    elif delete_old:
+        run_shell_command(f"rm {file}")
