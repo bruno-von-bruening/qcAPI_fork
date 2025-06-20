@@ -4,9 +4,12 @@ from . import *
 from .utils import pdtc_address
 from util.requests import get_request
 
+from typing import Union
+from sqlmodel.main import SQLModelMetaclass as model_meta
+model_pdtc=Union[str|model_meta]
 
 @validate_call
-def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None, binary:bool|None=None):
+def get_file(address: pdtc_address, object:model_pdtc ,id: str|int, drop_name: str=None, binary:bool|None=None):
 
 
     the_object=object
@@ -69,12 +72,13 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
     return drop_name
     
 @validate_call
-def get_row(address: pdtc_address, object:str, id:List[str|int]|Literal['all']|str|int, links: List[str|int]|None=None,
+def get_row(address: pdtc_address, object:model_pdtc, id:List[str|int]|Literal['all']|str|int, links: List[model_pdtc]|None=None,
             #dependencies: List[str]|None=None, merges: List[str]|None=None,
     filters: dict|None=None,         
 ):
     """ Makes HTTP Request according to the provided arguments and returns the resultof this request"""
-    the_object=object
+    the_object=object if isinstance(object, str) else object.__name__
+    links=[ l if isinstance(l, str) else l.__name__ for l in links]
     
     if not isinstance(id, list):
         id=[id]
