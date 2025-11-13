@@ -355,7 +355,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
 if __name__=="__main__":
 
     # Hardcoded parameters
-    test_dir='test_full_run/'
+    test_dir='tmp_test_full_run/'
     target_dir='test_copy_files_target/'
     #address='{address}'
     host='0.0.0.0'

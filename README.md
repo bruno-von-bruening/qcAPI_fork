@@ -6,6 +6,7 @@ Distribute quantum chemistry calculations over different machines following a si
 
 ## Installation
 
+
 Install dependencies via the provided conda environment:
 ```bash
   conda env create -f qcAPI_env.yml
@@ -23,6 +24,13 @@ We will need many subpackages to run this script (density_operations, ):
   # Install pip
   python -m pip install --upgrade build  
   python -m build; python -m pip install .
+```
+
+Confirm that the libraries have the right version:
+```
+    # in install/
+    conda activate qcpAPI
+    python version_check.py
 ```
 
 ## Usage example

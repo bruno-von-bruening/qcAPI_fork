@@ -46,7 +46,7 @@ def get_file(address: pdtc_address, object:str ,id: str|int, drop_name: str=None
     #raise Exception(response.content)
 
     if binary is None:
-        if extension.lower() in ['json','mom','yaml','fchk']: do_decode=True
+        if extension.lower() in ['json','mom','yaml','fchk','pol']: do_decode=True
         elif extension.lower() in ['gz','xz']: do_decode=False
         else:
             default_decode=True

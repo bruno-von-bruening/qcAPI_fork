@@ -5,7 +5,7 @@ from typing import Annotated
 
 
 @validate_call
-def check_server_responsiveness(address:str, timemout:float|int=3):
+def check_server_responsiveness(address:str, timemout:float|int=6):
     try:
         response=requests.get(address, timeout=timemout)
     except Exception as ex:

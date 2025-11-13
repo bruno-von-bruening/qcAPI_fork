@@ -60,6 +60,7 @@ def filter_db_query(object, filter_args: my_dict):
                 type_mapper={
                     'INTEGER':int,
                     'VARCHAR':str,
+                    'FLOAT':float,
                 }
                 # replace the size of the varchar
                 size_tag=re.search(r'\(.*\)', field_type)
