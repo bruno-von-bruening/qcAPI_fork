@@ -1,5 +1,6 @@
 from . import *
 from .get_main import get_object, get_group_structure
+from util.sql_util import *
 
 def get_functions(app, SessionDep):
 
@@ -89,25 +90,42 @@ def get_functions(app, SessionDep):
     async def get_file( session: SessionDep,
         file_type:str,
         ids: List[str|int]=Query([]),  
-    ):
-        try:
-            the_model=get_object_for_tag(file_type)
-            assert issubclass(the_model, File_Model)
-        except Exception as ex:
-            raise HTTPException(HTTPStatus.BAD_REQUEST, f"Provided file type argument (\'{file_type}\') could not be recognized: {analyse_exception(ex)}")
+    ) -> file_response:
+        """ Returns a file 
+        In case no errors are found
+        """
+
+
+        # Provide info which objects are available
+        if file_type=='info':
+            available_tables=get_all_available_tables(session)
+            available_tables=[ t.__name__ for t in available_tables if issubclass(t, File_Model) ]
+            raise HTTPException(HTTPStatus.IM_A_TEAPOT, 
+                                '\n'.join( ["Available tables:"]+[f'    - {x}' for x in available_tables ])
+            )
+        # 
+        else:
+            # Give some explicit help in case no ids are provided
+            if len(ids)==0:
+                raise HTTPException(HTTPStatus.BAD_REQUEST, f"Please provide ids through \'?ids=<single id>\' or \'?ids=<first id>&ids=<second id>...\'")
+            try:
+                the_model=get_object_for_tag(file_type)
+                assert issubclass(the_model, File_Model), f"Chosen model {the_model.__name__} is not a subclass of {File_Model.__name__}"
+            except Exception as ex:
+                raise HTTPException(HTTPStatus.BAD_REQUEST, f"Provided file type argument (\'{file_type}\') could not be recognized: {analyse_exception(ex)}")
         
         try:
             try:
                 objects=[session.get(the_model, id) for id in ids]
                 files=[ get_file_from_table(x) for x in objects ]
             except Exception as ex: my_exception(f"Problem when recovering files from files:", ex )
-            
-            try:
-                if len(files) == 0:
-                    return []
-                else:
-                    return [ file_response(file) for file in files ][0]
-            except Exception as ex: my_exception(f"Error when trying to return files:", ex)
         except Exception as ex: raise HTTPException( HTTPStatus.INTERNAL_SERVER_ERROR, str(ex))
+            
+        if len(files) == 0:
+            raise HTTPException(HTTPStatus.UNPROCESSABLE_ENTITY, f"No file found for ids={ids}")
+        else:
+            try:
+                return [ file_response(file) for file in files ][0]
+            except Exception as ex: my_exception(f"Error when trying to return files:", ex)
     
     return app

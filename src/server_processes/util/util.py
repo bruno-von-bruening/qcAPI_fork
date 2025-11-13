@@ -15,7 +15,7 @@ from data_base.database_declaration import (
     DMP_vs_RHO_MAP_Stats, RHO_ESP_MAP_Stats, DMP_ESP_MAP_Stats,
     Group, Group_to_Group, Compound_to_Group, 
 )
-from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, NAME_GROUP, NAME_WFN_DAT
+from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, NAME_GROUP, NAME_WFN_DAT, NAME_DISPOL
 import sys
 def make_object_mapper():
     the_mod='data_base.database_declaration'
@@ -33,6 +33,7 @@ object_mapper.update({
     NAME_CONF   : Conformation,
     NAME_GROUP  : Group,
     NAME_WFN_DAT : Wave_Function_Run_Data,
+    NAME_DISPOL: Distributed_Polarisabilities,
 })
 
 

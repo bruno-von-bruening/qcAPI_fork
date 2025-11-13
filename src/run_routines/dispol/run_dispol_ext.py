@@ -32,12 +32,12 @@ def make_isa_weight_file(isa_weight_model:dict) -> temporary_file:
         json.dump(dic, wr)
     return dump_shape_file
 
-def get_fchk_file(host_url, fchk_file_id:str):
+def get_fchk_file(host_url, fchk_file_id:str) -> temporary_file:
     fchk_file_path=get_file(address=host_url , object='FCHK_File',id=fchk_file_id)
     tmp_file=temporary_file(fchk_file_path)
     return tmp_file
 
 @val_call
-def run_camcasp(executable, fchk_file, weight_file):
-    cmd=f"{executable} --wfn {fchk_file} --part {weight_file} ISAPOL --exc"
+def run_camcasp(executable:file, script:file,  fchk_file:file, weight_file:file):
+    cmd=f"{executable} {script} --wfn {fchk_file} --part {weight_file} isapol --exc"
     run_shell_command(cmd)

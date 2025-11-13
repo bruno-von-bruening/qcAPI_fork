@@ -499,9 +499,12 @@ def pop_dispol(session:Session, wave_function_ids='all',partitioning_ids='all'):
             cross_ids=[]
             the_mapper=mapper[ref_objects[1].__name__]
             for wfn_id in ref_ids_filt[0]:
-                part_ids=the_mapper[wfn_id]
-                assert all([part_id in ref_ids_filt[1] for part_id in part_ids])
-                cross_ids+=[ (wfn_id, part_id) for part_id in part_ids ]
+                if wfn_id in the_mapper.keys():
+                    part_ids=the_mapper[wfn_id]
+                    assert all([part_id in ref_ids_filt[1] for part_id in part_ids])
+                    cross_ids+=[ (wfn_id, part_id) for part_id in part_ids ]
+                else:
+                    id_tracker.add_prerequisites_not_met(wfn_id)
             
             new_objs=[]
             for (wfn_id, part_id) in cross_ids:

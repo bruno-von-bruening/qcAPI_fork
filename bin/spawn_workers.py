@@ -9,16 +9,25 @@ from functools import partial
 from pydantic import validate_call
 import os
 
-def the_function(cmd, worker_id ):
-    stem=f"local_worker_{worker_id}"
+def the_function(cmd, worker_id, worker_tag="local_worker", directory=None):
+    stem=f"{worker_tag}_{worker_id}"
+    if directory is None:
+        stem=stem
+    else:
+        assert os.path.isdir(directory), f"{directory}"
+        stem= os.path.join(directory, stem) 
     stdout_file=f"{stem}.out"
     stderr_file=f"{stem}.err"
     stdout, stderr= run_shell_command(cmd, stdout_file=stdout_file, stderr_file=stderr_file)
 
 @validate_call
 def main(address:str, config:file, target_dir:directory, prop:str, num_processes:int =10, num_threads_per_process:int =1, method:str|None=None,
-    do_test=False,
+    do_test=False, job_name=None
 ):
+    worker_directory=f"{prop}_worker_output"
+    if os.path.isdir(worker_directory): run_shell_command(f"rm -r {worker_directory}")
+    os.mkdir(worker_directory)
+
     if not method is None:
         method=f"--method {method}"
     else:
@@ -29,7 +38,10 @@ def main(address:str, config:file, target_dir:directory, prop:str, num_processes
         +f" --num_threads {num_threads_per_proc}"
         +f" --target_dir {target_dir}  --property {prop} {method}" + ('' if not do_test else ' --test')
     )
-    jobs=[ dict( function=partial(the_function,cmd ), args=worker_idx, kwargs={} ) for worker_idx in range(num_processes)]
+    jobs=[ dict( function=partial(the_function,cmd, ), args=worker_idx, kwargs={
+        'worker_tag':'local_worker' if job_name is None else job_name,
+        'directory':worker_directory}
+        ) for worker_idx in range(num_processes)]
     spawn_workers(jobs, num_processes=num_processes)
         
 
@@ -80,5 +92,6 @@ if __name__=='__main__':
     method=args.method
     config=args.config
     do_test=args.test
+
 
     main(address, config, target_dir, prop, num_processes=num_processes, num_threads_per_process=num_threads_per_proc, method=method, do_test=do_test)

@@ -20,7 +20,7 @@ def info_functions(app, SessionDep):
             timestamp=time.time()
             delay=600
 
-            the_object=object_mapper[ get_unique_tag(object) ]
+            the_object = get_object_for_tag(object)
             res=filter_db(session, the_object, filter_args={})
 
             status_mapper=RecordStatus.to_dict()

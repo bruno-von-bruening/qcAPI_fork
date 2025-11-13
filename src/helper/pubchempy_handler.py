@@ -17,8 +17,8 @@ def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[]):
 
     return c
 class pubchem_handler(BaseModel):
-    isomeric_smiles:str
-    canonical_smiles:str
+    isomeric_smiles:str|None=None
+    canonical_smiles:str|None=None
     iupac_name: str|None=None
     molecular_formula: str
 

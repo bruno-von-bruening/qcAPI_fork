@@ -11,7 +11,7 @@ class track_ids(BaseModel):
         self.succeeded+=[ item ]
     @validate_call
     def add_prerequisites_not_met(self, item: int|str ):
-        self.prerequisite_not_met+=[ item ]
+        self.prerequisites_not_met+=[ item ]
     @validate_call
     def add_failed(self, item:int|str ):
         self.failed+=[ item ]

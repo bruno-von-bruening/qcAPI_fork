@@ -1,7 +1,7 @@
 from . import *
 from .run_dispol_ext import make_isa_weight_file, get_fchk_file, run_camcasp
 
-def working_directory(job_name, worker_id):
+def make_working_directory(job_name, worker_id):
     
     # Make polarisability directory
     isapol_dir='pol'
@@ -36,7 +36,7 @@ def run_dispol(
 
             jobname=f"ISA-POL_{part_method}_{part_basis}_{fchk_file_id}"
             origin=os.getcwd()
-            work_dir=working_directory(jobname, worker_id)
+            work_dir=make_working_directory(jobname, worker_id)
             os.chdir(work_dir)
 
             weight_file=make_isa_weight_file(part_weights)
@@ -44,13 +44,16 @@ def run_dispol(
 
             functional=wfn_entry['method']
             wfn_basis=wfn_entry['basis']
+            run_data.update(
+                run_directory=work_dir,
+            )
         except Exception as ex: tracker.add_error(f"Failed preparation: {analyse_exception(ex)}")
         
         #camcasp_exe=os.path.join(camcasp_path, 'bin','runcamcasp.py')
         #assert os.path.isfile(camcasp_exe), f"Not a valid file {camcasp_exe}"
         if tracker.no_error:
             try: 
-                run_camcasp(f"{python_exc} {script_path}",tmp_fchk_file.tmp_file, weight_file)
+                run_camcasp(f"{python_exc}", f"{script_path}",tmp_fchk_file.tmp_file, weight_file)
                 tmp_fchk_file.remove_tmp()
                 os.chdir(origin)
             except Exception as ex: tracker.add_error(f"Failed run: {analyse_exception(ex)}")
@@ -66,19 +69,24 @@ def run_dispol(
                 the_file=os.path.join( output_dir, the_file )
                 assert os.path.isfile(the_file),f"Not a file {the_file}"
 
-                working_directory=os.getcwd()
-                store_files=[ item for item in glob.glob('*') 
-                             if not bool(re.search(r'.fchk',item.lower()))
+                assert os.path.isdir(work_dir), f"Expected existing job working directory for saving files, but does not exist: {work_dir}"
+                # I would like to filter files even when they are lower
+                # This would be possible with os.walk https://stackoverflow.com/questions/10989005/do-i-understand-os-walk-right
+                # But then I would need to create the directory structure in the new target directory
+                store_files=[ os.path.realpath(item) for item in glob.glob(f"{work_dir}/*") 
+                             if not bool(re.search(r'.(fchk|p2p)',item.lower())) 
                 ]
                 run_data.update(dict(
                     files={
                         Pairwise_Polarisabilities_File.__name__:os.path.realpath(the_file)
                     },
                     to_store=store_files,
-                    run_directory=working_directory,
 
                 ))
             except Exception as ex: tracker.add_error(f"Failed recovering results: {analyse_exception(ex)}")
+        else:
+            run_data.update(dict(to_store=os.path.realpath(work_dir)))
+
     except Exception as ex:
         raise Exception(f"Unexpected Exception {ex}")
 

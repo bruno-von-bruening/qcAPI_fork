@@ -1,0 +1,4 @@
+
+# paths for QCPAPI pip module
+export QCPAPI_HOME="/home/bruno/1-0_custom_software/qcAPI_fork"
+

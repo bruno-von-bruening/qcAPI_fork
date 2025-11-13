@@ -165,6 +165,7 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
     except Exception as ex: my_exception(f"Problem in creating record for object: {object.__name__}", ex)
 
 
+from util.util import print_flush
 # Get linker table
 def get_primary_key_name(obj):
     from sqlalchemy.inspection import inspect
@@ -211,8 +212,7 @@ def get_links(table:sqlmodel_cl_meta, object_map:dict):
 #                connector=update_connector(get_object_for_tag(l), connector)
 #    return connector
 
-
-def get_object_to_tag(session):
+def get_all_available_table_names(session) -> List[str]:
     engine=session.get_bind()#, reflect=True)
     from sqlalchemy import MetaData
     META_DATA = MetaData()
@@ -221,20 +221,30 @@ def get_object_to_tag(session):
 
     tables=list(META_DATA.tables.values())
     table_names=[ str(tab) for tab in tables]
+    return table_names
 
-    the_mod='data_base.database_declaration'
-    keys=dir(sys.modules[the_mod])
-    mapper=[]
-    for tab in table_names:
-        matched_keys=[key for key in keys if key.lower()==tab]
-        if len(matched_keys)==0: pass #aise Exception(f"no object {tab} in {the_mod}: {keys}")
-        else:
-            found_objects=[ getattr(sys.modules[the_mod], key) for key in matched_keys]
-            found=[ obj for obj in found_objects if isinstance(obj, sqlmodel_cl_meta)]
-            assert len(found)==1, f"Not exactely one found for \'{tag}\': {found}"
-            found=found[0]
-        mapper+=[ (tab, found)] 
-    return dict(mapper)
+def make_tag_to_object_mapper(session) -> dict[str,str]:
+    """ Return a mapper"""
+    try:
+        table_names=get_all_available_table_names(session)
+
+        the_mod='data_base.database_declaration'
+        keys=dir(sys.modules[the_mod])
+        mapper=[]
+        for tab in table_names:
+            matched_keys=[key for key in keys if key.lower()==tab]
+            if len(matched_keys)==0: pass #aise Exception(f"no object {tab} in {the_mod}: {keys}")
+            else:
+                found_objects=[ getattr(sys.modules[the_mod], key) for key in matched_keys]
+                found=[ obj for obj in found_objects if isinstance(obj, sqlmodel_cl_meta)]
+                assert len(found)==1, f"Not exactely one found for \'{tag}\': {found}"
+                found=found[0]
+            mapper+=[ (tab, found)] 
+        return dict(mapper)
+    except Exception as ex: my_exception(f"Problem in getting object to tag mapping", ex)
+
+def get_all_available_tables(session) -> List[SQLModelMetaclass]:
+    return list(make_tag_to_object_mapper(session).values())
         
     #raise Exception(dir(tables[0]))
 
@@ -314,7 +324,7 @@ def get_connections(session: session_meta, table:sqlmodel_cl_meta):
     """ Return dictionary of every object that is linked with this table as keys and the path it can be reached by as value """
     try:
         # All the unique paths
-        object_to_tag_map=get_object_to_tag(session)
+        object_to_tag_map=make_tag_to_object_mapper(session)
         paths=get_paths(table,object_to_tag_map)
 
         # Organize them in a dictinoary with key the target and value the path to the target
@@ -339,7 +349,7 @@ def get_mapper(session,path:List[str]):
 
     try:
         id_mappers=[]
-        tag_to_object_map=get_object_to_tag(session)
+        tag_to_object_map=make_tag_to_object_mapper(session)
         for i in range(len(path)):
             if i < len(path)-1:
                 

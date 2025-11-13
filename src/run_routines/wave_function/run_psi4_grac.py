@@ -6,256 +6,18 @@ import numpy as np
 
 from util.trackers import message_tracker
 
-def psi4_copy(file, target_dir=None):
-    if not isinstance(file, str):
-        raise Exception(f"You did not provide string: {file}")
-    elif not os.path.isfile(file):
-        raise Exception(f"Requested to copy {file}, but is not a file.")
-    elif not isinstance(target_dir, type(None)):
-        print(f"Copying {file} to {target_dir}")
-        if not os.path.dirname(os.path.realpath(file))==os.path.realpath(target_dir):
-            try:
-                p=subprocess.Popen(f"cp {file} {target_dir}", shell=True)
-                p.communicate()
-                return  os.path.join(target_dir, os.path.basename(file))
-            except Exception as ex:
-                raise Exception(f"Problem when trying to copy file: {ex}")
-
-def make_size_entry(file,format='MB'):
-    def bytes_to_mb(bytes):
-        conversion=1024
-        return bytes/conversion**2
-    size=os.path.getsize(file)
-    if format=='MB':
-        size=bytes_to_mb(size)
-    return {
-        'file_name':file,
-        'size_format':format,
-        'size':size,
-    }
-
-def decompress_file(file):
-    assert os.path.isfile(file), f'Not a file: {file}'
-
-
-    extension_to_command={
-        'gz': '/usr/bin/gunzip -f',
-        '7z': '/usr/bin/7za x -aoa',
-        'xz': '/usr/bin/xz --decompress',
-    }
-    extension=file.split('.')[-1]
-    extension_lower=extension.lower()
-    if not extension_lower in list(extension_to_command.keys()):
-        print(f"I do not know extension of file {file}")
-        return
-    else:
-        try:
-            command=f"{extension_to_command[extension_lower]} {file}"
-            p=subprocess.Popen(command)
-            p.communicate()
-            new_file=file.replace(f'.{extension}', '')
-            if not os.path.isfile(new_file):
-                raise Exception(f"There should be gzipped file: {new_file} (after running {command})")
-        except Exception as ex:
-            print(f"Could not decompress: {ex} (for {file})")
-
-
-def compress_file(file, format='MB', encoding=None, decompress=False):
-    
-    assert os.path.isfile(file), f'Not a file: {file}'
-
-    dic={}
-    if encoding=='regular' or encoding==None:
-        entry=make_size_entry(file)
-        dic.update({'regular':entry})
-    else:
-        ar=encoding.split('|')
-        encoding_type=ar[0]
-        if len(ar)==1:
-            encoding_level=''
-        elif len(ar)==2:
-            encoding_level=ar[1]
-        else:
-            raise Exception()
-        
-        if encoding_type.startswith('gz'):
-            extension='.gz'
-            compressed_file=file+extension
-            command=f'gzip -f{encoding_level} {file}'
-        elif encoding_type.startswith('7z'):
-            extension='.7z'
-            compressed_file=file+extension
-            command=f'7za a {compressed_file} {file} -mx{encoding_level}'
-        elif encoding_type.startswith('xz'):
-            extension='.xz'
-            compressed_file=file+extension
-            command=f'xz {file} -{encoding_level}'
-        else:
-            raise Exception()
-
-        try:
-            p=subprocess.Popen(command, shell=True)
-            p.communicate()
-            if not os.path.isfile(compressed_file):
-                raise Exception(f"There should be gzipped file: {compressed_file}")
-            entry=make_size_entry(compressed_file)
-            entry.update({'compression_command':command})
-            dic.update({encoding:entry})
-        except Exception as ex:
-            print(f"Could not compress: {ex}")
-            dic.update({encoding:None})
-    return dic
-
-
-
-
-def get_system_data():
-    import socket
-    hostname=os.popen("hostname").read().strip()
-    nprocs=os.popen("nproc --all").read().strip()
-    avail_mem_gb=os.popen("awk \'/MemFree/ { printf \"%.3f \\n\", $2/1024/1024 }\' /proc/meminfo").read().strip()
-    mem_info=os.popen("cat /proc/meminfo").read()
-    usage_info=os.popen("top -bn1 | head -n20").read()
-    cpu_info=os.popen("lscpu").read()
-
-    system_data=dict(
-        hostname=hostname,
-        number_of_threads=nprocs,
-        total_memory_in_gb=avail_mem_gb,
-        mem_info=mem_info,
-        processes_info=usage_info,
-        cpu_info=cpu_info
-    )
-
-    return system_data
-
-def psi4_after_run(psi4_dict, target_dir=None, gzip=True, delete=True):
-    # Store the results here
-    info_dic={'size':{},'timing':{}}
-    done_grac=psi4_dict['settings']['grac_correction']
-    ##### Anaylse length
-    ####################
-    def get_timings(output_file):
-        if isinstance(output_file,type(None)):
-            return None
-        else:
-            with open(output_file,'r') as rd:
-                lines=rd.readlines()
-            timing_tag='TIMING'
-            timing_lines=[x for  x in lines if x.startswith(timing_tag)]
-            if done_grac:
-                expected_length=6
-            else:
-                expected_length=2
-            assert len(timing_lines)==expected_length, f"Expected {expected_length} lines, not {len(timing_lines)}:\n{timing_lines}, {output_file}"
-            timing_lines_secs=[ x for x in timing_lines if bool(re.search(r'\[in seconds\]',x))]
-            di={}
-            for line in timing_lines_secs:
-                try:
-                    tag=line.split()[1]
-                    num=line.split()[-1]
-                    num=float(num)
-                except Exception as ex:
-                    raise Exception(f"On line {line}: {ex}")
-                di.update({tag:num})
-            return di
-    output_file=psi4_dict['psi4out_file']
-    timings=get_timings(output_file)
-    info_dic['timing'].update(timings)
-    
-    ##### Get size, gzip, copy
-    ######################
-    test_compression=False
-    n=['regular'] ; 
-    if test_compression:
-        a=['regular', 'gz|3','gz|9','gz|6' , '7z|3','7z|9', '7z|6' , 'xz|3','xz|9', 'xz|6']
-    else:
-        a=copy.deepcopy(n)
-    zip_switch={ # one is false zero is true
-        'psi4inp_file'      : n,
-        'psi4out_file'      : n,
-        'wfn_grac_file'     : a,
-        'fchk_grac_file'    : a,
-        'wfn_neut_file'     : a,
-        'fchk_neut_file'    : a,
-        'final_fchk_file'   : a,
-    }
-    new_files={}
-    if done_grac:
-        file_keys=['psi4inp_file', 'psi4out_file', 'fchk_grac_file',  'fchk_neut_file']
-    else:
-        file_keys=['psi4inp_file', 'psi4out_file',  'fchk_neut_file']
-    for tag in file_keys:#,'wfn_grac_file', 'wfn_neut_file']:
-        # Get the associated keys
-        assert tag in psi4_dict.keys() and zip_switch.keys()
-        file=psi4_dict[tag]
-
-        if tag in [ 'wfn_grac_file', 'wfn_neut_file' ]:
-            p=subprocess.Popen(f"rm {file}", shell=True)
-            p.communicate()
-        else:
-            if not isinstance(file, type(None)):
-                requested_encodings=zip_switch[tag]
-                short_tag=tag.replace('_file','')
-
-                for encoding in requested_encodings:
-                    dic=compress_file(file, encoding=encoding)
-                    info_dic['size'].update(dict([
-                        (f"{short_tag}_{k}",v) for k,v in dic.items()
-                    ]))
-                    # Copy the file to results dir
-                    new_file=dic[encoding]['file_name']
-                    assert isinstance(new_file,str), f"file {new_file} not valid"
-                    if not isinstance(target_dir, type(None)):
-                        new_file_location=psi4_copy(new_file, target_dir=target_dir)
-                        new_files.update({tag:os.path.realpath(new_file_location)})
-                    # Decompress the file in case it has been compresssed
-                    if not encoding in ['regular', None]:
-                        decompress_file(new_file)
-                for key in info_dic['size'].keys():
-                    if delete:
-                        try:
-                            file=info_dic['size'][key]['file_name']
-                            if os.path.isfile(file):
-                                p=subprocess.Popen(f"rm {file} -r", shell=True)
-                                p.communicate()
-                        except Exception as ex:
-                            print(f"Could not delete file {file}")
-
-    return info_dic, new_files
+from qcp_objects.objects.properties import geometry
 
 @val_call
-def make_psi4_input_file(make_psi4_input, 
-            atom_types: List[str], coordinates:List[Tuple[float,float,float]], method, basis_set,
-            total_charge=0, multiplicity=1,
-            jobname='test', hardware_settings=None,
-            target_dir=None):
+def make_geom( 
+            atom_types: List[str], coordinates:List[Tuple[float,float,float]],
+            xyz_file_name: str,
+):
     """ Interface between this data and my generic run script """
-    psi4_start_time=time.time()
-    
-    coordinates=np.array(coordinates)
-    assert len(coordinates.shape)==2 and coordinates.shape[1]==3, f"Coordinates have wrong shape: {coordinates.shape}"
-    # Make xyz_file
-    xyz_file=jobname+'.xyz'
-    with open(xyz_file,'w') as wr:
-        lines=[ f"{len(atom_types)}", f"Generated for running job: \'{jobname}\'"]
-        lines+=[    "{at_ty:<2} {coord_str}".format(
-                            at_ty=at, coord_str=' '.join([f"{x:>12}" for x in coor])
-                        )
-                        for at, coor in zip(atom_types, coordinates)
-        ]
-        wr.write('\n'.join(lines)+'\n')
-
-
-
-    # Generate the input file
-    job='single_point'
-    files_per_calc=make_psi4_input(job, func=method, basis_set=basis_set, xyz_file=xyz_file, execute=False, add_method_tags=False)
-    assert len(files_per_calc)==1
-    psi4_input_file=files_per_calc[0]['input']
-    psi4_storage_file=files_per_calc[0]['storage']
-
-    return psi4_input_file, psi4_storage_file
+    xyz_file=xyz_file_name.replace('.xyz','')+'.xyz'
+    geom=geometry(coordinates=np.array(coordinates), atom_types=atom_types, length_units='BOHR')
+    xyz_file_name=geom.to_xyz_file(xyz_file)
+    return xyz_file_name
 
 def execute_the_job(conda_env, execute_psi4, psi4_input_file, psi4_storage_file):
     # Import the run script
@@ -392,7 +154,7 @@ def run_compute_wave_function(jobname, conda_env, psi4_script, psi4_di, target_d
         storage_file=os.path.realpath( new_storage_file)
     )
 
-def compute_wave_function(conda_env, psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
+def compute_wave_function_old(conda_env, psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
     """ Cal psi4 calculation
     This routine only processes """
     start_time = time.time()
@@ -528,3 +290,127 @@ def compute_wave_function(conda_env, psi4_script, record, workder_id, num_thread
         **tracker.model_dump()
     ))
     return output
+
+
+def compute_wave_function(python, psi4_script, record, workder_id, num_threads=1, max_iter=150, target_dir=None, do_test=False, geom=None):
+    start_time = time.time()
+    tracker=Tracker()
+    
+    def my_sep(message, sep, info_line=None, sep_times=1, print_hostname=True):
+        """ Create headline to indicate status in output file (for orientation/debugging purposes)"""
+        sep*=60
+        if print_hostname:
+            hostname=os.popen("hostname").read().strip()
+            host_str=f" ( hostname=\'{hostname}\' )"
+        else:
+            host_str=''
+        lines= [sep]*sep_times + [message + f" ({datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}){host_str}:"] + [' '*4+f"jobname=\'{jobname}\'"]
+        if info_line!=None:
+            lines+=[' '*4+info_line]
+        lines+=[sep]*sep_times 
+        print('\n'.join(lines))
+    #def process_conformation(geom, do_test=False):
+    #    # Conformation data
+    #    if do_test:
+    #        coordinates=[[0,0,0],[0,0,1]]
+    #        species=[1,1]
+    #        multiplicity=1
+    #        total_charge=0
+    #    else:
+    #        coordinates = geom["coordinates"]
+    #        species = geom["nuclear_charges"]
+    #        multiplicity=geom['multiplicity']
+    #        total_charge=geom['charge']
+    #    if isinstance(species[0],int):
+    #        atom_types=[ nuclear_charge_to_element_symbol(x) for x in species ]
+    #    elif isinstance(species[0],str):
+    #        atom_types=species
+    #    else: raise Exception(f"Unkown atom types: {atom_types}")
+    #    return {
+    #        'atom_types':atom_types,
+    #        'coordinates': coordinates,
+    #        'total_charge': total_charge,
+    #        'multiplicity': multiplicity
+    #    }
+        
+
+    # create ID
+    try:
+        try:
+            id=record['id']
+            method=record['method']
+            basis=record['basis']
+        except Exception as ex: my_exception(f"Problem in provided data",ex)
+
+        try:
+            jobname=make_jobname(id, workder_id)
+            working_dir=make_dir(jobname=jobname)
+            os.chdir(working_dir)
+        except Exception as ex: my_exception(f"Problem in setting up environment", ex)
+
+        try:
+            available_keys=list(geom.keys())
+            requested_keys=['nuclear_charges','coordinates']
+            keys_not_there=[ k for k in requested_keys if k not in available_keys]
+            if len(keys_not_there)>0: raise Exception(f"Could not find keys {keys_not_there} in {available_keys}")
+
+            xyz_file=make_geom(atom_types=geom['nuclear_charges'], coordinates=geom['coordinates'], xyz_file_name=jobname)
+        except Exception as ex: my_exception(f"Problem in generating geometry:", ex)
+
+
+        try:
+            job_tag='single_point'
+            cmd=f"{python} {psi4_script} {job_tag}"\
+                +f" --func {method} --basis {basis} --xyz {xyz_file}" \
+                +f" --exc --num_threads {num_threads}"
+            my_sep('START psi4 calculation','+')
+            run_shell_command(cmd)
+        except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
+
+        try: # Postprocessing
+            # Storage file:
+            storage_file_search=f"STORAGE_*{jobname}.yaml"
+            storage_file=glob.glob(storage_file_search)
+            assert len(storage_file)==1, f"Did not find exactely one storage file at {os.getcwd()} for {storage_file_search}: {storage_file}"
+            storage_file=storage_file[0]
+            assert len(storage_file)
+            assert os.path.isfile(storage_file), f"Not a file {storage_file}"
+            with open(storage_file, 'r') as rd:
+                storage_data=yaml.safe_load(rd)
+
+            assert 'files' in storage_data, f"Key \'files\' not in storage file {storage_file}"
+            assert 'final_fchk' in storage_data['files'].keys(), f"Key \'final_fchk\' not in \'files\' section of {storage_file}"
+            fchk_file=storage_data['files']['final_fchk']
+
+        except Exception as ex: my_exception(f"Problem in recovering results",ex)
+
+        converged=1
+        compresssed_fchk_file=compress_file(fchk_file, compression_type='xz',compression_level=None)
+        files={
+            FCHK_File.__name__:os.path.realpath(compresssed_fchk_file),
+        }
+        sub_entries=None
+        my_sep('SUCCESS in psi4 calculation','#')
+    except Exception as ex:
+        converged=0
+        files=None
+        sub_entries=None
+        tracker.add_error(ex)
+        my_sep('FAILED psi4 calculation','#')
+        if do_test:
+            raise Exception(f"Test was requested hence terminating:\n{ex}")
+
+
+    
+    run_info={'status':tracker.status, 'status_code':tracker.status_code}
+    run_data=dict(
+        sub_entries=sub_entries,
+        files=files,
+        run_directory=working_dir,
+        to_store=working_dir,
+    )
+    record.update({'converged':converged, **tracker.model_dump()})
+    record.update({'run_data':run_data, 'run_info':run_info})
+
+    return record
+    

@@ -1,0 +1,25 @@
+TAG: "QCPAPI"
+environment:
+    run_psi4:
+        python_env: "run_psi4"
+        script: ['$RUN_PSI4_HOME','bin/run_psi4_2.py']
+    horton:
+        python_env: "horton_part"
+        script: '$HORTON_SCRIPT'
+    iso_density_surface: 
+        python_env: 'qcDENS'
+        script: ['$DENSITY_OPERATIONS_HOME', 'bin/calc_IsoDensSurf.py']
+    camcasp:  
+        python_env: 'run_camcasp'
+        script: ['$RUN_CAMCASP_HOME','bin/my_runcamcasp.py']
+    density_esp: 
+        python_env: 'qcDENS'
+        script: ['$DENSITY_OPERATIONS_HOME', 'bin/calc_esp.py']
+        shell_env:
+            QC_DENSITY_OPERATIONS_LIB: '$DENSITY_OPERATIONS_LIB'
+    multipolar_esp:
+        python_env: 'qcp_objects'
+        script: ['$PROPERTY_OBJECTS_HOME', 'bin/compute_dmp_esp.py']
+    esp_comparison:
+        python_env: 'qcp_objects'
+        script: ['$PROPERTY_OBJECTS_HOME', 'bin/compare_esp.py']
