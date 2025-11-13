@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from qc_global_utilities.shell_processes.execution import run_shell_command
-from qc_global_utilities.multi_processing.multi_processing import spawn_workers
+from qcp_global_utils.shell_processes.execution import run_shell_command
+from qcp_global_utils.multi_processing.multi_processing import spawn_workers
 
-from qc_global_utilities.pydantic.pydantic import file, directory
+from qcp_global_utils.pydantic.pydantic import file, directory
 from functools import partial
 
 from pydantic import validate_call
@@ -16,7 +16,9 @@ def the_function(cmd, worker_id ):
     stdout, stderr= run_shell_command(cmd, stdout_file=stdout_file, stderr_file=stderr_file)
 
 @validate_call
-def main(address:str, config:file, target_dir:directory, prop:str, num_processes:int =10, num_threads_per_process:int =1, method:str|None=None):
+def main(address:str, config:file, target_dir:directory, prop:str, num_processes:int =10, num_threads_per_process:int =1, method:str|None=None,
+    do_test=False,
+):
     if not method is None:
         method=f"--method {method}"
     else:
@@ -25,7 +27,7 @@ def main(address:str, config:file, target_dir:directory, prop:str, num_processes
     cmd=(
             f"{loc}/client.py {address} --config {config} --delay 10" \
         +f" --num_threads {num_threads_per_proc}"
-        +f" --target_dir {target_dir}  --property {prop} {method}"
+        +f" --target_dir {target_dir}  --property {prop} {method}" + ('' if not do_test else ' --test')
     )
     jobs=[ dict( function=partial(the_function,cmd ), args=worker_idx, kwargs={} ) for worker_idx in range(num_processes)]
     spawn_workers(jobs, num_processes=num_processes)
@@ -65,6 +67,9 @@ if __name__=='__main__':
     add(
         '--config', '-c', required=True, help=f"Config file to provide",
     )
+    add(
+        '--test', '-t', action='store_true', help=f"Will raise error in case worker fails",
+    )
     #
     args=par.parse_args()
     num_processes=args.num_processes
@@ -74,5 +79,6 @@ if __name__=='__main__':
     prop=args.property
     method=args.method
     config=args.config
+    do_test=args.test
 
-    main(address, config, target_dir, prop, num_processes=num_processes, num_threads_per_process=num_threads_per_proc, method=method)
+    main(address, config, target_dir, prop, num_processes=num_processes, num_threads_per_process=num_threads_per_proc, method=method, do_test=do_test)

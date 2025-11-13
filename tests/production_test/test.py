@@ -5,7 +5,13 @@ import time
 import yaml
 import copy
 
-from util.config import qcAPI_Config, make_dummy_config_file, load_config_from_file
+from util.config import (
+    qcAPI_worker_config, 
+    load_worker_config,
+    qcAPI_server_config, 
+    load_server_config, 
+    make_dummy_config_file
+)
 from pydantic import validate_call ; validate_call=validate_call(config=dict(arbitary_types_allowed=True))
 
 # paths
@@ -23,7 +29,6 @@ server_file=make_file('server.py',qcapi_bin)
 populate_script=make_file('populate_db.py',qcapi_bin)
 client_script=make_file('client.py', qcapi_bin)
 # data
-geom_file=make_file('tests/supplementary_files/conformations/test_sample.pkl', qcapi_home)
 
 def is_running(process):
     """ The result of poll should be none if the process is running"""
@@ -118,7 +123,7 @@ def start_server(config_file, host, port):
 
 @validate_call
 def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
-    config=load_config_from_file(config_file)
+    #server_config=load_server_config(config_file)
     # Start the server (return subprocess object)
     server, address=start_server(config_file,host, port)
 
@@ -155,16 +160,18 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
         compute_mbis    =False,
     )
     fl=dict(
-        populate_wfn        =True  ,
-        compute_wfn         =True  ,
-        populate_bsisa      =False ,
-        compute_bsisa       =False ,
-        populate_gdma       =False ,
-        compute_gdma        =False ,
-        populate_lisa       =True  ,
-        compute_lisa        =True  ,
-        populate_mbis       =True  ,
-        compute_mbis        =True  ,
+        populate_compound       =True  ,
+        populate_conformation   =True ,
+        populate_wfn            =True   ,
+        compute_wfn             =True   ,
+        populate_bsisa          =True ,
+        compute_bsisa           =True ,
+        populate_gdma           =True ,
+        compute_gdma            =True ,
+        populate_lisa           =True  ,
+        compute_lisa            =True  ,
+        populate_mbis           =True ,
+        compute_mbis            =True ,
         populate_grid       =True  ,
         compute_grid        =True  , 
         populate_map        =True  ,
@@ -175,6 +182,12 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
         compute_espcmp      =True  ,
     )
     try:
+        comp_file='../supplementary_files/inchi_h2.yaml'
+        conf_file='../supplementary_files/conformations_dummy_h2.yaml'
+        assert os.path.isfile(conf_file), conf_file
+        assert os.path.isfile(comp_file), comp_file
+        comp_file=os.path.realpath(comp_file)
+        conf_file=os.path.realpath(conf_file)
         # Work inside test dir and delete the dir in case it exists
         def make_dirs(test_dir, target_dir):
             def make_rm_dir(the_dir):
@@ -188,10 +201,23 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
         make_dirs(test_dir, target_dir)
 
         python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+        tag='populate_compound'
+        if fl[tag]:
+            cmd=f"{python} {populate_script} --files {comp_file} --address {address} --property compound --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+
+
+        python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
+        tag='populate_conformation'
+        if fl[tag]:
+            cmd=f"{python} {populate_script} --files {conf_file} --address {address} --property conformation --test"
+            stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
+
+        python="python" #/home/bruno/0_Software/miniconda3/envs/qcAPI/bin/python"
         tag='populate_wfn'
         if fl[tag]:
             # Populate the database
-            cmd=f"{python} {populate_script} --filenames {geom_file} --address {address} --property wfn --method={qm_method} --basis={qm_basis} --test"
+            cmd=f"{python} {populate_script} --address {address} --property wfn --method={qm_method} --basis={qm_basis} --test"
             stdout, stderr=run_process(cmd, limit_time=True, time_limit=10, tag=tag)
 
         tag='compute_wfn'
@@ -329,7 +355,7 @@ def run_test(config_file: str, host, port, qm_method, qm_basis, target_dir):
 if __name__=="__main__":
 
     # Hardcoded parameters
-    test_dir='test_full_run/'
+    test_dir='tmp_test_full_run/'
     target_dir='test_copy_files_target/'
     #address='{address}'
     host='0.0.0.0'

@@ -1,8 +1,9 @@
 from . import *
 
-from qc_global_utilities.pydantic.pydantic import file, directory
-from qc_utils.file_handling import temporary_file, \
-get_conda_base, get_python_from_conda_env, link_file, run_shell_command
+from qcp_global_utils.pydantic.pydantic import file, directory
+from qcp_global_utils.environment.file_handling import temporary_file, link_file
+from qcp_global_utils.environment.conda_env import get_conda_base, get_python_from_conda_env
+from qcp_global_utils.shell_processes.execution import run_shell_command
 
 @validate_call
 def get_enviornment_variable(variable_name:str, critical:bool=True) -> str:

@@ -1,2 +1,5 @@
 database_file: database_test.db
-import: ${QCAPI_HOME}/install/environment_for_server_config.yaml
+imports: /home/bruno/1-0_custom_software/qcAPI_fork/install/environment_for_server_config.yaml
+storage_info:
+  storage_root_directory:  /home/bruno/1-0_custom_software/qcAPI_fork/tests/production_test/storage
+

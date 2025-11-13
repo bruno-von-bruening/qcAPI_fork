@@ -1,7 +1,7 @@
 from . import *
 from typing import Tuple
 
-from qc_objects.operations.calculate_esp_dmp import calculate_esp_dmp
+from qcp_objects.operations.calculate_esp_dmp import calculate_esp_dmp
 from util.util import copy_file
 from util.environment import directory, file
 from functools import partial
@@ -42,11 +42,10 @@ def execute(python:file, script:file, moment_file:file, grid_file:file, ranks:st
         return cmd
     
     cmd=make_shell_command(python, script, moment_file, grid_file, ranks)
-    run_command_in_shell(cmd)
+    stdout,stderr=run_shell_command(cmd)
 
 @validate_call
 def retrieve(tracker:Tracker, results_file:file='results.yaml'):
-    di={}
     try:
         with open(results_file,'r') as rd:
             data=yaml.safe_load(rd)
@@ -78,8 +77,15 @@ def retrieve(tracker:Tracker, results_file:file='results.yaml'):
             stats=None
 
     
-    di.update({'map_file':map.model_dump(), 'stats':stats})
-    return tracker,di
+    run_data=dict(
+        files={
+            DMP_MAP_File.__name__: os.path.realpath(map_file)
+        },
+        sub_entries={
+            DMP_ESP_MAP_Stats.__name__: stats
+        }
+    )
+    return tracker,run_data
     
 # receive arguments
 
@@ -107,12 +113,18 @@ def run_dmp_esp(
 
         tracker, results=retrieve(tracker)
         run_data=copy.deepcopy(results)
+        working_directory=os.getcwd()
+        files_to_store=get_relevant_files(working_directory, run_data)
+        run_data.update(dict(
+            working_directory=working_directory,
+            files_to_store=files_to_store
+        ))
 
         converged=RecordStatus.converged
     except Exception as ex:
         converged=RecordStatus.failed
         run_data=None
-        tracker.add_error(f"Terminating due to error: {str(ex)}")
+        tracker.add_error(f"Terminating due to error:\n"+analyse_exception(ex))
 
     record.update( tracker.model_dump())
     record.update(dict( converged=converged, run_data=run_data ))

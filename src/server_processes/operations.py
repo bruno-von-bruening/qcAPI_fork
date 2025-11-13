@@ -1,5 +1,5 @@
 from . import *
-from util.sql_util import get_primary_key, get_primary_key_name
+from util.sql_util import get_primary_key, get_primary_key_name, get_duplicate_entries
 
 from .util.util import object_mapper, get_object_for_tag
 @validate_call
@@ -24,11 +24,12 @@ class deleter(BaseModel):
         arbitrary_types_allowed=True
     doubly_converged:List[int|str]=[]
     pending: List[int|str]=[]
+    failed: List[int|str]=[]
     def delete(self,session, the_object, messanger, force=False):
         if len(self.doubly_converged)>0 and not force:
             messanger.add_message(f"Found {len(self.doubly_converged)} items that are at least doubly converged provide force keyword to remove them")
         else:
-            to_delete=dict([ (k,getattr(self,k)) for k in ['doubly_converged','pending']])
+            to_delete=dict([ (k,getattr(self,k)) for k in ['doubly_converged','pending','failed']])
 
             for k,ids in to_delete.items():
                 object_to_delete=session.exec( 
@@ -119,15 +120,15 @@ def operation_functions(app, SessionDep):
         except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot parse {filters} to dictionary (via {parse_dict}): {str(ex)}")
 
         try:
-            the_object=object_mapper[prop]
+            the_object=get_object_for_tag(prop)
         except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot find table object for key \'{prop}\', available keys are {object_mapper.keys()}:\n{str(ex)}")
 
         try:
             entries=filter_db(session, the_object, filter_args=filters)
             if len(entries)==0:
-                messanger.add_message(f"Found no item that matches your search ({str(filters)})")
+                messanger.add_message(f"Found no entry of table {the_object.__name__} that matches your search ({str(filters)})")
             else:
-                messanger.add_message(f"Found {len(entries)} entries for your selection {str(filters)}")
+                messanger.add_message(f"Found {len(entries)} entries of table {the_object.__name__}" + ( f" considering filters: {str(filters)}" if len(filters)>0 else f"") )
                 if force:
                     for entry in entries:
                         session.delete(entry)
@@ -164,7 +165,7 @@ def operation_functions(app, SessionDep):
         force:bool=False,
     ):
         try:
-            the_object=object_mapper[prop]
+            the_object=get_object_for_tag(prop)
             messanger=message_tracker()
             to_delete=deleter()
             if the_object==IsoDens_Surface:
@@ -317,6 +318,48 @@ def operation_functions(app, SessionDep):
                 messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in deleted.items()])
                 return {'message':f"{messanger.message}"}
                 
+            elif the_object==Distributed_Polarisabilities:
+                track_deleter=deleter()
+                id_groups, uniques= get_duplicate_entries(session,the_object)
+                
+                id_to_converged= np.array( session.exec(select( 
+                    get_primary_key(the_object), getattr(the_object, 'converged'), getattr(the_object,'timestamp')
+                )).all()  )
+
+                entries=[]
+                for ids in id_groups:
+                    if len(ids)==1:
+                        pass
+                    else:
+                        convergence_status=[  [id, *(id_to_converged[id_to_converged[:,0]==id][:,1:][0].tolist()) ]
+                            for id in ids]
+                        status_map = {i.name: i.value for i in RecordStatus}
+                        id_by_status=dict([ (k, 
+                            sorted( list( [ [x[0],x[2]] for x in convergence_status if x[1]==tag ] )  , key=lambda x:x[1], reverse=True) ) 
+                            for k,tag in status_map.items()])
+                        entries+=[id_by_status]
+                
+                for id_by_status in entries:
+                    print(id_by_status)
+                    def get_id(array):
+                        return [x[0] for x in array]
+                    if len(id_by_status['converged'])>0:
+                        if len(id_by_status['converged'])>1:
+                            track_deleter.doubly_converged+= get_id(id_by_status['converged'][1:])
+                        track_deleter.pending+= get_id(id_by_status['pending'][:])
+                        track_deleter.failed+= get_id(id_by_status['failed'][:])
+                    elif len(id_by_status['failed'])>0:
+                        if len(id_by_status['failed'])>1:
+                            track_deleter.failed+=get_id(id_by_status['failed'][1:])
+                        track_deleter.pending+=get_id(id_by_status['pending'][:])
+                    elif len(id_by_status['pending'])>0:
+                        if len(id_by_status['pending'])>1:
+                            track_deleter.pending+=get_id(id_by_status['pending'][1:])
+                    else:
+                        raise Exception(f"No entry in {id_by_status}")
+
+                messanger=track_deleter.delete(session, the_object, messanger=messanger)
+                return messanger.dump()
             else:
                 raise Exception(f"Method {the_object.__name__} not implemented yet")
 

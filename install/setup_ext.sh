@@ -49,7 +49,7 @@ install_pip_project() {
 
    conda run -n ${conda_env} python -m pip install --upgrade setuptools
    conda run -n ${conda_env} python -m pip install --upgrade build
-   # conda run -n ${conda_env} python -m build
+   conda run -n ${conda_env} python -m build
    conda run -n ${conda_env} python -m pip install .
    cd ${old_dir}
 }

@@ -147,13 +147,11 @@ class camcasp_config(BaseModel):
 
 
 @validate_call
-def prepare_input(jobname,method,camcasp_path:directory, fchk_file:file, molecule_name:str='The_Molecule'):
+def prepare_input(jobname,method,camcasp_path:directory, fchk_file:temporary_file, molecule_name:str='The_Molecule'):
     """ """
     executable=os.path.join(camcasp_path, 'bin','runcamcasp.py')
     assert os.path.isfile(executable)
 
-    from qc_global_utilities.environment.file_handling import temporary_file
-    fchk_file=temporary_file(fchk_file,copy=True)
 
     # Get lines in format for CAMCASP coordinates (Tag, Z, Coor)
     camcasp_coordinates=geometry(fchk_file.file).camcasp_coordinates_string
@@ -171,7 +169,7 @@ def prepare_input(jobname,method,camcasp_path:directory, fchk_file:file, molecul
 
     # Setup camcasp
     cmd=f"{executable} {job_tag} --setup --ifexists 'delete'"
-    stdout,stderr = run_command_in_shell(cmd)
+    stdout,stderr = run_shell_command(cmd)
     sitenames=f"{job_tag}/{job_tag}.sites"
     assert os.path.isfile(sitenames),f"Expected file {sitenames} after generating CamCASP setup directory"
 
@@ -179,7 +177,7 @@ def prepare_input(jobname,method,camcasp_path:directory, fchk_file:file, molecul
     read_fchk_exc=os.path.join(camcasp_path,'bin','readfchk.py')
     assert os.path.isfile(read_fchk_exc)
     cmd=f"{read_fchk_exc} {fchk_file.file} --prefix {job_tag}/{job_tag}-A --sites {sitenames} --dalton"
-    stdout, stderr=run_command_in_shell(cmd)
+    stdout, stderr=run_shell_command(cmd)
     # Change the cks file for heavy elements
     cks_file=f"{job_tag}/{job_tag}.cks"
     modify_cks(cks_file, heavy_Z=11) 
@@ -188,7 +186,7 @@ def prepare_input(jobname,method,camcasp_path:directory, fchk_file:file, molecul
 
     return executable, job_tag
 
-def exc_partitioning_camcasp(camcasp_path, fchk_file, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
+def exc_partitioning_camcasp(address, camcasp_path, fchk_file_entry, record, worker_id, num_threads=1, max_iter=150, target_dir=None, do_test=False):
     """ """
     tracker=Tracker()
     run_data=None
@@ -200,15 +198,21 @@ def exc_partitioning_camcasp(camcasp_path, fchk_file, record, worker_id, num_thr
         dirname=make_dir(jobname)
         molecule_name='dummy_molecule'
         os.chdir(dirname)
-        executable, job_tag=prepare_input(jobname, method, camcasp_path, fchk_file, molecule_name=molecule_name)
-    except Exception as ex:
-        tracker.add_error(f"Failed in preparing input: {ex}")
-    
+
+        try:
+            loaded_fchk_file=load_fchk_file(address,fchk_file_entry)
+            temporary_fchk=temporary_file(loaded_fchk_file)
+        except Exception as ex: my_exception(f"Problem while loading fchk_file", ex)
+        executable, job_tag=prepare_input(jobname, method, camcasp_path, temporary_fchk, molecule_name=molecule_name)
+    except Exception as ex: 
+        tracker.add_error(f"Failed in preparing input: {analyse_exception(ex)}")
+   
     if tracker.no_error:
         # Run Camcasp
         try:
+            #cmd=f"{executable} {job_tag} -d {job_tag} --restart"
             cmd=f"{executable} {job_tag} -d {job_tag} --restart"
-            run_command_in_shell(cmd)
+            stdout, stderr=run_shell_command(cmd)
         except Exception as ex:
             tracker.add_error(f"Failed running camcasp: {cmd}: {ex}")
     if tracker.no_error:
@@ -236,18 +240,28 @@ def exc_partitioning_camcasp(camcasp_path, fchk_file, record, worker_id, num_thr
 
             mom=multipoles(mom_file).for_qcAPI()
 
-            mom_file_di=dict(
-                hostname=os.uname()[1],
-                path_to_container= os.path.relpath(os.path.dirname(os.path.realpath(mom_file)) , os.environ['HOME'])  ,
-                path_in_container='.',
-                file_name=os.path.basename(mom_file),
+            #mom_file_di=dict(
+            #    hostname=os.uname()[1],
+            #    path_to_container= os.path.relpath(os.path.dirname(os.path.realpath(mom_file)) , os.environ['HOME'])  ,
+            #    path_in_container='.',
+            #    file_name=os.path.basename(mom_file),
+            #)
+            working_directory=os.getcwd()
+            files_to_store=[ item for item in glob.glob('*')
+                             if not bool(re.search(r'.fchk',item.lower())) and not bool(re.search(r'.mom',item.lower()))
+            ]
+            mom.update({'id':record['id']})
+            if sol is not None:
+                sol.update({'id':record['id']})
+            run_data=dict(
+                files= {MOM_File.__name__:  os.path.realpath(mom_file)},
+                sub_entries={
+                    Distributed_Multipoles.__name__:mom,
+                    ISA_Weights.__name__:  sol,
+                },
+                run_directory= working_directory,
+                to_store=files_to_store,
             )
-
-            run_data={
-                'multipoles':mom,
-                'solution':  sol,
-                'mom_file':  mom_file_di,
-            }
         except Exception as ex:
             tracker.add_error(f"Failed recovering results: {analyse_exception(ex)}")
     

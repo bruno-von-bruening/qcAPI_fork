@@ -77,7 +77,7 @@ def get_functions(app, SessionDep):
         try:
             record, worker_id=create_new_worker(session,request,property, method, for_production=for_production)
         except Exception as ex:
-            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Could not exectue: {str(ex)}")
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Could not get next entry: {str(ex)}")
         
         # Check if record is empty
         if isinstance(record, type(None)):
@@ -91,18 +91,22 @@ def get_functions(app, SessionDep):
         ids: List[str|int]=Query([]),  
     ):
         try:
-            file_table=get_file_table(file_type)
+            the_model=get_object_for_tag(file_type)
+            assert issubclass(the_model, File_Model)
         except Exception as ex:
             raise HTTPException(HTTPStatus.BAD_REQUEST, f"Provided file type argument (\'{file_type}\') could not be recognized: {analyse_exception(ex)}")
         
         try:
             try:
-                objects=[session.get(file_table, id) for id in ids]
+                objects=[session.get(the_model, id) for id in ids]
                 files=[ get_file_from_table(x) for x in objects ]
             except Exception as ex: my_exception(f"Problem when recovering files from files:", ex )
             
             try:
-                return [ file_response(file) for file in files ][0]
+                if len(files) == 0:
+                    return []
+                else:
+                    return [ file_response(file) for file in files ][0]
             except Exception as ex: my_exception(f"Error when trying to return files:", ex)
         except Exception as ex: raise HTTPException( HTTPStatus.INTERNAL_SERVER_ERROR, str(ex))
     

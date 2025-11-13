@@ -4,7 +4,7 @@
 # import modules.mod_utils as m_utl
 from . import *
 from util.environment import file
-from qc_global_utilities.shell_processes.execution import  run_shell_command
+from qcp_global_utils.shell_processes.execution import  run_shell_command
 
 @validate_call
 def setup_environment(tracker: Tracker, record_id: str|int, worker_id: str, fchk_file: file, grid_fis: List[file]):
@@ -21,8 +21,7 @@ def setup_environment(tracker: Tracker, record_id: str|int, worker_id: str, fchk
     linked_file=f"ln_{os.path.basename(fchk_file)}"
     if os.path.islink(linked_file):
         os.unlink(linked_file)
-    p=sp.Popen(f'ln -s {fchk_file} {linked_file}', shell=True)
-    p.communicate()
+    run_shell_command(f'ln -s {fchk_file} {linked_file}')
 
     # Copy the grid_file
     for grid_fi in grid_fis:
@@ -93,11 +92,8 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
             os.chdir('..')
             assert os.path.isdir(work_dir)
             cmd=f"cp -r {work_dir} {new_dir}"
-            copy_dir=sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE, preexec_fn=os.setsid)
-            stdout, stderr = copy_dir.communicate()
+            stdout,stderr=run_shell_command(cmd)
             tracker.add_message(" and successful copying")
-            if copy_dir.returncode!=0:
-                raise Exception(f"Error in copying {stderr.decode()}")
         except Exception as ex:
             tracker.add_error(f"Error in copying files: {ex} {stderr.decode()}")
             tracker.add_message(' but failed copying')
@@ -141,14 +137,21 @@ def run_esp_surf(python_exc, script_exc, fchk_file, surface_file, record, worker
             #    scalars_bytes=np.array( content['surface_values'], dtype=np.float32 ).tobytes()
             #    with open('test.bytes','wb') as wr:
             #        wr.write(scalars_bytes)
-            esp_map_di={
-                'file_name' : os.path.basename(esp_map),
-                'hostname'  : os.uname()[1],
-                'path_to_container' : os.path.relpath(os.path.realpath(os.path.dirname(esp_map)), os.environ['HOME']),
-                'path_in_container' : '.',
-            }
+            #esp_map_di={
+            #    'file_name' : os.path.basename(esp_map),
+            #    'hostname'  : os.uname()[1],
+            #    'path_to_container' : os.path.relpath(os.path.realpath(os.path.dirname(esp_map)), os.environ['HOME']),
+            #    'path_in_container' : '.',
+            #}
 
-            run_data={'map_file':esp_map_di, 'stats': stats}
+            run_data=dict(
+                files={
+                    RHO_MAP_File.__name__:os.path.realpath(esp_map)
+                },
+                sub_entries={
+                    RHO_ESP_MAP_Stats.__name__: stats
+                },
+            )
             converged=1
         except Exception as ex:
             if do_test:

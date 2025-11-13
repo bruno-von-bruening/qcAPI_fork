@@ -92,95 +92,70 @@ def fill_esprho(session, entry):
     new_record=the_object(**entry)
     return old_record, new_record
 
-def fill_part(session, entry):
+@val_call
+def fill_part(session:Session, tracker:track_http_request, the_model:SQLModelMetaclass, entry:dict, sub_entries:dict):
+    """  """
 
-    converged=entry['converged']
-
-    # If record converged we expect subsidary files
-    if converged==RecordStatus.converged:
-        
-        # Recover the data
-        try:
-            entry, run_data=get_run_data(entry)
-            assert isinstance(run_data, dict), f"Expected entry for key run_data to be dictionary, got {type(run_data)}: {run_data}"
-
-            mul_key='multipoles'
-            sol_key='solution'
-            mom_fi_key='mom_file'
-            multipoles, solution, mom_file=get_from_run_data(run_data, keys=[mul_key, sol_key, mom_fi_key])
-        except Exception as ex:
-            raise Exception(f"Could not recover data from provided entry: {analyse_exception(ex)}")
-        
-
-        # Update the multipoles 
-        if not isinstance(multipoles, type(None)):
-            try:
-                multipoles.update({'id':entry['id']})
-                mul=Distributed_Multipoles(**multipoles)
-                session.add(mul)
-                session.commit()
-            except Exception as ex:
-                raise Exception(f"Could not create multipoles: {analyse_exception(ex)}")
-        else:
-            if converged==1:
-                raise Exception(f"No multipoles provided although converged!")
-        # Update the multipole file
-        if not isinstance(mom_file, type(None)):
-            assert isinstance(mom_file, dict), f"Expected moment file in dictionary format, got: {type(mom_file)} {mom_file}"
-            try:
-                mom_file.update({'id':entry['id']})
-                create_record(session, MOM_File, mom_file)
-            except Exception as ex:
-                raise Exception(f"Could not create multipole file: {analyse_exception(ex)}")
-        else:
-            if converged==1:
-                raise Exception(f"No moment file provided although converged!")
-        
-        # Update the soltuions
-        def make_solution(solution,id):
-            try:
-                solution.update({'id':id})
-                sol=ISA_Weights(**solution)
-                session.add(sol)
-                session.commit()
-            except Exception as ex:
-                raise Exception(f"Could not create ISA_weights: {analyse_exception(ex)}")
-        
-
-        from util.util import NAME_BSISA, NAME_LISA , NAME_GDMA , NAME_MBIS 
-        try:
-            # Shorcut the variables
-            solution_is_none=solution is None
-            method=entry['method']
-            converged= entry['converged']==1
-
-            # In the cases where a shape function is expected raise Exception if solution not there else make a row for solution
-            if method in [NAME_BSISA, NAME_LISA, NAME_MBIS]:
-                if solution_is_none and converged: raise Exception(f"Expected solution file for {method}")
-                else: make_solution(solution, entry['id'])
-            # in the case of GDMA the existence of a solution is unexpected -> kill 
-            elif method in [NAME_GDMA]:
-                if not solution_is_none: raise Exception(f"Got entry for shape_function which is unexpected for method=\'{method}\'")
-            else:
-                raise Exception(f"Cannot understand method key \'{method}\'")
-        except Exception as ex:
-            raise Exception(f"Error in processing Soltuon: {analyse_exception(ex)}")
-        
-    # Update the partitioning
-    the_object=Hirshfeld_Partitioning
+    # create enriched dictionary
     try:
-        if entry['converged'] < 0:
-            return {"message": "Partitioning not processed. Ignoring."}
+        def get_model(tag):
+            try:
+                the_model=get_object_for_tag(tag)
+                return the_model
+            except Exception as ex: my_exception(f"Could not interprete {tag} as model", ex)
+        
+        mapper=dict(   )
+        for k,v in sub_entries.items():
+            the_model=get_model(k)
+            the_key=the_model.__name__
+            assert the_key not in mapper.keys(), f"Double assignment of entry (maps to {the_key})"
+            if entry['method'].upper() in ['GDMA'] and the_key==ISA_Weights.__name__:
+                assert v is None
+            else:
+                mapper.update({
+                    the_key:dict(
+                        entry=v,
+                        the_model=the_model,
+                    )
+                })
+    except Exception as ex: my_exception(f"Error in preparing sub entries", ex)
+    
+    ### CHECKS
+    try:
+        expected=dict(  (x['model'].__name__, x) for x in 
+            [ dict(model=Distributed_Multipoles,  mandatory=True),
+            dict(model=ISA_Weights, mandatory=( entry['method'].upper() not in ['GDMA'] ) ),
+            dict(model=MOM_File, mandatory=False),
+            ]
+        )
+        for k,v in mapper.items():
+            assert k in expected.keys(), f"Key {k} not recognized"
+        for k,v in expected.items():
+            if entry['converged']==RecordStatus.converged:
+                if v['mandatory']:
+                    assert k in mapper.keys(), f"Expected key for {k}"
+                    assert mapper[k] is  not None, f"Expected dictionary for {k} but is None"
+                    assert isinstance(mapper[k] , dict), f"Expected dictionary for {k} but is {mapper[k]}"
+    except Exception as ex: raise Exception(f"Problem during check of validity of provided sub entries", ex)
+        #entry['converged']=0
+        #tracker.add_error(f"Could not fill the record, {str(ex)}")
+        #return entry
 
-        id=entry['id']
-        prev_part=get_previous_record_wrap(session, the_object, id)
-        new_record=the_object(**entry)
-        return prev_part, new_record
-    except Exception as ex:
-        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Error in updating {the_object.__name__}: {ex}")
+    ###
+    try:
+        for k,v in mapper.items():
+            the_model=v['the_model']
+            the_entry=v['entry']
+            assert isinstance(the_entry, dict), f"Expected dictionary, got {the_entry}" 
+            test=the_model(**the_entry)
 
-
-
+        for k,v in mapper.items():
+            the_model=v['the_model']
+            the_entry=v['entry']
+            create_record(session, the_model, the_entry, update_if_exists=True, commit=True)
+    except Exception as ex: my_exception(f"Problem in populating records", ex)
+    
+    return tracker
     
 @validate_call(config=ConfigDict(arbitrary_types_allowed=True))
 def fill_map_file(
@@ -270,3 +245,5 @@ def fill_espcmp(
     except Exception as ex:
         raise Exception(f"Problem in executing {fill_espcmp}: {analyse_exception(ex)}")
     return old_record, new_record
+
+

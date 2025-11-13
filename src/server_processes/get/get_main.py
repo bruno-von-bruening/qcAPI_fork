@@ -33,7 +33,7 @@ def get_group_structure(session, messanger:message_tracker) -> Union[ message_tr
 
 @val_cal
 def get_object(
-    session, messanger:message_tracker, object_table: SQLModelMetaclass , ids: List[int|str], links: List[str]=[], filters:dict={}
+    session: session_meta, messanger:message_tracker, object_table: SQLModelMetaclass , ids: List[int|str], links: List[str]=[], filters:dict={}
 )->Union[message_tracker,dict]:
     # Prepare connections links and merge
 
@@ -46,7 +46,7 @@ def get_object(
             return_di['primary_keys'].update({tab.__name__:get_primary_key_name(tab)})
 
         # Get id mapper for the linked objects
-        tree=get_connections(object_table)
+        tree=get_connections(session,object_table)
         for c in the_link_tabs:
             if not c.__name__ in tree.keys(): raise Exception(f"Could not map object {c.__name__} from object {object_table.__name__}") 
         paths=dict([ (c.__name__,tree[c.__name__]) for c in the_link_tabs])

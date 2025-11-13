@@ -7,17 +7,17 @@ available_properties=list(prop_names.keys())
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Populate a qcAPI database with jobs')
-    parser.add_argument('--filenames', type=str, nargs='+', help='Filenames of the pickled configurations')
+    parser.add_argument('--files', type=str, nargs='+', help='Filenames of the pickled configurations', default=[])
     parser.add_argument('--property', '-p', type=str, help=f"Which property to be computed")#, choices=available_properties)
     parser.add_argument('--address','-a', type=str, default="127.0.0.1:8000", help='URL:PORT of the qcAPI server')
-    parser.add_argument('--method','-m', type=str, default="wb97m-d3bj" ,help='Method to use')
-    parser.add_argument('--basis','-b', type=str, default="def2-tzvppd",help='Basis to use')
+    parser.add_argument('--method','-m', type=str, default=None ,help='Method to use')
+    parser.add_argument('--basis','-b', type=str, default=None,help='Basis to use')
+    #"def2-tzvppd",
     # Method and LISA
     parser.add_argument('--test', action='store_true',help='test (less than 50 entries)')
-    parser.add_argument('--file', type=str ,help='Filed to store (yaml or json format)')
     args = parser.parse_args()
 
-    filenames=args.filenames
+    filenames=args.files
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
     address=f"http://{url}:{port}"
@@ -27,10 +27,9 @@ if __name__ == "__main__":
 
     method=args.method
     basis=args.basis
-    content_file=args.file
     #
     do_test=args.test
 
-    main(filenames, address, property, method, basis, do_test=do_test, content_file=content_file)
+    main(filenames, address, property, method, basis, do_test=do_test)
     
     

@@ -35,13 +35,21 @@ def recover_output(
     path_to_container=os.path.relpath(os.path.realpath(os.path.dirname(map_file)), os.environ['HOME'])
     path_in_container=os.path.relpath(os.path.realpath(os.path.dirname(map_file)), os.path.join(os.environ['HOME'],path_to_container))
     file_name=os.path.basename(map_file)
-    map_file=dict(hostname=hostname, path_to_container=path_to_container, path_in_container=path_in_container, file_name=file_name)
+    #map_file=dict(hostname=hostname, path_to_container=path_to_container, path_in_container=path_in_container, file_name=file_name)
 
-
-    run_data={
-        'map_file':map_file,
-        'stats': stats,
-    }
+    run_data=dict(
+        files={
+            DMP_vs_RHO_MAP_File.__name__:os.path.realpath(map_file)},
+        sub_entries={
+            DMP_vs_RHO_MAP_Stats.__name__: stats,
+        }
+    )
+    working_dir=os.getcwd()
+    files_to_store=get_relevant_files(working_dir,run_data)
+    run_data.update(dict(
+        working_dir=working_dir,
+        files_to_store=files_to_store,
+    ))
     return tracker, run_data
 
 # Validate call does not work for objects that are called with multiprocessing functions

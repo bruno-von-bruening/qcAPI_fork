@@ -10,7 +10,6 @@ def get_environment_var(key, type='file'):
         quit(f"SHELL Environment variable \'{key}\' not defined, please do that!")
 
     var=os.environ[key] 
-    print(var)
     if type=='file':
         assert os.path.isfile(var), f"{var}"
     elif type=='directory':
@@ -67,14 +66,18 @@ def setup_env():
     cmp_esp_script=get(
         ('$PROPERTY_OBJECTS_HOME', 'bin/compare_esp.py')
     )
+    camcasp_script=get_environment_var('RUN_CAMCASP_HOME', type='directory')
+    camcasp_script=os.path.join(camcasp_script, 'bin','my_runcamcasp.py')
+    assert os.path.isfile(camcasp_script), f"Not a file {camcasp_script}"
 
     python_envs={
         'psi4'                  : ('psi4',psi4_script),
         'horton'                : ('horton_part',horton_script),
+        'camcasp'               : ('run_camcasp', camcasp_script),
         'iso_density_surface'   : ('qcDENS', isod_script),
         'density_esp'           : ('qcDENS', rho_esp_script),
-        'multipolar_esp'        : ('qcPROP', dmp_esp_script),
-        'esp_comparison'        : ('qcPROP', cmp_esp_script)
+        'multipolar_esp'        : ('qcp_objects', dmp_esp_script),
+        'esp_comparison'        : ('qcp_objects', cmp_esp_script),
     }
 
     for k, v in python_envs.items():

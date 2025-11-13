@@ -2,7 +2,10 @@
 from . import *
 from enum import Enum
 
-from .populate_ext import populate_conformation, populate_espcmp, populate_espdmp, populate_esprho, populate_isodens_surf, populate_part, populate_wfn, populate_group
+from .populate_ext import (
+    populate_conformation, populate_espcmp, populate_espdmp, populate_esprho, populate_isodens_surf, populate_part, populate_wfn, populate_group, 
+    populate_compound, pop_dispol,
+)
 
 def populate_wrapper(object, session, conformations=None, 
         basis=None, method=None, # for both wfn and part
@@ -22,12 +25,14 @@ def populate_wrapper(object, session, conformations=None,
         def gen_populate(UNIQUE_TAG):
             try: 
                 counter=None
-                if UNIQUE_TAG == NAME_CONF:
-                    counter = populate_conformation(session, conformations)
+                if NAME_COMP == UNIQUE_TAG:
+                    counter = populate_compound(session, compounds=json['records'], inchikeys=json['inchikeys'], compound_ids=json['compound_ids'])
+                elif UNIQUE_TAG == NAME_CONF:
+                    counter = populate_conformation(session, conformations=json['conformations'])
                 elif UNIQUE_TAG == NAME_WFN:
-                    assert not isinstance(method, type(None))
-                    assert not isinstance(basis, type(None))
-                    assert not isinstance(ids, type(None))
+                    assert not isinstance(method, type(None)), f"Did not provide method"
+                    assert not isinstance(basis, type(None)), f"Did not provide basis"
+                    assert not isinstance(ids, type(None)), f"Did not provide tag for ids"
                     populate_wfn(session, method, basis, ids)
                 elif UNIQUE_TAG == NAME_PART:
                     assert not isinstance(method, type(None))
@@ -45,6 +50,8 @@ def populate_wrapper(object, session, conformations=None,
                 elif NAME_GROUP     == UNIQUE_TAG:
                     assert 'records' in json.keys(), f"Expected key \'records\' in provided json objects."
                     counter=populate_group(session, groups=json['records'])
+                elif NAME_DISPOL    == UNIQUE_TAG:
+                    counter=pop_dispol(session)
                 else:
                     raise Exception(f"Did not implement function for UNIQUE_TAG type: \'{UNIQUE_TAG}\'")
                 return counter

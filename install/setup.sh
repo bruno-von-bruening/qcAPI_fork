@@ -1,6 +1,6 @@
 
-conda_env='qcAPI'
-conda_file='install/qcAPI_env.yaml'
+conda_env='qcpAPI'
+conda_file="install/${conda_env}_env.yaml"
 dependencies=("PROPERTY_OBJECTS_HOME" "DENSITY_OPERATIONS_HOME" "PROPERTY_DATABASE_HOME" "QC_GLOBAL_UTILITIES_HOME")
 
 if [ ! -f ${conda_file} ]; then
