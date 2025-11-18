@@ -1,4 +1,4 @@
-from . import *
+from .. import *
 
 @validate_call
 def get_previous_record_wrap(session, object, id: str|int):
@@ -157,7 +157,7 @@ def fill_part(session:Session, tracker:track_http_request, the_model:SQLModelMet
     
     return tracker
     
-@validate_call(config=ConfigDict(arbitrary_types_allowed=True))
+@val_call
 def fill_map_file(
     session,file_obj:SQLModelMetaclass, stats_obj:SQLModelMetaclass, entry:dict
 ) -> dict:

@@ -1,8 +1,14 @@
 from . import *
 
-from .environment import file, get_python_from_conda_env
 from .auxiliary import my_exception
 from .environment import QCAPI_HOME
+
+from qcp_global_utils.environment.file_handling import load_json_or_yaml
+from qcp_global_utils.parser.parser import controller_model
+
+from .import_helper import *
+
+
 
 @val_call
 def query_config(data:dict|BaseModel, query_tags:List[str]):
@@ -31,21 +37,75 @@ class qcAPI_storage_info(BaseModel):
 #        super().__init__(*args)        
 #        self._data=kwargs
 
+def process_imports(config,imports):
+    try:
+        @validate_call
+        def add_loop(the_dict:dict, ref_dict:dict) -> dict:
+            for k,v in the_dict.items():
+                if not k in ref_dict.keys():
+                    ref_dict.update({k:v})
+                else:
+                    if isinstance(ref_dict[k], dict):
+                        ref_dict[k]=add_loop(v, ref_dict[k])
+                    elif ref_dict[k] is None:
+                        ref_dict.update({k:v})
+                    elif ref_dict[k]==v:
+                        pass
+                    else:
+                        raise Exception(f"Key {k} appears in provdied config but also in import {imports} with contradictory values")
+            return ref_dict
+        @validate_call
+        def add(loc_config:dict, loc_add_config:dict) ->dict:
+
+            try:
+                config=add_loop(loc_add_config, loc_config)
+            except Exception as ex: raise Exception(loc_add_config, loc_config, ex)
+            return config
+        
+        if isinstance(imports, str): imports=[ imports ]
+        elif isinstance(imports, list): pass
+        else: raise Exception(f"Found import with type {type(imports)} this is not expected.")
+        #
+        assert all([ isinstance(x, str) for x in imports]), f"Expected only strings, but got: {imports}"
+        # Get the imports recursively
+        for x in imports:
+            if isinstance(config,str):
+                x=load_json_or_yaml(x)
+            add_config=import_config(x)
+            config=add(config, add_config)
+
+        return config
+    except Exception as ex: my_exception(f"Problem in importing:", ex)
 
 class config_base(BaseModel):
-    source: file
+    TAG: str|None=None
+    source: pdtc_file
+    imports:       List[pdtc_file]|pdtc_file|None = None
+    environment: dict={} #qcAPI_environment_info=qcAPI_environment_info()
     def query(self, query_tags:List[str]):
         try:
             return query_config(self.model_dump(), query_tags)
         except Exception as ex: my_exception(f"Could not query information form file {self.source}", ex)
+    def __init__(self,*args,**kwargs):
+        if 'imports' in kwargs.keys():
+            kwargs=process_imports(kwargs,kwargs['imports'])
+        super().__init__(*args,**kwargs)
 
-class qcAPI_server_config(config_base):
-    source: file
+# class qcAPI_server_config(config_base):
+#     source: file # File where the configs are stored/imported
+#     database_file: file|str # does not need to be a file 
+#     
+#     storage_info: qcAPI_storage_info
+#     #role: Literal['server','worker']
+# 
+#     @field_validator('database_file', mode='before')
+#     @classmethod
+#     def database_extension(cls, value: str) -> str:
+#         return value.replace('.db','')+'.db'
+class qcAPI_server_config(config_base,controller_model):
     database_file: file|str # does not need to be a file 
-    
     storage_info: qcAPI_storage_info
-    #role: Literal['server','worker']
-
+    
     @field_validator('database_file', mode='before')
     @classmethod
     def database_extension(cls, value: str) -> str:
@@ -53,22 +113,25 @@ class qcAPI_server_config(config_base):
 
 class qcAPI_worker_config(config_base):
     source: file
-    environment: dict={} #qcAPI_environment_info=qcAPI_environment_info()
-    imports:       List[file]|file|None = None
 
 
 ###### HANDLE CONFIG
-@validate_call
-def load_yaml(config_file:file):
-    with open(config_file,'r') as rd:
-        config=yaml.safe_load(rd)
-        assert isinstance(config,dict), f"Content of file \'{os.path.realpath(config_file)} is not a dictionary"
-    return config
+# @validate_call
+# def load_yaml(config_file:file):
+#     with open(config_file,'r') as rd:
+#         config=yaml.safe_load(rd)
+#         assert isinstance(config,dict), f"Content of file \'{os.path.realpath(config_file)} is not a dictionary"
+#     return config
+
+
 @validate_call
 def import_config(config: Union[dict,file]):
+
     if isinstance(config,str):
-        config=load_yaml(config)
+        config=load_json_or_yaml(config)
     
+    # Now config is a dictionary
+
     try:
         import_key='imports'
         if import_key in config.keys():
@@ -104,7 +167,7 @@ def import_config(config: Union[dict,file]):
             # Get the imports recursively
             for x in imports:
                 if isinstance(config,str):
-                    x=load_yaml(x)
+                    x=load_json_or_yaml(x)
                 add_config=import_config(x)
                 config=add(config, add_config)
 
@@ -115,7 +178,7 @@ def import_config(config: Union[dict,file]):
 def load_config_generic(config_file:file, config_model):
     # Read the file
     try:
-        config=load_yaml(config_file)
+        config=load_json_or_yaml(config_file)
     except Exception as ex: my_exception(f"Could not process \'{config_file}\':", ex)
 
     # Check for import
@@ -126,7 +189,7 @@ def load_config_generic(config_file:file, config_model):
     # Check database keys
     try:
         qcapi_config=config_model(**config, source=os.path.realpath(config_file))
-    except Exception as ex: my_exception(f"Could not construct a vaild qcAPI configuration from \'{config_file}\':" , ex)
+    except Exception as ex: my_exception(f"Could not construct a valid {str(config_model)} from \'{config_file}\':" , ex)
 
     return qcapi_config
 
@@ -153,7 +216,7 @@ def make_dummy_config_file() -> file:
       )
     dic.update({'imports': import_file})
 
-    config=qcAPI_Config(**dic)
+    config=qcAPI_server_config(**dic)
 
     config_file='dummy_config.yaml'
     with open(config_file, 'w') as wr:

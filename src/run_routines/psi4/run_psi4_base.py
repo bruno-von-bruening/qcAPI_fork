@@ -1,0 +1,68 @@
+# NEW
+from . import *
+
+from .run_psi4_help import *
+
+from util.trackers import message_tracker
+
+from qcp_objects.objects.properties import geometry
+
+
+@val_call
+def run_psi4_base(
+        python, psi4_script, 
+        tracker: Tracker,
+        wfn_record:Wave_Function, 
+        geom:geometry,
+        job_tag: Literal['single_point','polarizability_finite_field'],
+        num_threads=1, max_iter=150, 
+) -> job_results:
+    # create ID
+
+    try:
+        the_sep=partial(my_sep, jobname=tracker.job_name, sep='#')
+        try:
+            wfn_record,tracker = compute_core(
+                python, psi4_script,
+                wfn_record, geom, job_tag, tracker
+            )
+        except Exception as ex: my_exception(f"Could not compute wave function",  ex)
+
+        # Storage
+        try: # Postprocessing
+            storage_file=recover_storage(tracker.job_name)
+
+            # this depends on the run type
+            files, sub_entries = recover_specific(storage_file, job_tag)
+        except Exception as ex: my_exception(f"Problem in recovering results",ex)
+
+        converged=1
+        message='SUCCESS in psi4 calculation'
+    except Exception as ex:
+        converged=0
+        files={}
+        tracker.add_error(ex)
+        message='FAILED psi4 calculation'
+        if tracker.test:
+            raise Exception(f"Test was requested hence terminating:\n{ex}")
+    finally:
+        the_sep(message)
+        wfn_record.converged = converged
+        for k,v in tracker.model_dump().items():
+            if not hasattr(wfn_record, k):
+                warn(f"Could not write key {k} in {wfn_record}")
+            else:
+                setattr(wfn_record, k, v)
+    
+    try:
+        run_info={'status':tracker.status, 'status_code':tracker.status_code}
+        run_data=my_run_data(
+            run_directory=tracker.working_dir,
+            files=files,
+            run_files_to_store=tracker.working_dir
+        )
+
+        return wfn_record, run_data, run_info, sub_entries
+
+    except Exception as ex:
+        raise Exception(f"Could not pack results from calculation:\n{ex}")

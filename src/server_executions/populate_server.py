@@ -28,7 +28,10 @@ def process_return(response):
 
 
 def post_populate(request_code, json=None):
-    response = requests.post( request_code, json=json)
+    try:
+        response = requests.post( request_code, json=json)
+    except requests.exceptions.ConnectionError as hex: # ConnectionError shadows the built-in class!
+        raise Exception(f"Could not connect to server, is it running? {hex}")
     process_return(response)
 
 #def make_wfn(filenames,address, method, basis, do_test=False):
@@ -66,7 +69,7 @@ def post_populate(request_code, json=None):
     #    raise Exception(f"Failed to process content: {ex} \n {response_content}")
     #return response_content['ids']['succeeded'] # Only execution nothing to return
 @val_call
-def main(filenames:List[file_pdtc],address, property, method, basis, do_test=False):
+def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, basis:str|None=None, do_test=False):
     """ Switch dependant on which property to compute"""
     UNIQUE_NAME=get_unique_tag(property)
 
@@ -87,6 +90,8 @@ def main(filenames:List[file_pdtc],address, property, method, basis, do_test=Fal
 
 
     func=get_url_func(UNIQUE_NAME)
+
+
     if NAME_COMP==UNIQUE_NAME:
         inchikey_tag='inchi_keys'
         if not content is None:
@@ -99,7 +104,10 @@ def main(filenames:List[file_pdtc],address, property, method, basis, do_test=Fal
     elif NAME_CONF==UNIQUE_NAME:
         if not content is None:
             assert 'records' in content.keys(), f"Expected \'records\' in \'{content_file}\'"
-        kwargs=dict(records=content['records'])
+            kwargs=dict(records=content['records'])
+        else:
+            print(f"No content provided, nothing todo.")
+            sys.exit(1)
 
     elif NAME_WFN==UNIQUE_NAME:
         #assert all([ os.path.isfile(x) for x in filenames ])
@@ -118,6 +126,8 @@ def main(filenames:List[file_pdtc],address, property, method, basis, do_test=Fal
     elif NAME_GROUP==UNIQUE_NAME:
         kwargs=dict(content_file=content_file)
     elif NAME_DISPOL==UNIQUE_NAME:
+        kwargs={}
+    elif NAME_MOLPOL==UNIQUE_NAME:
         kwargs={}
     else:
         raise Exception(f"No case implemented for handling property {property}")

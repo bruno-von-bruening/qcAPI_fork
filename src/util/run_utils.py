@@ -1,4 +1,5 @@
 from . import *
+from .import_helper import *
 
 
 def list_to_string(the_list):
@@ -23,12 +24,58 @@ def process_status(self, code=False):
         return ret[1]
     else:
         return ret[0]
-class Tracker_data(BaseModel):
+
+class Tracker_data(myBaseModel):
     messages    : my_list=[]
     warnings    : my_list=[]
     errors      : my_list=[]
     time_start  : float|None=None
     time_end    : float|None=None
+
+
+@validate_call
+def make_jobname(id: int|str, worker_id: str, job_tag: str=None):
+    """Generates name of job with provided id, the worker id and an optional prefix tag """
+    jobname=f"{id}_wid-{worker_id}"
+    if not isinstance(job_tag, type(None)):
+        jobname='_'.join([job_tag, jobname])
+    return jobname
+
+class Tracker_data(Tracker_data):
+    worker_id: str # Should be inherited maybe
+    main_record_id: str|int
+    job_name: str # Should be inherited maybe
+    server_address: str
+    num_threads: int|None=None
+    target_dir: str|None=None
+    test: bool=False
+    config_file: pdtc_file
+    working_dir: str
+
+    def __init__(self,*args,**kwargs):
+
+        make_auto_jobname=True
+        if 'job_name' in kwargs.keys():
+            if not kwargs['job_name'] in ['auto',None]:
+                make_auto_jobname=False
+
+        if make_auto_jobname:
+            kwargs.update({'job_name':'auto'})
+
+        auto_working_dir=True
+        if 'working_dir' in kwargs.keys():
+            if not kwargs['working_dir'] in ['auto',None]:
+                auto_working_dir=False
+        if auto_working_dir:
+            kwargs['working_dir']='auto'
+
+        super().__init__(*args,**kwargs)
+        self.job_name=f"{self.main_record_id}_wid-{self.worker_id}"
+        self.working_dir=os.path.join(self.target_dir, self.job_name)
+
+
+
+
 
 class Tracker(Tracker_data):
     def __init__(self, *args, **kwargs):

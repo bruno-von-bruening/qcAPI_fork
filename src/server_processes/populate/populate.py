@@ -2,9 +2,9 @@
 from . import *
 from enum import Enum
 
-from .populate_ext import (
+from .body import (
     populate_conformation, populate_espcmp, populate_espdmp, populate_esprho, populate_isodens_surf, populate_part, populate_wfn, populate_group, 
-    populate_compound, pop_dispol,
+    populate_compound, pop_dispol, pop_molpol
 )
 
 def populate_wrapper(object, session, conformations=None, 
@@ -52,6 +52,8 @@ def populate_wrapper(object, session, conformations=None,
                     counter=populate_group(session, groups=json['records'])
                 elif NAME_DISPOL    == UNIQUE_TAG:
                     counter=pop_dispol(session)
+                elif NAME_MOLPOL    == UNIQUE_TAG:
+                    counter=pop_molpol(session)
                 else:
                     raise Exception(f"Did not implement function for UNIQUE_TAG type: \'{UNIQUE_TAG}\'")
                 return counter

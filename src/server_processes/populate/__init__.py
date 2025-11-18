@@ -1,3 +1,4 @@
+from util.import_helper import *
 from pydantic import BaseModel, validate_call
 val_call=validate_call(config=dict(arbitrary_types_allowed=True))
 from typing import List
@@ -6,9 +7,14 @@ import time
 from fastapi import HTTPException
 from sqlmodel import select
 from http import HTTPStatus
+from data_base.utils import (
+    get_unique_tag, 
+    NAME_COMP, NAME_CONF,
+    NAME_ESPCMP,NAME_ESPCMP_FILE,NAME_ESPDMP,NAME_ESPRHO,NAME_IDSURF,NAME_PART,NAME_WFN, NAME_GROUP, 
+    NAME_DISPOL, NAME_MOLPOL,
+)
 from util.util import (
-    get_unique_tag,analyse_exception, my_exception, 
-    NAME_COMP, NAME_CONF,NAME_ESPCMP,NAME_ESPCMP_FILE,NAME_ESPDMP,NAME_ESPRHO,NAME_IDSURF,NAME_PART,NAME_WFN, NAME_GROUP, NAME_DISPOL,
+    analyse_exception, my_exception, 
 )
 from util.sql_util import create_record, get_primary_key, get_primary_key_name
 import numpy as np
@@ -16,7 +22,7 @@ import numpy as np
 from data_base.database_declaration import (
     Wave_Function,ISA_Weights,IsoDens_Surf_File,IsoDens_Surface,Hirshfeld_Partitioning, RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map, Compound, Conformation, 
     Group, Group_to_Group, Compound_to_Group, 
-    Distributed_Polarisabilities, Pairwise_Polarisabilities_File,
+    Distributed_Polarisabilities, Pairwise_Polarisabilities_File, Molecular_Polarizability,
 )
 
 from util.trackers import message_tracker, track_ids

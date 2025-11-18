@@ -2,6 +2,8 @@ from . import *
 from .get_main import get_object, get_group_structure
 from util.sql_util import *
 
+
+
 def get_functions(app, SessionDep):
 
     @app.get("/get/{object}")
@@ -76,15 +78,18 @@ def get_functions(app, SessionDep):
     ):
         # Retrieve the record
         try:
-            record, worker_id=create_new_worker(session,request,property, method, for_production=for_production)
+            data=create_new_worker(session,request,property, method, for_production=for_production)
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Could not get next entry: {str(ex)}")
         
         # Check if record is empty
-        if isinstance(record, type(None)):
-            raise HTTPException(HTTPStatus.NO_CONTENT, detail=f"No more record to process!")
-        else:
-            return record, worker_id
+        try:
+            if data is None:
+                raise HTTPException(HTTPStatus.NO_CONTENT, detail=f"No more record to process!")
+            else:
+                return data.model_dump()
+        except HTTPException as ex: raise ex
+        except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, detail=f"Could not return results: {analyse_exception(ex)}")
     
     @app.get("/get_file/{file_type}")
     async def get_file( session: SessionDep,

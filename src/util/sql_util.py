@@ -8,6 +8,7 @@ from sqlalchemy import inspect
 from sqlmodel.main import SQLModelMetaclass as sqlmodel_cl_meta
 from sqlalchemy.sql.schema import Table as sqlalchemy_cl_meta
 sqlmodel_cl_meta= Union[sqlmodel_cl_meta|sqlalchemy_cl_meta]
+from sqlmodel.main import SQLModelMetaclass
 
 #my_model= Annotated[SQLModel, BeforeValidator(check_sqlmodel)]
 
@@ -168,14 +169,18 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
 
 from util.util import print_flush
 # Get linker table
-def get_primary_key_name(obj):
+def get_primary_key_name(obj:Union[SQLModel,SQLModelMetaclass]):
+
+    if isinstance(obj, SQLModel): # To find the primary key we need the metaclass not the instance
+        obj=type(obj)
+
     from sqlalchemy.inspection import inspect
     primary_key=inspect(obj).primary_key
     assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
     primary_key=primary_key[0]
 
     return primary_key.name
-def get_primary_key(the_object):
+def get_primary_key(the_object:Union[SQLModel,SQLModelMetaclass]):
     """  """
     return getattr(the_object, get_primary_key_name(the_object))
 

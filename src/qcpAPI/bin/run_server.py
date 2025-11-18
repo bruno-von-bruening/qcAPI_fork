@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-import sys, os
-sys.path.insert(1, os.path.realpath('../src'))
-from server_executions.launch_server import main
-if __name__=='__main__':
 
-    import argparse, os
+from . import *
+from server_executions.launch_server import main as main_internal
+
+def main(argv=None):
+    argv = argv if argv is not None else sys.argv[1:]
+
     description=None
     epilog=None
     prog=None
@@ -20,7 +21,7 @@ if __name__=='__main__':
         '--port', type=int, help=f"Port", default=8000
         )
     # Parse arguments
-    args=par.parse_args()
+    args=par.parse_args(argv)
     config_file=args.config
     host=args.host
     port=args.port
@@ -28,6 +29,10 @@ if __name__=='__main__':
 
     assert os.path.isfile(config_file), f"Not a file {config_file}"
 
-    main(config_file, host, port)
+    main_internal(config_file, host, port)
+
+if __name__=='__main__':
+    main()
+
 
 

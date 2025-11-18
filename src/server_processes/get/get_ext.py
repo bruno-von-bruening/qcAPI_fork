@@ -1,4 +1,36 @@
 from . import *
+from data_base.utils import get_object_for_tag
+
+class return_data(myBaseModel):
+    worker_id: str
+    record_type: str
+    record: SQLModel
+    sub_entries: Dict[str, SQLModel] = {}
+    primary_keys: Dict[str, str] = {}
+
+    def model_dump(self, *args, **kwargs):
+        mod = super().model_dump(*args, **kwargs, exclude=['record', 'sub_entries'])
+        mod['record'] = self.record.model_dump()
+        mod['sub_entries'] = {
+            k: v.model_dump() for k, v in self.sub_entries.items()
+        }
+        return mod
+
+    def __init__(self, *args, **kwargs):
+        assert 'record' in kwargs, "expected 'record' in keys"
+        # Cast record to correct SQLModel type
+        if isinstance(kwargs.get('record_type'), str):
+            model = get_object_for_tag(kwargs['record_type'])
+            if not isinstance(kwargs['record'], model):
+                kwargs['record'] = model(**kwargs['record']) if isinstance(kwargs['record'], dict) else kwargs['record']
+        # Cast sub_entries to correct SQLModel types
+        if 'sub_entries' in kwargs and isinstance(kwargs['sub_entries'], dict):
+            casted_sub_entries = {}
+            for k, v in kwargs['sub_entries'].items():
+                sub_model = get_object_for_tag(k)
+                casted_sub_entries[k] = sub_model(**v) if isinstance(v, dict) and not isinstance(v, sub_model) else v
+            kwargs['sub_entries'] = casted_sub_entries
+        super().__init__(*args, **kwargs)
 
 def get_objects(session, the_object, filters: dict={}):
     # Get all tables of the given type
@@ -8,48 +40,63 @@ def get_objects(session, the_object, filters: dict={}):
     except Exception as ex:
         message=f"Could not get the entries for property {the_object.__name__}: {ex}"
         raise Exception(message)
-def make_production_data(record, UNIQUE_NAME):
+from data_base.database_declaration import Molecular_Polarizability, Compound, Conformation
+
+@val_call
+def make_production_data(data:return_data)->return_data:
     try:
-        if UNIQUE_NAME==NAME_WFN:
-            production_data={}
-        elif UNIQUE_NAME==NAME_PART:
-            production_data={}
-        elif UNIQUE_NAME==NAME_IDSURF:
-            wfn_file=record.wave_function.wave_function_file
-            fchk_file=wfn_file.full_path
-            production_data={'fchk_file':fchk_file}
-        elif NAME_ESPRHO==UNIQUE_NAME:
-            wfn_file=record.wave_function.wave_function_file
-            fchk_file=wfn_file.full_path
-            surface_file=record.isodensity_surface.surface_file
-            surface_file=surface_file.full_path
-            production_data={'fchk_file':fchk_file, 'surface_file':surface_file}
-        elif    NAME_ESPDMP==UNIQUE_NAME:
-            moment_file=record.partitioning.moment_file.full_path
-            surface_file=record.isodensity_surface.surface_file.full_path
-            production_data={
-                'moment_file':moment_file,
-                'surface_file':surface_file
-            }
-        elif    NAME_ESPCMP == UNIQUE_NAME:
-            rho_map_file=record.rho_map.map_file.full_path
-            dmp_map_file=record.dmp_map.map_file.full_path
-            production_data={
-                'rho_map_file':rho_map_file,
-                'dmp_map_file':dmp_map_file,
-            }
-        elif NAME_DISPOL == UNIQUE_NAME:
-            production_data=dict(
-                wfn_entry=record.wave_function,
-                fchk_file_id=record.wave_function.wave_function_file.id,
-                part=record.partitioning,
-                part_weights=record.partitioning.isa_weights,
-            )
+        def ident(one:SQLModel, two:SQLModelMetaclass):
+            return type(one).__name__==two.__name__
+        
+        if ident(data.record, Molecular_Polarizability):
+            wfn=data.record.wave_function
+            conf=wfn.conformation
+            comp=conf.compound
+            data.sub_entries.update({
+                Wave_Function.__name__  : wfn,
+                Compound.__name__       :comp,
+                Conformation.__name__   :conf,
+            })
+        #elif UNIQUE_NAME==NAME_WFN:
+        #    production_data={}
+        #elif UNIQUE_NAME==NAME_PART:
+        #    production_data={}
+        #elif UNIQUE_NAME==NAME_IDSURF:
+        #    wfn_file=record.wave_function.wave_function_file
+        #    fchk_file=wfn_file.full_path
+        #    production_data={'fchk_file':fchk_file}
+        #elif NAME_ESPRHO==UNIQUE_NAME:
+        #    wfn_file=record.wave_function.wave_function_file
+        #    fchk_file=wfn_file.full_path
+        #    surface_file=record.isodensity_surface.surface_file
+        #    surface_file=surface_file.full_path
+        #    production_data={'fchk_file':fchk_file, 'surface_file':surface_file}
+        #elif    NAME_ESPDMP==UNIQUE_NAME:
+        #    moment_file=record.partitioning.moment_file.full_path
+        #    surface_file=record.isodensity_surface.surface_file.full_path
+        #    production_data={
+        #        'moment_file':moment_file,
+        #        'surface_file':surface_file
+        #    }
+        #elif    NAME_ESPCMP == UNIQUE_NAME:
+        #    rho_map_file=record.rho_map.map_file.full_path
+        #    dmp_map_file=record.dmp_map.map_file.full_path
+        #    production_data={
+        #        'rho_map_file':rho_map_file,
+        #        'dmp_map_file':dmp_map_file,
+        #    }
+        #elif NAME_DISPOL == UNIQUE_NAME:
+        #    production_data=dict(
+        #        wfn_entry=record.wave_function,
+        #        fchk_file_id=record.wave_function.wave_function_file.id,
+        #        part=record.partitioning,
+        #        part_weights=record.partitioning.isa_weights,
+        #    )
         else:
-            raise Exception(f"Cannot process property \'{UNIQUE_NAME}\'")
-        return production_data
+            raise Exception(f"Do not know how to process property \'{type(data.record).__name__}\'")
+        return data
     except Exception as ex:
-        raise Exception(f"Error in getting necessary related data for production of {UNIQUE_NAME}: {analyse_exception(ex)}")
+        raise Exception(f"Error in getting necessary related data for production of {type(data.record).__name__}: {analyse_exception(ex)}")
 
 
 @validate_call
@@ -98,11 +145,12 @@ def create_worker(session,host_address, record):
     except Exception as ex:
         raise Exception(f"Error while creating worker ({create_worker}): {analyse_exception(ex)}")
 
-def create_new_worker(session, request, property, method=None, for_production=True ):
+
+@val_call
+def create_new_worker(session, request, property, method=None, for_production=True ) -> return_data|None:
         
     # Get the record and worker id for the next record
     try:
-        from ..util.util import get_object_for_tag
         UNIQUE_NAME=get_unique_tag(property)
         the_object=get_object_for_tag(UNIQUE_NAME)
         if UNIQUE_NAME==NAME_WFN:
@@ -126,6 +174,8 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
             prop_args={}
         elif NAME_DISPOL == UNIQUE_NAME:
             prop_args={}
+        elif NAME_MOLPOL == UNIQUE_NAME:
+            prop_args={}
         else:
             raise Exception(f"Cannot process property \'{property}\'")
 
@@ -133,21 +183,23 @@ def create_new_worker(session, request, property, method=None, for_production=Tr
         record= get_next_record(session, the_object, prop_args=prop_args)
         if record is None:
             worker_id=None
-            return record, worker_id
+            return None
         else:
             host_address=f"{request.client.host}:{request.client.port}"
             worker_id=create_worker(session, host_address, record)
 
+            data=return_data(
+                worker_id=str(worker_id),
+                record=record,
+                record_type=type(record).__name__,
+            )
+            if for_production:
+                data=make_production_data(data)
+            return data
+
+
     except Exception as ex: my_exception(f"Error in retrieving record and worker id:", ex)
     
-    # If record is empty there is nothing pending anymore, and we can continue!
-    if isinstance(record, type(None)): 
-        return record, worker_id
 
     # If production tag has been required enrich the folder
-    if for_production:
-        production_data=make_production_data(record, UNIQUE_NAME)
-    record=record.model_dump()
-    if for_production:
-        record.update({'production_data':production_data})
-    return record, worker_id
+

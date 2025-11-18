@@ -1,4 +1,4 @@
-from . import *
+from .. import *
 import uuid
 
 from .fill_ext import fill_espdmp, fill_esprho, fill_idsurf, fill_part, fill_espcmp
@@ -95,6 +95,11 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             if entry['converged']==RecordStatus.converged and sub_entries is not None:
                 fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
+        elif NAME_MOLPOL == UNIQUE_NAME:
+            the_model=get_object_for_tag(UNIQUE_NAME)
+            if entry['converged']==RecordStatus.converged and sub_entries is not None:
+                fill_sub_entries(tracker, sub_entries)
+            tracker=fill(tracker, the_model, entry)
         else:
             raise Exception(f"Unkown property \'{UNIQUE_NAME}\'")
         return tracker
@@ -175,10 +180,10 @@ def add_upload_functions(app, SessionDep,
 
             @val_call
             def process_data(data:dict) -> Tuple[dict, dict]:
-                entry_key='main_entry'
+                entry_key='main_record'
                 sub_key='sub_entries'
 
-                assert entry_key in data.keys(), f"Expected \'{entry_key}\'"
+                assert entry_key in data.keys(), f"Expected \'{entry_key}\', got {list(data.keys())}"
                 entry=data[entry_key]
                 assert isinstance(entry, dict), f"Expected dictionary as entry!"
                 
@@ -225,7 +230,7 @@ def add_upload_functions(app, SessionDep,
 
             try:
                 new_record=upload_file_ext(storage_info, file, the_model, id)
-            except Excpetion as ex: my_exception(f"Could not create the file", ex)
+            except Exception as ex: my_exception(f"Could not create the file", ex)
             finally: file.file.close()
 
             # Ideally this should include the deletion of the previous file, this would require a routine that could just be done by

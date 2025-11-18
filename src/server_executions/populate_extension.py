@@ -104,6 +104,12 @@ def espcmp_url(do_test=False):
     the_json={}
     return opts, the_json
 
+def molpol_url(do_test=False):
+    """ """
+    opts={}
+    the_json={}
+    return opts, the_json
+
 def groups_url(content_file:str, do_test=False):
     """ """
 
@@ -164,6 +170,8 @@ url_funcs_map={
     NAME_ESPRHO: rhoesp_url,
     NAME_ESPDMP: dmpesp_url,
     NAME_ESPCMP: espcmp_url,
+    #
+    NAME_MOLPOL: molpol_url,
 }
 def get_url_func(tag):
 

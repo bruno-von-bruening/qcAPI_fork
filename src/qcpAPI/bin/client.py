@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
-from server_executions.client_server import main
+from . import *
+from server_executions.client.main import main as main_internal
 
-import os
-from util.util import check_dir_exists, available_properties
+from util.util import check_dir_exists
+from data_base.utils import AVAILABLE_PROPERTIES
 
-if __name__ == "__main__":
-    import argparse
-    description="Populate a qcAPI dataserv_adr with jobs"
+def main(argv):
+    argv = argv if argv is not None else sys.argv[1:]
+
+    description="Start worker that will communicate with central database until there are no jobs to distribute"
     prog=None
     epilog=None
     parser = argparse.ArgumentParser(description=description, prog=prog, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -40,7 +42,7 @@ if __name__ == "__main__":
         '--fchk_link', type=str, help='file where fchk_files are stored',
     )
     adar(
-        '--property', type=str, choices=available_properties,
+        '--property', type=str, choices=AVAILABLE_PROPERTIES,
     )
     adar(
         '--method' , type=str
@@ -53,7 +55,7 @@ if __name__ == "__main__":
     )
     
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     url = args.address.split(":")[0]
     port = args.address.split(":")[1]
     target_dir=args.target_dir
@@ -70,4 +72,6 @@ if __name__ == "__main__":
 
     check_dir_exists(target_dir)
 
-    main(config_file,url, port, num_threads, max_iter, delay, target_dir=target_dir, do_test=do_test, property=property, method=method)
+    main_internal(config_file,url, port, num_threads, max_iter, delay, target_dir=target_dir, do_test=do_test, property=property, method=method)
+if __name__ == "__main__":
+    main()

@@ -2,7 +2,7 @@
 from util.import_helper import *
 from ..basic_imports import *
 
-from util.util import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol, make_jobname, make_dir
+from util.util import element_symbol_to_nuclear_charge, nuclear_charge_to_element_symbol, make_dir
 from util.util import BOHR, BOHR_TO_ANGSTROM, ANGSTROM_TO_BOHR, analyse_exception, my_exception
 
 from util.config import load_global_config

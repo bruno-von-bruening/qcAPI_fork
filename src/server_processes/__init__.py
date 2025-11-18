@@ -23,15 +23,15 @@ from data_base.qcAPI_database import (
     Worker, RecordStatus
 )
 
-from util.util import analyse_exception, available_properties as AVAILABLE_PROPERTIES
+from util.util import analyse_exception
 from util.sql_util import create_record, update_record, get_prev_record, get_primary_key, get_primary_key_name
 
 from util.sql_util import get_next_record_from_db, filter_db, pdtc_sql_row, SQLModelMetaclass
-from util.util import my_exception, get_unique_tag
+from data_base.utils import get_unique_tag
+from util.util import my_exception
 from typing import Optional
 from pydantic import Field, BeforeValidator
 
-from .util.util import get_object_for_tag
 
 from qcp_database.data_models.utilities import File_Model
 
@@ -46,9 +46,17 @@ pdtc_prop=Annotated[str, BeforeValidator(get_prop_pdtc)]
 from itertools import chain
 
 
+from data_base.utils import (
+    get_object_for_tag,
+    NAME_CONF,NAME_ESPCMP,NAME_ESPCMP_FILE,NAME_ESPDMP,NAME_ESPRHO,
+    NAME_IDSURF,
+    NAME_PART,NAME_WFN,
+    NAME_DISPOL, NAME_PAIRPOL_FILE, NAME_MOLPOL,
+)
 from util.util import (
-    NAME_BSISA, NAME_CONF,NAME_ESPCMP,NAME_ESPCMP_FILE,NAME_ESPDMP,NAME_ESPRHO,NAME_GDMA,NAME_IDSURF,NAME_LISA,NAME_MBIS,NAME_PART,NAME_WFN,
-    NAME_DISPOL, NAME_PAIRPOL_FILE
+    NAME_BSISA, 
+    NAME_GDMA,
+    NAME_LISA,NAME_MBIS,
 )
 
 from data_base.qcAPI_database import RecordStatus

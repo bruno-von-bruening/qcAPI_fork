@@ -283,7 +283,7 @@ def populate_espcmp(session, espdmp_ids:List[int|str]|None=None, espwfn_ids:List
     return {'message': messanger.message}
 
 @validate_call
-def populate_group(session, groups:List[dict]):
+def populate_group(session, groups:List[dict|SQLModel]):
     messanger=message_tracker()
     try:
         messanger.add_message(f"Provided {len(groups)} groups")
@@ -365,7 +365,7 @@ def populate_compound(session, compounds=[], inchikeys=[], compound_ids=[]):
     ])
     return {'ids':id_tracker, 'counts':count,'message':messanger.message}
 
-def generic_populate(session,object, records, 
+def generic_populate(session,object, records:List[dict|SQLModel], 
     messanger:message_tracker|None=None, count:counter|None=None, id_tracker:track_ids|None=None
 ):
     # Tracker objects
@@ -383,7 +383,8 @@ def generic_populate(session,object, records,
         recs_in_format=[]
         try:
             for rec_raw in records:
-                assert isinstance(rec_raw, dict), f"Compound provided in input is not a dictionary!"
+                if isinstance(rec_raw, SQLModel): rec_raw=rec_raw.model_dump()
+                assert isinstance(rec_raw, dict), f"Provided record is not a dictionary!"
                 rec=object(**rec_raw)
                 recs_in_format+=[ rec ]
             # Check if already there
@@ -391,7 +392,7 @@ def generic_populate(session,object, records,
         return recs_in_format
     def identify_existing_records(records, id_tracker):
         try:
-            keys=[ getattr(c, prim_name) for c in records]
+            keys=[getattr(c, prim_name) for c in records]
             confs_there=session.exec(select(object).where(get_primary_key(object).in_(keys))).all()
             for conf_ther in confs_there:
                 id_tracker.add_omitted(getattr(conf_ther, prim_name))
@@ -464,6 +465,36 @@ def populate_wfn(session:Session, method:str, basis:str, conformation_ids:List[s
         return generic_populate(session, Wave_Function, new_wfn, messanger=messanger, count=count, id_tracker=id_tracker)
     except Exception as ex: my_exception(f"Problem in populationg conformations",ex)
 
+message_tracker_dum=message_tracker
+counter_dum=counter
+class pop_tracker(myBaseModel):
+    session: Session
+    messanger :message_tracker_dum = message_tracker()
+    counter : counter_dum = counter()
+    id_tracker : track_ids=track_ids()
+    def get_ids_for_table(self,the_object:SQLModelMetaclass, ids:List[ str|int ]|str='all'):
+        """ Get all the ids available (possible filtered) usually just return all """
+        self.messanger.start_timing()
+        ids=get_ids_for_table(self.session,the_object, ids) 
+        self.messanger.stop_timing(f"Filter ids for {the_object.__name__}")
+        return ids
+    def build_tree(self, the_objects:List[SQLModelMetaclass]=Field(min_length=2)):
+        """ Builds tree for object"""
+        tree=get_connections(self.session,the_objects)
+        paths={}
+        for c in the_objects[1:]:
+            if not c.__name__ in tree.keys(): raise Exception(f"Could not map object {c.__name__} from object {the_objects[0].__name__}") 
+            paths.update( { c.__name__,tree[c.__name__] })
+        from util.sql_util import get_mapper
+        mapper=dict([ (name, get_mapper(self.session,path))  for name, path in paths.items() ])
+        return mapper
+
+
+
+    # 
+
+    # tree=tracker.build_tree()
+    
 @val_call
 def pop_dispol(session:Session, wave_function_ids='all',partitioning_ids='all'):
     """ Populate Distributed Polarisabilties 
@@ -483,7 +514,7 @@ def pop_dispol(session:Session, wave_function_ids='all',partitioning_ids='all'):
         ref_ids_filt=[]
         for ref_object, ids in zip(ref_objects, ref_ids):
             messanger.start_timing()
-            ref_ids_filt+=[ get_ids_for_table(session,ref_object, 'all') ]
+            ref_ids_filt+=[ get_ids_for_table(session,ref_object, ids) ]
             messanger.stop_timing(f"Filter ids for {str(ref_object)}")
 
         try: # build relationship tree for wave function

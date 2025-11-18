@@ -1,6 +1,6 @@
 [project]
 name = "qcpAPI"
-version = "0.1.0"
+version = "0.2.0"
 description = ''
 readme = "README.md"
 requires-python = ">=3.8"
@@ -11,4 +11,8 @@ classifiers = [
 
 [tool.setuptools.package-data]
 server_executions= ["*.py","*.ico"]
+# [project.scripts]
+# "qcp_server_start.py" = "qcpAPI.bin.server:main"
+[tool.setuptools]
+script-files = ["bin/qcp_server.py"]
 

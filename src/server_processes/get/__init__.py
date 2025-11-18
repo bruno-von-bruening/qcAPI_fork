@@ -1,17 +1,25 @@
 from util.import_helper import *
 
-from util.util import NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP, NAME_DISPOL, my_dict
+from data_base.utils import (
+    NAME_CONF, NAME_IDSURF, NAME_WFN, NAME_PART, NAME_ESPRHO, NAME_ESPDMP, NAME_ESPCMP,
+    NAME_DISPOL, NAME_MOLPOL, get_unique_tag
+)
 
 from pydantic import  BaseModel, Field, validate_call; val_cal=validate_call(config=dict(arbitrary_types_allowed=True))
 from typing import List, Tuple, Union, Callable
 from fastapi import Query
 
-from util.util import my_exception, analyse_exception, get_unique_tag
+from util.util import (
+    my_exception, analyse_exception, my_dict
+)
 from util.sql_util import get_next_record_from_db, filter_db, SQLModelMetaclass
 
 from sqlmodel import select
 
-from ..util.util import get_object_for_tag
+from data_base.utils import (
+    get_object_for_tag,
+    object_mapper,
+)
 
 from http import HTTPStatus
 from fastapi import HTTPException, Request
@@ -31,8 +39,8 @@ from .sending_files_ext import get_file_table, file_response, get_file_from_tabl
 from util.sql_util import get_primary_key_name, get_primary_key, filter_db_query
 from .util import parse_dict
 from util.sql_util import get_connections, get_mapper
-from ..util.util import object_mapper
 
 from sqlmodel import Session as session_meta
 from qcp_database.data_models.utilities import File_Model
-from ..util.util import get_object_for_tag
+
+from data_base.database_declaration import *

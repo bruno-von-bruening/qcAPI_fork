@@ -34,18 +34,38 @@ Confirm that the libraries have the right version:
 ```
 
 ## Usage example
+The server will operate through the ```qcp_server.py``` executable which gets available when activating the conda environment.
+The different operations are provided as positional arguments following the script. Consult the ````--help``` option to learn more about passing arguments.
 
-Start the server:
+### Starting the server
+First we need to define a config file in yaml format. -> TALK more about that.
+
+With the configs setup the server can be started as:
 ```bash
-  fastapi run server.py --port 8000
+  qcp_server.py run --config <config_file>
 ```
 The server will create a SQLITE database which name is given in the `config.yaml` file and distribute calculations to clients that connect to it.
 
-In another terminal, populate the database with the example conformers from the provided `test_sample.pkl` file:
+### Populating the server
+The population script is called through
 ```bash
-  python populate_db.py test_sample.pkl --address 127.0.0.1:8000 --method hf --basis sto-3g
+  qcp_server.py populate --property <property> <args>
 ```
-This will create entries in the database for each conformer with the specified method and basis set and list them as *pending* so they can be distributed to clients.
+where the properties to add to the database is defined by the ```property``` keyword. 
+The script will then create entries for the tables associated to the property and either fill based on provided files or implicitly by inheriting information from existing tables (e.g. a wave functions can inherit molecular or distributed properties).
+
+The initial inchikeys and conformations needs to be provided within files.
+**Talk About how these files need to look like***
+
+After population there will be new records in the database which are listed as *pending* if they need to be processed by a worker.
+
+### Spawning workers
+```bash
+  qcp_server.py spawn_workers --config <config_file> --target_dir <working_directory> --property <property> --num_processes <num_processes>
+```
+Since the worker is spawned
+
+
 
 Start a client to process the pending calculations:
 ```bash

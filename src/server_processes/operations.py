@@ -1,7 +1,7 @@
 from . import *
 from util.sql_util import get_primary_key, get_primary_key_name, get_duplicate_entries
 
-from .util.util import object_mapper, get_object_for_tag
+from data_base.utils import object_mapper, get_object_for_tag
 @validate_call
 def parse_dict(filters_plain:List[str]):
     try:
@@ -43,6 +43,33 @@ class deleter(BaseModel):
 
 
 def operation_functions(app, SessionDep):
+    @app.post("/drop_table/{prop}")
+    async def drop_table(
+        prop: str,
+        session: SessionDep,
+        force: bool=False,
+        help: bool=False
+    ):
+        """
+        this is for development, I do not know what would happen in a multi access database.... 
+        or if workers have already been started based on old table definition
+        force is for safety
+        """
+        if help: raise HTTPException(HTTPStatus.IM_A_TEAPOT, drop_table.__doc__)
+
+        try:
+            the_object=get_object_for_tag(prop)
+            engine = session.get_bind()
+            if not force: 
+                raise Exception(f"Expect to provide --force keyword for safety!")
+            else:
+                the_object.__table__.drop(engine)
+                the_object.__table__.create(engine)
+                return {'message':f"Deleted old table object and created new one"}
+        except Exception as ex: 
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not process drop_table request: {analyse_exception(ex)}")
+
+
     @app.post("/reset/{prop}")
     async def reset(
             prop: str,

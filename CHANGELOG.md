@@ -17,6 +17,13 @@ REMAINING:
 * Allow for mutliple file download at once to limit traffic
 
 
+# v0.2.0 molecular polarisabilities through finite field, new run script, some restructuring
+* Implemented polarisability run (currently in a crude developmental version)
+* Reorganized run script (single script with keyword for operation)
+* Restructured the internals. Ideally it would be super abstract with few assumptions beyond a generic class style and
+  some other cannonic fields.
+
+
 
 
 

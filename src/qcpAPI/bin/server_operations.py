@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+from . import *
 
-from util.util import available_operations, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, available_properties, check_address
+from util.util import AVAILABLE_OPERATIONS, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, OP_DROP_TABLE, check_address
+from data_base.utils import AVAILABLE_PROPERTIES, get_unique_tag
 
 import requests
 from http import HTTPStatus
@@ -23,7 +25,7 @@ def process_filters(input: List[str]):
         dic.append(ar)
     return dict(dic)
 
-def main(mode, address, prop, force=False, filters=None):
+def main_internal(mode, address, prop, force=False, filters=None):
     """ """
     if filters is None:
         filters={}
@@ -87,23 +89,22 @@ def main(mode, address, prop, force=False, filters=None):
             raise Exception(f"Http request ({request_code}) failed with code {return_code}: {response.text}")
     elif OP_RESET == mode:
         make_request(f"/reset/{prop}", args={'force':force}, filters=filters)
+    elif OP_DROP_TABLE == mode:
+        make_request(f"/drop_table/{prop}", args={'force':force}, filters=filters)
     else:
         raise Exception(f"Did not recognize {mode}")
 
 
 
 
-
-        
-
-if __name__=="__main__":
+def main_core(argv):
     description=None
     epilog=None
     prog=None
     import argparse; par=argparse.ArgumentParser(description=description, epilog=epilog, prog=prog)
     add = par.add_argument
     add(
-        'MODE', type=str, choices=available_operations,
+        'MODE', type=str, choices=AVAILABLE_OPERATIONS,
         help=f"Mode to be executed",
     )
     add(
@@ -120,8 +121,10 @@ if __name__=="__main__":
     add(
         '--filters', nargs='+', help=f"Filter Table for the given properties"
     )
+
+    
     #
-    args=par.parse_args()
+    args=par.parse_args(argv)
     mode=args.MODE 
     prop=args.property
     the_filters=args.filters
@@ -129,9 +132,14 @@ if __name__=="__main__":
     force=args.force
 
     # Check validty of 
-    from util.util import get_unique_tag
     prop=get_unique_tag(prop, print_options=True)
 
 
     check_address(address)
-    main(mode, address, prop, force=force, filters=the_filters)
+    main_internal(mode, address, prop, force=force, filters=the_filters)
+
+
+main=partial(wrap, main_core )
+
+if __name__=="__main__":
+    main(main_core)

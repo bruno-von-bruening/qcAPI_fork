@@ -13,8 +13,9 @@ from qcp_database.linked_tables import (
     Hirshfeld_Partitioning,  Hirshfeld_Partitioning_Run_Data,
     ISA_Weights, Distributed_Multipoles, MOM_File,
     #
+    Molecular_Polarizability, Molecular_Polarizability_Run_Data,
     Distributed_Polarisabilities, Distributed_Polarisabilities_Run_Data,
-    Pairwise_Polarisabilities_File,
+    Pairwise_Polarisabilities_File, 
     #
     IsoDens_Surface,
     IsoDens_Surf_File,
@@ -27,6 +28,7 @@ from qcp_database.linked_tables import (
     DMP_vs_RHO_MAP_Stats, DMP_ESP_MAP_Stats, RHO_ESP_MAP_Stats,
     # Polarisabilities
 )
+
 
 #from qcp_database.tables_supplementary import BASE_File
 #from sqlmodel import Field, Relationship, SQLModel
