@@ -33,86 +33,95 @@ def post_populate(request_code, json=None):
     except requests.exceptions.ConnectionError as hex: # ConnectionError shadows the built-in class!
         raise Exception(f"Could not connect to server, is it running? {hex}")
     process_return(response)
+def my_quit(msg):
+    print(msg)
+    sys.exit(1)
 
-#def make_wfn(filenames,address, method, basis, do_test=False):
-#    """" """
-#    def get_conformations(filenames, do_test=do_test):
-#        # Load conformation from files
-#        conformations = []
-#        for filename in filenames:
-#            with open(filename, 'rb') as f:
-#                conformations += pickle.load(f)
-#        # If a test is requested we pick only the first 3 conformations (sorted by size)
-#        if do_test:
-#            #conformations=sorted( conformations, key=lambda x:len(x['species']))[:1]
-#            conformations=[ {'coordinates':[np.zeros(3) ,[0,0,-.74],np.ones(3)], 'species':[1, 1,6]}]
-#        # Jsonify the conformation
-#        conformations = jsonable_encoder(conformations,custom_encoder={np.ndarray: lambda x: x.tolist()})
-#        print(f"Number of supplied conformation found in {' '.join(filenames)}: {len(conformations)}")
-#        return conformations
-#    conformations=get_conformations(filenames, do_test=do_test)
-#    conf_ids=make_conformation(conformations)
-#    wfn_ids=make_wave_functions(method, basis, conf_ids)
-    #try:
-    #    response_content=response.json()
-    #    first_id = response_content["ids"]['succeeded'][0]
 
-    #    request_str=f"{address}/get/conformation?ids={first_id}"
-    #    load_request = requests.get(request_str)
-    #    status_code=load_request.status_code
-    #    if status_code!=HTTPStatus.OK:
-    #        raise Exception(f"Failed request ({request_str}):\n status_code={status_code}, details=\'{load_request.text}\'")
-    #    else:
-    #        conformation=load_request.json()
-    #        print(f"Following record has been set on server database (first as exmaple): {conformation}")
-    #except Exception as ex:
-    #    raise Exception(f"Failed to process content: {ex} \n {response_content}")
-    #return response_content['ids']['succeeded'] # Only execution nothing to return
 @val_call
-def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, basis:str|None=None, do_test=False):
-    """ Switch dependant on which property to compute"""
-    UNIQUE_NAME=get_unique_tag(property)
-
+def process_arguments(filenames:List[file_pdtc]):
     if len(filenames)>0:
         if len(filenames)>1: raise Exception(f"Implement merging of file information")
         else: content_file=filenames[0]
         try:
-            with open(content_file, 'r') as rd:
-                if content_file.endswith('.yaml'):
-                    content=yaml.safe_load(rd)
-                elif content_file.endswith('.json'):
-                    content=json.load(rd)
-                else:
-                    raise Exception(f"Cannot interpete file due to its extension (or lack off): {content_file}")
+            content=load_json_or_yaml(content_file)
         except Exception as ex: raise Exception(f"Could not read \'{content_file}\': {ex}")
     else:
         content=None
+    return content, content_file
 
+@val_call
+def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, basis:str|None=None, do_test=False):
+    """ Switch dependant on which property to compute"""
+
+    UNIQUE_NAME=get_unique_tag(property)
+
+    content, content_file= process_arguments(filenames)
 
     func=get_url_func(UNIQUE_NAME)
-
-
+    
     if NAME_COMP==UNIQUE_NAME:
         inchikey_tag='inchi_keys'
         if not content is None:
             assert inchikey_tag in content.keys(), f"Expected key \'{inchikey_tag}\' in \'{content_file}\'"
             inchi_keys=content[inchikey_tag]
         else: 
-            raise Exception(f"Provide a file in which you dropped a dictionary with key \'{inchikey_tag}\' that holds a list of inchikeys")
+            my_quit(f"Provide a file in which you dropped a dictionary with key \'{inchikey_tag}\' that holds a list of inchikeys")
         kwargs=dict(inchi_keys=inchi_keys)
-    
     elif NAME_CONF==UNIQUE_NAME:
-        if not content is None:
+        records=[]
+        if content is None:
+            my_quit(f"No content provided, nothing todo.")
+        elif isinstance(content, list):
+            records+=content
+        elif isinstance(content, dict):
             assert 'records' in content.keys(), f"Expected \'records\' in \'{content_file}\'"
-            kwargs=dict(records=content['records'])
-        else:
-            print(f"No content provided, nothing todo.")
-            sys.exit(1)
+            assert all( isinstance(x, dict) for x in content['records'] ), f"Expected list of dictionaries in \'records\' in \'{content_file}\'"
+            records+=content['records']
 
+        rec_ref=[]
+        for rec in records:
+            try:
+                rec_ref+=[ Conformation(**rec) ]
+            except Exception as ex: 
+                required_keys=['inchikey','geometry']
+                cnt=sum([ k in rec.keys() for k in required_keys ])
+                if cnt==len(required_keys):
+                    from qcp_objects.objects.properties import geometry
+                    geom=geometry(rec['geometry'])
+                    geom.units.LENGTH='BOHR'
+                    coords=geom.coordinates.reshape(-1)
+                    elements=geom.atom_types
+                    rec_ref+=[ Conformation(
+                        compound_id=rec['inchikey'],
+                        coordinates=coords, elements=elements,
+                    )]
+
+                else: raise Exception(f"Could not generate record for {rec}: {ex}")
+        kwargs=dict(records=[x.model_dump() for x in rec_ref])        
+        
     elif NAME_WFN==UNIQUE_NAME:
         #assert all([ os.path.isfile(x) for x in filenames ])
+        from util.type_helpers.data_types import Wave_Function_pass
         filenames=[]
-        kwargs=dict(method=method, basis=basis, conf_ids='all')
+
+        if content is not None:
+            try:
+                assert isinstance(content, list), f"Expected list of level_of_theory entries in file \'{content_file}\'"
+                assert all( isinstance(x, dict) for x in content), f"Expected list of dictionaries in file \'{content_file}\'"
+                lots= [ Wave_Function_pass(**x) for x in content ]
+            except Exception as ex: raise Exception(f"Could not process content of file \'{content_file}\' as {level_of_theory_entries}:\n{ex}")
+        else:
+            lots=[]
+        
+        cnt=sum([ x is not  None for x in [method,basis] ])
+        if cnt==0:
+            pass
+        elif cnt==1:
+            my_quit(f"Provided only method or basis set but both needed to make wave function level of theory.")
+        else: # cnt==2
+            lots+=[ Wave_Function_pass(method=method, basis=basis)]
+        kwargs=dict(level_of_theories=[ x.model_dump() for x in lots],conf_ids='all')
     elif UNIQUE_NAME==NAME_PART:
         kwargs=dict(method=method, basis=basis)
     elif UNIQUE_NAME==NAME_IDSURF:

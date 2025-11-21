@@ -11,7 +11,7 @@ def compute_polarizability_psi4(
 
     try:
         wfn_record, run_data, run_info, sub_entries = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
-    except: raise Exception(f"Error in generic psi4 loop:\n{ex}")
+    except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}")
 
 
     try:

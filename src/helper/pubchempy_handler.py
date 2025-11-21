@@ -11,9 +11,24 @@ def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[]):
 
     c=[]
     if num_cids>0:
-        c += pcp.get_compounds(cids, 'cid', record_type='2d')
+        comp_py_cid = pcp.get_compounds(cids, 'cid', record_type='2d')
+        c+=comp_py_cid
+        
     if num_inchis>0:
-        c += pcp.get_compounds(inchikeys, 'inchikey', record_type='2d')
+        comp_by_inchi = pcp.get_compounds(inchikeys, 'inchikey', record_type='2d')
+        for inchi in inchikeys:
+            matches=[ x for x in comp_by_inchi if x.inchikey==inchi ]
+            if len(matches)==0:
+                raise Exception(f"Could not find compound with inchi={inchi} in pubchem")
+            elif len(matches)==1:
+                c+=matches
+            else:
+                match_objects=sorted([ (x,pubchem_handler(input=x).cid) for x in matches ],
+                                     key=lambda x: x[1] )
+                warn(f"Multiple matches found for inchikey={inchi} in pubchem, taking the one with lowest cid={match_objects[0][1]}"
+                     f" (available cids={[ x[1] for x in match_objects ]})"
+                )
+                c+= [ match_objects[0][0] ]
 
     return c
 class pubchem_handler(BaseModel):
