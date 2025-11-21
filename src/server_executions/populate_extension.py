@@ -1,10 +1,17 @@
 from . import *
 from util.util import part_method_choice
 
-def wave_functions_url(method: str, basis: str, conf_ids: List[str]|str='all', do_test:bool=False):
+from util.type_helpers.data_types import Wave_Function_pass
+def wave_functions_url(
+        level_of_theories: List[Wave_Function_pass],
+        conf_ids: List[str]|str='all', 
+        do_test:bool=False
+):
     request_code=f"populate/wave_function"
-    opts={'method':method, 'basis':basis}
-    the_json={'ids':conf_ids}
+    opts={'json':dict(
+        level_of_theories=level_of_theories,
+    )}
+    the_json={'ids':conf_ids, 'level_of_theories':level_of_theories}
     return opts, the_json
 
 def conformations_url(conformations):
@@ -106,7 +113,7 @@ def espcmp_url(do_test=False):
 
 def molpol_url(do_test=False):
     """ """
-    opts={}
+    opts={'ids':'all'}
     the_json={}
     return opts, the_json
 

@@ -4,3 +4,6 @@ import time
 
 import importlib.metadata
 __version__ = importlib.metadata.version("qcpAPI")
+
+
+from util.import_helper import *

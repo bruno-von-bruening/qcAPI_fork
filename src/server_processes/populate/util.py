@@ -1,11 +1,13 @@
 from . import *
 
-class counter():
-    requested   = 0
-    prerequisites_not_met=0
-    populated    = 0
-    already_there=0
-    failed = 0
+class counter(BaseModel): # watch out with uninitialized (Dont wanna use enum since values change)
+    requested               :int = 0
+    prerequisites_not_met   :int = 0
+    doubly_requested        :int = 0
+    populated               :int = 0
+    already_there           :int = 0
+    failed                  :int = 0
+    unaccounted             :int = 0
 
 @validate_call
 def get_rows(session, sql_table, selection, filter_args:dict={}):
@@ -43,3 +45,27 @@ def get_rows(session, sql_table, selection, filter_args:dict={}):
 def get_ids_for_object(session,sql_table):
     selection=get_primary_key(sql_table)
     return get_rows(session, sql_table, [selection], filter_args={'converged':1})
+
+message_tracker_dum=message_tracker
+counter_dum=counter
+class pop_tracker(myBaseModel):
+    session: Session
+    messanger :message_tracker_dum = message_tracker()
+    counter : counter_dum = counter()
+    id_tracker : track_ids=track_ids()
+    def get_ids_for_table(self,the_object:SQLModelMetaclass, ids:List[ str|int ]|str='all'):
+        """ Get all the ids available (possible filtered) usually just return all """
+        self.messanger.start_timing()
+        ids=get_ids_for_table(self.session,the_object, ids) 
+        self.messanger.stop_timing(f"Filter ids for {the_object.__name__}")
+        return ids
+    def build_tree(self, the_objects:List[SQLModelMetaclass]=Field(min_length=2)):
+        """ Builds tree for object"""
+        tree=get_connections(self.session,the_objects)
+        paths={}
+        for c in the_objects[1:]:
+            if not c.__name__ in tree.keys(): raise Exception(f"Could not map object {c.__name__} from object {the_objects[0].__name__}") 
+            paths.update( { c.__name__,tree[c.__name__] })
+        from util.sql_util import get_mapper
+        mapper=dict([ (name, get_mapper(self.session,path))  for name, path in paths.items() ])
+        return mapper

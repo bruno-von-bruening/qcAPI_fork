@@ -122,6 +122,7 @@ class message_tracker(BaseModel):
         self._last_time_point=current_time
 
         self._time_log.append( (name, timing) )
+        return timing
 
     @validate_call
     def dump(self):

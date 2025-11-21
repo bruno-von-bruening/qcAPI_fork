@@ -169,6 +169,7 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
 
 from util.util import print_flush
 # Get linker table
+@val_call
 def get_primary_key_name(obj:Union[SQLModel,SQLModelMetaclass]):
 
     if isinstance(obj, SQLModel): # To find the primary key we need the metaclass not the instance
