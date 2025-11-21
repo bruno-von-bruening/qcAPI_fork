@@ -11,7 +11,9 @@ def compute_polarizability_psi4(
 
     try:
         wfn_record, run_data, run_info, sub_entries = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
-    except: raise Exception(f"Error in generic psi4 loop:\n{ex}")
+        if sub_entries is None:
+            sub_entries={}
+    except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}")
 
 
     try:
@@ -21,19 +23,25 @@ def compute_polarizability_psi4(
 
         record.converged=wfn_record.converged
 
-        assert 'storage_file' in run_data.files.keys(), f"Expected"
-        storage_file=run_data.files['storage_file']
-
-        storage_data=load_json_or_yaml(storage_file)
-        tag='pol_ff'
-        assert 'pol_ff' in storage_data, f"Key \'pol_ff\' not in storage file {storage_file}" 
         from qcp_objects.objects.properties import polarizability_tensor
         try:
-            pol=polarizability_tensor(storage_data[tag])
-        except Exception as ex: raise Exception(f"{ex}")
+            assert 'storage_file' in run_data.files.keys(), f"Expected"
+            storage_file=run_data.files['storage_file']
 
-        tensor=str(pol.tensor_elements)
-        record.tensor=tensor
+            storage_data=load_json_or_yaml(storage_file)
+            tag='pol_ff'
+            assert 'pol_ff' in storage_data, f"Key \'pol_ff\' not in storage file {storage_file}" 
+            try:
+                pol=polarizability_tensor(storage_data[tag])
+            except Exception as ex: raise Exception(f"{ex}")
+            tensor=str(pol.tensor_elements)
+            record.tensor=tensor
+        except Exception as ex:
+            if record.converged:
+                raise Exception(analyse_exception(ex))
+            else:
+                pol='could not recover (consider run failed)'
+
         results=job_results(
             run_data=run_data,
             record=record,
@@ -42,7 +50,7 @@ def compute_polarizability_psi4(
         )
         return results
     except Exception as ex:
-        raise Exception(f"Error in recovering results {ex}")
+        raise Exception(f"Error in recovering results:\n {analyse_exception(ex)}")
 
 
     

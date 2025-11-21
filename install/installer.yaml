@@ -1,0 +1,5 @@
+conda_env_file: qcpAPI_env.yaml
+dependencies:
+  - QCP_GLOBAL_UTILS_HOME
+  - QCP_OBJECTS_HOME
+  - QCP_DATABASE_HOME

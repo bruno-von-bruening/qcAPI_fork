@@ -42,6 +42,7 @@ def run_psi4_base(
         converged=0
         files={}
         tracker.add_error(ex)
+        sub_entries=None
         message='FAILED psi4 calculation'
         if tracker.test:
             raise Exception(f"Test was requested hence terminating:\n{ex}")
