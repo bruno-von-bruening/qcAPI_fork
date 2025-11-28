@@ -1,47 +1,76 @@
 from . import *
 
 from ..psi4.run_psi4_base import run_psi4_base
+# from ..psi4.run_psi4_help import open_storage_file
+from qcp_objects.objects.properties import polarizability_tensor
+from ..psi4.run_psi4_help import open_storage_file, get_fchk_file
+
 
 @val_call
 def compute_polarizability_psi4(
     python, psi4_script, tracker:Tracker, 
     record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry
 ) -> Callable:
-    job_tag=f"polarizability_finite_field"
+
+
+    try: # Run the psi4 calculation
+        job_tag=f"polarizability_finite_field"
+        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
+        sub_entries={}
+    except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}") from ex
+
+    # Now the results are there and we recover the data for the polarizability object 
+
+    converged= ( wfn_record.converged==RecordStatus.converged )
+
+    if converged:
+        try: # Inherit data from wave function to polarizability record
+        
+            storage_file=run_data.files['storage_file']
+            storage_data=open_storage_file(storage_file)
+
+            sub_entries.update( **get_fchk_file(storage_file, id=wfn_record.id) )
+            
+            tag='pol_ff'
+            assert tag in storage_data.keys(), f"Expected key '{tag}' in storage data from file {storage_file}"
+            data=storage_data[tag]
+
+
+            try:
+                tensor=polarizability_tensor(data)
+            except Exception as ex: 
+                raise Exception(f"Could not generate polarizability tensor: {ex}") from ex
+            
+
+        except Exception as ex:
+            raise Exception(f"Error in recovering polarizability data from storage file {analyse_exception(ex)}") from ex
+    else:
+        tensor=None
 
     try:
-        wfn_record, run_data, run_info, sub_entries = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
-        if sub_entries is None:
-            sub_entries={}
-    except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}")
-
-
-    try:
+        wfn_record.messages=json.dumps(
+            [f"Filled through {Molecular_Polarizability.__name__} (id={record.id})"]+json.loads(wfn_record.messages)
+        )
         sub_entries.update({
             Wave_Function.__name__:wfn_record
         })
-
         record.converged=wfn_record.converged
+        if tensor is not None: # otherwise keep the defaults
+            record.tensor_elements==str(tensor.tensor_elements)
+            record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])
+            record.field_ranks=' '.join( [ str(x) for x in tensor.field_ranks])
+    except Exception as ex:
+        raise Exception(f"Error in updating polarizability record:\n {ex}") from ex
 
-        from qcp_objects.objects.properties import polarizability_tensor
-        try:
-            assert 'storage_file' in run_data.files.keys(), f"Expected"
-            storage_file=run_data.files['storage_file']
-
-            storage_data=load_json_or_yaml(storage_file)
-            tag='pol_ff'
-            assert 'pol_ff' in storage_data, f"Key \'pol_ff\' not in storage file {storage_file}" 
+    try:
+        keys=['messages','errors','warnings']
+        for key in keys:
             try:
-                pol=polarizability_tensor(storage_data[tag])
-            except Exception as ex: raise Exception(f"{ex}")
-            tensor=str(pol.tensor_elements)
-            record.tensor=tensor
-        except Exception as ex:
-            if record.converged:
-                raise Exception(analyse_exception(ex))
-            else:
-                pol='could not recover (consider run failed)'
+                setattr(record, key, getattr(tracker, key))
+            except:
+                warn(f"Could not copy attribute {key} from {type(tracker)} to {type(record)}")
 
+        run_info={'status':tracker.status, 'status_code':tracker.status_code}
         results=job_results(
             run_data=run_data,
             record=record,
@@ -50,7 +79,7 @@ def compute_polarizability_psi4(
         )
         return results
     except Exception as ex:
-        raise Exception(f"Error in recovering results:\n {analyse_exception(ex)}")
+        raise Exception(f"Error in formatting results:\n {ex}") from ex
 
 
     

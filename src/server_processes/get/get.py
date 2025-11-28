@@ -48,8 +48,11 @@ def get_functions(app, SessionDep):
             except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, analyse_exception(ex))
 
         try:
-            return {**messanger.dump(), 'json':return_di}
-        except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Problem in returin data: {analyse_exception(ex)}")
+            json_str=return_di.model_dump_json()
+        except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Problem in serializing data to JSON: {analyse_exception(ex)}")
+        try:
+            return {**messanger.dump(), 'json':json_str}
+        except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Problem in returning data: {analyse_exception(ex)}")
 
     @app.get("/get_status/{property}/{id}")
     async def get_status(id: str, property: str, session: SessionDep, worker_id: str = None):

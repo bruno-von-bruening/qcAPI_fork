@@ -2,6 +2,7 @@ from . import *
 
 from .database_declaration import *
 from util.auxiliary import my_exception
+from util.sql_util import SQLModelMetaclass
 
 @validate_call
 def table_mapper(tag:str) -> SQLModel:
@@ -144,8 +145,10 @@ def get_object_for_tag(tag):
     except Exception as ex:
         raise my_exception(f"Problem in {get_object_for_tag}:", ex)
 
-@validate_call
-def get_unique_tag(object:str, print_options: bool =False)-> str:
+@val_call
+def get_unique_tag(object:str|SQLModelMetaclass, print_options: bool =False)-> str:
+    if isinstance(object, SQLModelMetaclass):
+        object=object.__name__
     def do_print_options():
         lines=[f"Following options are accepted:"]
         indent=4*' '

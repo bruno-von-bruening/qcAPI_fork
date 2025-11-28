@@ -21,6 +21,22 @@ def sqlmodel_formatter(input):
 pdtc_sql_row=Annotated[dict, BeforeValidator(sqlmodel_formatter)]
 from sqlmodel.main import SQLModelMetaclass
 
+@val_call
+def get_primary_key_name(obj:Union[SQLModel,SQLModelMetaclass]):
+
+    if isinstance(obj, SQLModel): # To find the primary key we need the metaclass not the instance
+        obj=type(obj)
+
+    from sqlalchemy.inspection import inspect
+    primary_key=inspect(obj).primary_key
+    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
+    primary_key=primary_key[0]
+
+    return primary_key.name
+def get_primary_key(the_object:Union[SQLModel,SQLModelMetaclass]):
+    """  """
+    return getattr(the_object, get_primary_key_name(the_object))
+
 # Get  all ids
 @val_call
 def  get_ids_for_table(session: session_meta, the_object:SQLModelMetaclass, filtered_ids:str|List[str|int]='all'):
@@ -40,14 +56,16 @@ def  get_ids_for_table(session: session_meta, the_object:SQLModelMetaclass, filt
         for the_id in id_not_there: id_tracker.add_prequisites_not_met(the_id)
     return the_ids
 
-def filter_db_query(object, filter_args: my_dict):
+def filter_db_query(object, filter_args: my_dict, only_ids:bool=False):
     """ Generate sqlmodel query
     And already provide filters
     If the keys are integers or varchars then if a list is provided the filter will be interpreted as in command else as equals
     """
     try:
         # The seed of the query
-        query=( select(object) )
+        the_select= getattr(object,get_primary_key_name(object))  if only_ids else object
+        
+        query=( select( the_select ) )
         
         def get_field(object, key): 
             assert hasattr(object, key), f"{object.__name__} does not have attribute {key}: {object.__dict__.keys()}"
@@ -97,10 +115,10 @@ def filter_db_query(object, filter_args: my_dict):
         raise my_exception(f"Could not filter db (object={object.__name__}, filter_args={filter_args}):", ex)
 
 @my_val
-def filter_db(session, object, filter_args: my_dict={}):
+def filter_db(session, object, filter_args: my_dict={}, only_ids:bool=False):
     """Filter database for given arguments"""
     try:
-        query=filter_db_query(object, filter_args=filter_args)
+        query=filter_db_query(object, filter_args=filter_args, only_ids=only_ids)
         results=session.exec(query).all()
         return results
     except Exception as ex:
@@ -157,7 +175,7 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
         if update_if_exists:
             prim_key=get_primary_key_name(object)
         
-        data=[ object(**d) if isinstance(d, dict) else d for d in data ]
+        data=[ object(**d, blank=True) if isinstance(d, dict) else d for d in data ]
         
         instances=[my_add(d, update_if_exists=update_if_exists) for d in data]
         if commit:
@@ -169,21 +187,6 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
 
 from util.util import print_flush
 # Get linker table
-@val_call
-def get_primary_key_name(obj:Union[SQLModel,SQLModelMetaclass]):
-
-    if isinstance(obj, SQLModel): # To find the primary key we need the metaclass not the instance
-        obj=type(obj)
-
-    from sqlalchemy.inspection import inspect
-    primary_key=inspect(obj).primary_key
-    assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
-    primary_key=primary_key[0]
-
-    return primary_key.name
-def get_primary_key(the_object:Union[SQLModel,SQLModelMetaclass]):
-    """  """
-    return getattr(the_object, get_primary_key_name(the_object))
 
 @val_call
 def get_links(table:sqlmodel_cl_meta, object_map:dict):

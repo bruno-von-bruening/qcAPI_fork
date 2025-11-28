@@ -9,6 +9,7 @@ available_properties=list(prop_names.keys())
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    print(argv)
 
 
 

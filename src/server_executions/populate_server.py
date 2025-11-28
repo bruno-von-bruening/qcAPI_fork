@@ -56,18 +56,25 @@ def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, 
 
     UNIQUE_NAME=get_unique_tag(property)
 
-    content, content_file= process_arguments(filenames)
+    if len(filenames)>0:
+        content, content_file= process_arguments(filenames)
+    else:
+        content=None
+        content_file=None
 
     func=get_url_func(UNIQUE_NAME)
     
     if NAME_COMP==UNIQUE_NAME:
         inchikey_tag='inchi_keys'
+        from .populate_extension import load_pubchem_data
         if not content is None:
             assert inchikey_tag in content.keys(), f"Expected key \'{inchikey_tag}\' in \'{content_file}\'"
             inchi_keys=content[inchikey_tag]
         else: 
             my_quit(f"Provide a file in which you dropped a dictionary with key \'{inchikey_tag}\' that holds a list of inchikeys")
-        kwargs=dict(inchi_keys=inchi_keys)
+
+        compounds=load_pubchem_data(inchi_keys)
+        kwargs=dict(records=compounds)
     elif NAME_CONF==UNIQUE_NAME:
         records=[]
         if content is None:
@@ -78,6 +85,7 @@ def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, 
             assert 'records' in content.keys(), f"Expected \'records\' in \'{content_file}\'"
             assert all( isinstance(x, dict) for x in content['records'] ), f"Expected list of dictionaries in \'records\' in \'{content_file}\'"
             records+=content['records']
+
 
         rec_ref=[]
         for rec in records:
@@ -92,13 +100,42 @@ def main(filenames:List[file_pdtc],address, property:str, method:str|None=None, 
                     geom.units.LENGTH='BOHR'
                     coords=geom.coordinates.reshape(-1)
                     elements=geom.atom_types
+                    
+
+                    inchi, inchi_key=auto_inchi(geom.coordinates, geom.atom_types)
+                    if 'inchikey' in rec.keys():
+                        if rec['inchikey'].lower() == 'auto':
+                            pass
+                        else:
+                            assert inchi_key==rec['inchikey'], f"Provided inchikey \'{rec['inchikey']}\' does not match generated inchikey \'{inchi_key}\' from geometry!"
+                    
+
                     rec_ref+=[ Conformation(
-                        compound_id=rec['inchikey'],
+                        compound_id=inchi_key,
                         coordinates=coords, elements=elements,
                     )]
 
                 else: raise Exception(f"Could not generate record for {rec}: {ex}")
-        kwargs=dict(records=[x.model_dump() for x in rec_ref])        
+        inchis=[ r.compound_id for r in rec_ref ]
+        from receiver.get_request import get_row
+        entries=get_row(address, 'compound', ids=list(set(inchis)) )
+        existing_inchis=[ r[get_primary_key_name(Compound)] for r in json.loads(entries['json'])['record'] ]
+        missing_inchis=[ x for x in inchis if x not in existing_inchis ]
+
+        from .populate_extension import load_pubchem_data
+        if len(missing_inchis)>0:
+            compounds=load_pubchem_data(missing_inchis)
+
+
+            opts, json_content= get_url_func(Compound)(records=compounds)
+            request_body=f"populate/{get_unique_tag(Compound).lower()}"
+            request_code=make_url(address, request_body, opts)
+            print(f"Posting request code: {request_code}")
+
+            post_populate(request_code, json=json_content)
+
+        #json_content=dict(records=[x.model_dump() for x in rec_ref])        
+        kwargs=dict(records=[x.model_dump() for x in rec_ref])
         
     elif NAME_WFN==UNIQUE_NAME:
         #assert all([ os.path.isfile(x) for x in filenames ])

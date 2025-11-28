@@ -25,20 +25,24 @@ class deleter(BaseModel):
     doubly_converged:List[int|str]=[]
     pending: List[int|str]=[]
     failed: List[int|str]=[]
+    delete_requested: List[int|str]=[]
     def delete(self,session, the_object, messanger, force=False):
-        if len(self.doubly_converged)>0 and not force:
-            messanger.add_message(f"Found {len(self.doubly_converged)} items that are at least doubly converged provide force keyword to remove them")
-        else:
-            to_delete=dict([ (k,getattr(self,k)) for k in ['doubly_converged','pending','failed']])
+        try:
+            if len(self.doubly_converged)>0 and not force:
+                messanger.add_message(f"Found {len(self.doubly_converged)} items that are at least doubly converged provide force keyword to remove them")
+            else:
+                to_delete=dict([ (k,getattr(self,k)) for k in ['doubly_converged','pending','failed','delete_requested']])
 
-            for k,ids in to_delete.items():
-                object_to_delete=session.exec( 
-                    select(the_object).filter(get_primary_key(the_object).in_(ids))
-                )
-                [ session.delete(obj) for obj in object_to_delete]
-            session.commit()
-            messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in to_delete.items()])
-        return messanger
+                from sqlmodel import delete
+                query=delete(the_object).where( get_primary_key(the_object).in_(
+                    list( chain( *[ v for v in to_delete.values() ] ) )
+                ))
+                session.exec(query)
+                session.commit()
+                messanger.add_message([f"Deleted rows by status"]+[ f"   - {k:<20} : {len(v)}" for k,v in to_delete.items()])
+            return messanger
+        except Exception as ex:
+            raise Exception(f"Could not delete entries from table {the_object.__name__}: {analyse_exception(ex)}")
 
 
 
@@ -151,17 +155,15 @@ def operation_functions(app, SessionDep):
         except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot find table object for key \'{prop}\', available keys are {object_mapper.keys()}:\n{str(ex)}")
 
         try:
-            entries=filter_db(session, the_object, filter_args=filters)
-            if len(entries)==0:
+            ids=filter_db(session, the_object, filter_args=filters, only_ids=True)
+            if len(ids)==0:
                 messanger.add_message(f"Found no entry of table {the_object.__name__} that matches your search ({str(filters)})")
             else:
-                messanger.add_message(f"Found {len(entries)} entries of table {the_object.__name__}" + ( f" considering filters: {str(filters)}" if len(filters)>0 else f"") )
-                if force:
-                    for entry in entries:
-                        session.delete(entry)
-                    session.commit()
-                    messanger.add_message(f"Deleted these entries!")
-                else: raise Exception(f"Safety-Mechanism: Provide Force for deletion:\nINFO: You scheduled the deletion of {len(entries)} objects of type {the_object.__name__}")
+                messanger.add_message(f"Found {len(ids)} entries of table {the_object.__name__}" + ( f" considering filters: {str(filters)}" if len(filters)>0 else f"") )
+                dele=deleter(
+                    delete_requested=ids
+                )
+                dele.delete(session, the_object, messanger, force=force)
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute delete for {prop}: {analyse_exception(ex)}")
         return {'message':f"{messanger.message}"}

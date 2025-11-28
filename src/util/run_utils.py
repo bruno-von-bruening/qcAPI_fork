@@ -81,13 +81,13 @@ class Tracker(Tracker_data):
     def __init__(self, *args, **kwargs):
         time_start=time.time()
         super().__init__(*args, **kwargs, time_start=time_start)
-    def model_dump(self):
+    def model_dump(self,**kwargs):
         if self.time_end is None:
             self.time_end=time.time()
-        dic=super().model_dump()
+        dic=super().model_dump(**kwargs)
         dic.update({'elapsed_time':self.time_end-self.time_start})
-        del dic['time_end']
-        del dic['time_start']
+        dic.pop('time_end',None)
+        dic.pop('time_start',None)
         return dic
 
     def add_message(self, x):

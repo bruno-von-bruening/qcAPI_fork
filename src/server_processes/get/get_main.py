@@ -37,7 +37,7 @@ from server_processes.get.get_ext import return_data
 @val_cal
 def get_object(
     session: session_meta, messanger:message_tracker, object_table: SQLModelMetaclass , ids: List[int|str], links: List[str]=[], filters:dict={}
-)->Union[message_tracker,return_data]:
+)->Tuple[message_tracker,return_data]:
     # Prepare connections links and merge
 
     try:
@@ -76,7 +76,7 @@ def get_object(
                 raise Exception(f"Cannot handle type: {type(r)}")
             
 
-        messanger.stop_timing(f"Getting result for main item")
+        messanger.stop_timing(f"Getting result for main item (found {len(results)} entries)")
     except Exception as ex: my_exception(f"Problem in making query and executing it:", ex)
 
     # process results
@@ -100,7 +100,7 @@ def get_object(
                     r.update({l:[ session.get(the_link, id).model_dump() for id in sub_ids]})
                 new_results.append(r)
 
-        return_di['entries']=new_results
+        return_di.record=new_results
         
         messanger.stop_timing(f"Finding links")
     except Exception as ex: my_exception(f"Problem in enriching results", ex)

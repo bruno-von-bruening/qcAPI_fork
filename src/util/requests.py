@@ -12,7 +12,12 @@ def get_request(request_code:str):
     if status_code==HTTPStatus.OK:
         return response
     else:
-        raise Exception(f"Response failed with error code {status_code} (request_code=\'{request_code}\'):{response.text}")
+        response_text=response.text
+        try:
+            detail=json.loads(response_text)['detail']
+        except Exception:
+            detail=response_text
+        raise Exception(f"Response failed with error code {status_code} (request_code=\'{request_code}\'):{detail}")
 
 pdtc_address=str
 @val_call

@@ -80,6 +80,8 @@ def process_imports(config,imports):
 class config_base(BaseModel):
     TAG: str|None=None
     source: pdtc_file
+    host: str|None = None
+    port: int|None = None
     imports:       List[pdtc_file]|pdtc_file|None = None
     environment: dict={} #qcAPI_environment_info=qcAPI_environment_info()
     def query(self, query_tags:List[str]):

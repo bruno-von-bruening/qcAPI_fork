@@ -38,7 +38,8 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
         return job_already_done
         
 
-    def internal_loop():
+    @val_call
+    def internal_loop() -> Tuple[Union[dict|job_results|None], bool]:
         """ Check if the job finished continously. For certain increments check if job has been done by other worker"""
         delay_rand = np.random.uniform(0.8, 1.2) * delay
         t0=time.time()
@@ -51,9 +52,9 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
                     job_already_done=check_job_already_done()
                     t0=time.time()+delay_rand
                     if job_already_done:
-                        return None, 
+                        return None,None, 
             except Exception as ex:
-                raise Exception(f"Error in getting results from thread: {ex}")
+                raise Exception(f"Error in getting results from thread: {ex}") from ex
     def print_info(record:job_results):
         # Recovering the avaible information
         info_lines=[]
@@ -130,7 +131,7 @@ def run_job(
     pool = mp.Pool(1) # Why is this here
     try:
         assert hasattr(script, '__call__'), f"Provide function for execution, got {script}"
-        proc = pool.apply_async(script)
+        proc = pool.apply_async(script, error_callback=lambda e:None)
         
         # Check return of job
         results, job_already_done =wait_for_job_completion(tracker,data.record ,proc, delay)
@@ -141,7 +142,7 @@ def run_job(
         #         raise Exception(f"Error : {ex}")
         #     except Exception as ex2:
         #         raise Exception(f"Error when running {script}: {ex2}")
-        raise ex
+        raise Exception(ex) from ex
 
     finally:
         pool.terminate()

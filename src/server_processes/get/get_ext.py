@@ -4,7 +4,7 @@ from data_base.utils import get_object_for_tag
 class return_data(myBaseModel):
     worker_id: str
     record_type: str
-    record: SQLModel
+    record: SQLModel|List[SQLModel]
     sub_entries: Dict[str, SQLModel] = {}
     primary_keys: Dict[str, str] = {}
 

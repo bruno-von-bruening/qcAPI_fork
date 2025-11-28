@@ -33,7 +33,10 @@ def run_psi4_base(
             storage_file=recover_storage(tracker.job_name)
 
             # this depends on the run type
-            files, sub_entries = recover_specific(storage_file, job_tag)
+
+            files=dict(
+                storage_file=storage_file,
+            )
         except Exception as ex: my_exception(f"Problem in recovering results",ex)
 
         converged=1
@@ -41,29 +44,26 @@ def run_psi4_base(
     except Exception as ex:
         converged=0
         files={}
-        tracker.add_error(ex)
+        tracker.add_error(str(ex))
         sub_entries=None
         message='FAILED psi4 calculation'
-        if tracker.test:
-            raise Exception(f"Test was requested hence terminating:\n{ex}")
     finally:
         the_sep(message)
         wfn_record.converged = converged
-        for k,v in tracker.model_dump().items():
+        for k,v in tracker.model_dump(include={'messages', 'errors', 'warnings'}).items():
             if not hasattr(wfn_record, k):
-                warn(f"Could not write key {k} in {wfn_record}")
+                warn(f"Could not write key {k} in {type(wfn_record)}")
             else:
                 setattr(wfn_record, k, v)
     
     try:
-        run_info={'status':tracker.status, 'status_code':tracker.status_code}
         run_data=my_run_data(
             run_directory=tracker.working_dir,
             files=files,
             run_files_to_store=tracker.working_dir
         )
 
-        return wfn_record, run_data, run_info, sub_entries
+        return tracker, wfn_record, run_data,  
 
     except Exception as ex:
         raise Exception(f"Could not pack results from calculation:\n{ex}")

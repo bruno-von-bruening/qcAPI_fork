@@ -4,7 +4,7 @@ channels:
   #- conda-forge/label/libint_dev
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.11
   - typing_extensions # pydantic needs that but for some reason does not install by itsself with my installation
   - exceptiongroup
   #- git

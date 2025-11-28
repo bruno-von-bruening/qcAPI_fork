@@ -25,8 +25,11 @@ def get_primary_key(the_model:sqlmodel_cl_meta, entry:SQLModel) -> str|int:
 @val_call
 def check_record_convereged(entry:SQLModel) -> bool:
     if entry.converged!=RecordStatus.converged:
-        message=f"Failed to compute property {entry['__name__']}:"
-        for e in json.loads(entry['errors']):
+        message=f"Failed to compute property {type(entry).__name__}:"
+        errors=entry.errors
+        if isinstance(errors, str):
+            errors=json.loads(errors)
+        for e in errors:
             message+=f'\n{e}'
         raise Exception(message)
 
@@ -35,13 +38,15 @@ def check_record_convereged(entry:SQLModel) -> bool:
 
 
 # Work on that
-def process_job_results(results:job_results, serv_adr, worker_id:str, do_test=False):
+def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id:str, do_test=False):
     """ 
     1. Process the results of the job to universal form for upload
     2. push them to the server 
     """
     record=results.record
     the_model=type(record)
+    record_di=record.model_dump()
+    record_di.update(tracker.model_dump())
     prim_key, id=get_primary_key(type(record),record)
 
     # The entry should correspond to a SQLModel class
@@ -54,7 +59,7 @@ def process_job_results(results:job_results, serv_adr, worker_id:str, do_test=Fa
         try:
             check_record_convereged(record)
         except Exception as ex: raise Exception(f"Record did not converged. Terminating since test was requested."+
-                                                f"\nThe run directory is {os.path.realpath(results.run_data.run_directory)}:\n {ex}")
+                                                f"\nThe run directory is {os.path.realpath(results.run_data.run_directory)}:\n {ex}") from ex
 
     request=f"{serv_adr}/fill/{the_model.__name__}/{worker_id}"
     # if   NAME_WFN       == UNIQUE_NAME:
@@ -78,11 +83,15 @@ def process_job_results(results:job_results, serv_adr, worker_id:str, do_test=Fa
     # EXTRACT all the data necessary so that no local files are necessary anymore
     # Store all files that should be stored by uploading them to the central database
     # After that, delete the files to free up space
+    os.chdir('..')
+    try:
+        from .body import pack_run_directory
+        the_file=pack_run_directory(results.run_data.run_directory, results.run_data.run_files_to_store, the_model, id, worker_id)
+    except Exception as ex: 
+        raise Exception(f"Could not pack run directory for upload: {ex}") from ex 
     try: # Try and if fails then clean up
 
         # Upload the data for storage
-        from .body import pack_run_directory
-        the_file=pack_run_directory(results.run_data.run_directory, results.run_data.run_files_to_store, the_model, id, worker_id)
         upload_file( serv_adr, f"{the_model.__name__}_Run_Data", id,the_file, delete_old=True)
 
         # Push files will allways be the same array and files will not be changed
@@ -92,7 +101,7 @@ def process_job_results(results:job_results, serv_adr, worker_id:str, do_test=Fa
                 upload_file(serv_adr,tag, id,file)
         # Upload the lead record
         data=dict(
-            main_record= record.model_dump(),
+            main_record= record_di,
             sub_entries= dict( (k, (v if not issubclass(type(v),BaseModel) else v.model_dump() ))
                           for k,v in results.sub_entries.items()
             ),
@@ -112,14 +121,21 @@ def process_job_results(results:job_results, serv_adr, worker_id:str, do_test=Fa
             error= f"Bad communication with function (check function argument)"
         else:
             error= f"Undescribed error"
+        
         if not error is None:
-            raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{response.text}")
+            try:
+                resp=json.loads(response.text)['detail']
+            except:
+                resp=response.text
+            raise Exception(f"Error updating record ({request}) with code {status_code}: {error}\n{resp}")
 
     except Exception as ex:
         run_directory=results.run_data.run_directory
         if not do_test:
+
             try:
-                run_shell_command(f"rm -r {run_directory}")
+                if os.path.isdir(run_directory):
+                    run_shell_command(f"rm -r {run_directory}")
             except Exception as ex:
                 raise Exception(f"Problem in deleting job run directory ({os.path.realpath(run_directory)}). This is critical since if these directories are not cleaned this will polute the fiel system")
             raise Exception(f"Error in processing results: {ex}")

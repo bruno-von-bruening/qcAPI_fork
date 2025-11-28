@@ -1,5 +1,6 @@
 from . import *
 from util.util import part_method_choice
+from util.sql_util import *
 
 from util.type_helpers.data_types import Wave_Function_pass
 def wave_functions_url(
@@ -17,31 +18,12 @@ def wave_functions_url(
 def conformations_url(conformations):
     """ Given a list of conformations generate """
     # get inchikey
-    for conformation in conformations:
-        coordinates=np.array(conformation['coordinates'], dtype=np.float64)
-        species=[ nuclear_charge_to_element_symbol(x) for x in conformation['species'] ]
-
-        inchi, inchi_key=auto_inchi(coordinates, species)
-        compound= dict(
-            inchi=inchi, 
-            inchikey=inchi_key,
-            source='unkown',
-            comments='conenctivity automapgenerated',
-            bonds='auto',
-            )
-        conformation.update({'compound':compound})
 
     # Post and print what has been copied
     request_code=f"{address}/populate/conformation"
     the_json={'conformations':conformation,'ids':None}
     return request_code, the_json
-
-@val_call
-def compounds_url( 
-    inchi_keys:List[str], 
-    do_test=False
-):
-    the_json={}
+def load_pubchem_data(inchi_keys:List[str]):
     from helper.pubchempy_handler import pubchem_handler, load_compounds_from_pubchem
     print(f"Loading {len(inchi_keys)} compounds from pubchem"); start=time.time()
     comps=load_compounds_from_pubchem(inchikeys=inchi_keys)
@@ -49,7 +31,16 @@ def compounds_url(
     print(f"Repacking Compounds"); tmp=time.time()
     comps=[ pubchem_handler(input=c).to_database_entry() for c in comps]
     print(f"Repacking took {time.time()-tmp:.2f} seconds")
-    the_json={'records':comps, 'inchikeys':[], 'compound_ids':[]}
+    return comps
+
+
+@val_call
+def compounds_url( 
+    records: List[dict],
+    do_test=False
+):
+    the_json={}
+    the_json={'records':records, 'inchikeys':[], 'compound_ids':[]}
     opts={}
     return opts, the_json
 
@@ -152,7 +143,10 @@ def conformations_url(
             confs+=[ Conformation(**rec).model_dump() ]
         except Exception as ex: raise Exception(f"Could not generate record for {rec}: {ex}")
 
-    the_json={'conformations':confs} 
+
+
+
+    the_json={'records':confs} 
     opts={}
     return opts, the_json
 
@@ -180,7 +174,12 @@ url_funcs_map={
     #
     NAME_MOLPOL: molpol_url,
 }
-def get_url_func(tag):
+
+@val_call
+def get_url_func(tag:str|SQLModelMetaclass):
+
+    if isinstance(tag, SQLModelMetaclass):
+        tag=get_unique_tag(tag)
 
     assert tag in url_funcs_map.keys(), f"Key \'{tag}\' not in available keys: {list(url_funcs_map.keys())}"
     return url_funcs_map[tag]

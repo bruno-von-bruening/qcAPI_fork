@@ -38,7 +38,25 @@ from server_processes.operations import operation_functions
 from server_processes.info import info_functions
 #from server_processes.sending_files import file_functions
 
-from util.config import load_server_config
+from util.config import load_server_config, qcAPI_server_config, qcAPI_storage_info
+import os
+
+DEFAULT_CONFIG_FILE="auto_config.yaml"
+def make_auto_config_file(host:str|None, port:int|None):
+    store=qcAPI_storage_info(
+        storage_root_directory=f"{os.getcwd()}/storage",
+    )
+    config=qcAPI_server_config.construct(
+        database_file="<make_me>",
+        storage_info=store,
+        host=host,
+        port=port,
+        imports="<find_me>",
+        
+    )
+    with open(DEFAULT_CONFIG_FILE, 'w') as f:
+        yaml.safe_dump(config.model_dump(), f)
+    return DEFAULT_CONFIG_FILE
 
 def make_app_functions(app, SessionDep, storage_info):
     """ Add all the methods to the app """

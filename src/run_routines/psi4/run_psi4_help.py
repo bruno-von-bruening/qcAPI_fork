@@ -22,7 +22,7 @@ def compute_core(
     try:
         cmd=f"{python_exc} {psi4_script}"
         my_sep('START psi4 calculation',tracker.job_name,'+')
-        run_shell_command(cmd, [ job_tag], dict(func=method, basis=basis, xyz=xyz_file, exc=True, num_thread=tracker.num_threads))
+        run_shell_command(cmd, [ job_tag], dict(func=method, basis=basis, geom=xyz_file, exc=True, num_thread=tracker.num_threads))
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
 
     return record, tracker
@@ -35,27 +35,32 @@ def recover_storage(jobname) -> pdtc_file:
     storage_file=storage_file[0]
     return storage_file
 
-@val_call
-def recover_specific(storage_file, tag):
+    
+    
 
+def get_from_storage(storage_file:pdtc_file, key:str):
+    storage=open_storage_file(storage_file)
+    assert key in storage.keys(), f"Expected key '{key}' in storage data from file {storage_file}"
+    data=storage[key]
+    return data
+
+def open_storage_file(storage_file:pdtc_file) -> dict:
     storage_data=load_json_or_yaml(storage_file)
-    files=dict(
-        storage_file=storage_file,
-    )
-    sub_entries={}
-    
-    if tag == 'single_point':
-        assert 'files' in storage_data, f"Key \'files\' not in storage file {storage_file}"
-        assert 'final_fchk' in storage_data['files'].keys(), f"Key \'final_fchk\' not in \'files\' section of {storage_file}"
-        fchk_file=storage_data['files']['final_fchk']
+    return storage_data
 
-        compresssed_fchk_file=compress_file(fchk_file, compression_type='xz',compression_level=None)
-        files={
-            FCHK_File.__name__:os.path.realpath(compresssed_fchk_file),
-        }
-        sub_entries={}
-    
-    
+@val_call
+def get_fchk_file(storage_file:pdtc_file,id):
+    files=get_from_storage(storage_file, 'files')
+    assert 'final_fchk' in files.keys(), f"Key \'final_fchk\' not in \'files\' section of storage file: {storage_file}"
+    fchk_file=files['final_fchk']
 
-
-    return files, sub_entries
+    compresssed_fchk_file=compress_file(fchk_file, compression_type='xz',compression_level=None)
+    sub_entries={
+        FCHK_File.__name__: FCHK_File(
+            id=id,
+            path_to_container='',
+            path_in_container='',
+            file_name= os.path.realpath(compresssed_fchk_file),
+        )
+    }
+    return sub_entries

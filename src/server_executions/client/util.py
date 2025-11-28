@@ -38,10 +38,18 @@ def pack_run_directory(working_directory:directory, run_directory: List[pdtc_dir
             assert any([ y(os.path.join(working_directory,x)) for y in [os.path.isdir,os.path.isfile]]) , f"Not a file {x}"
         run_directory=[ os.path.join(working_directory,x) for x in run_directory]
 
-    the_tar=f"{the_model.__name__}_{id}_WID-{worker_id}"
+    the_tar=os.path.realpath(f"{the_model.__name__}_{id}_WID-{worker_id}")
+    if os.path.realpath(the_tar).startswith(os.path.realpath(run_directory)):
+        raise Exception(f"Refusing to pack run directory since the target {the_tar} is within the run directory {run_directory}")
+    if os.path.realpath(the_tar)==os.path.dirname(os.path.realpath(run_directory)) or os.path.realpath(the_tar)==os.path.realpath(run_directory):
+        raise Exception(f"Refusing to pack run directory since the target tar name {the_tar} is the same as the run directory {run_directory}")
     if os.path.isdir(the_tar): run_shell_command(f"rm -r {the_tar}")
+
     if isinstance(run_directory,str):
-        run_shell_command(f"cp -r {run_directory} {the_tar}")
+        try:
+            run_shell_command(f"cp -r {run_directory} {the_tar}")
+        except Exception as ex:
+            raise Exception(f"Could not copy run directory: {ex}") from ex
         pack_files=run_directory
     else:
         if  len(run_directory)>0:

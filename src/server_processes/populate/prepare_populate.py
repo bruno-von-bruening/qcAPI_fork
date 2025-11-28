@@ -42,11 +42,12 @@ def prep_molpol_pop(
         the_ids=tracker.get_ids_for_table(ancestor, ids=ids)
     except Exception as ex: raise my_exception(f"Problem in getting available ids for {the_object.__name__} population:", ex)
 
+
     records=[]
     try: # Make new objects
         for the_id in the_ids:
             records+=[the_object(
-                id=the_id,  # one to one mapping!
+                wfn_id=the_id,
                 approach='finite_field',
                 code='psi4',
                 tensor='dummy',
@@ -126,8 +127,8 @@ def prep_conformation_pop(
     
     # This are root entries
     try:
-        assert 'conformations' in json.keys(), f"Expected key \'conformations\' in provided json objects."
-        conformations_raw=json['conformations']
+        assert 'records' in json.keys(), f"Expected key \'records\' in provided json objects. Found: {json.keys()}"
+        conformations_raw=json['records']
         assert all( isinstance(x, dict) for x in conformations_raw), f"Expected list of dictionaries in provided json objects."
     except Exception as ex: my_exception(f"Problem in preparing population of {Conformation}:", ex)
 
