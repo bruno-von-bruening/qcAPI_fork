@@ -2,11 +2,11 @@
 
 import sys, os, importlib
 
-from qcpAPI.bin  .  run_server         import main as main_run
-from qcpAPI.bin  .  populate_server    import main as main_pop
-from qcpAPI.bin  .  spawn_workers      import main as main_spawn
-from qcpAPI.bin  .  client             import main as main_client
-from qcpAPI.bin  .  server_operations  import main as main_operations 
+from qcpAPI.bin.run_server         import main as main_run
+from qcpAPI.bin.populate_server    import main as main_pop
+from qcpAPI.bin.spawn_workers      import main as main_spawn
+from qcpAPI.bin.client             import main as main_client
+from qcpAPI.bin.server_operations  import main as main_operations 
 
 
 class command_options():
@@ -33,7 +33,8 @@ class command_options():
         assert len(found)==1
         return found[0]
 
-available_commands=[ command_options.RUN, command_options.POPULATE , command_options.SPAWN_WORKERS]
+available_commands=[ command_options.RUN, command_options.POPULATE , command_options.SPAWN_WORKERS,
+                    command_options.OPERATIONS]
 
 func_mapper=dict(
     RUN           =main_run   ,

@@ -56,7 +56,7 @@ def compute_polarizability_psi4(
         })
         record.converged=wfn_record.converged
         if tensor is not None: # otherwise keep the defaults
-            record.tensor_elements==str(tensor.tensor_elements)
+            record.tensor_elements=str(tensor.tensor_elements)
             record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])
             record.field_ranks=' '.join( [ str(x) for x in tensor.field_ranks])
     except Exception as ex:
