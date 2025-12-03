@@ -37,7 +37,10 @@ def probe_server(address, delay, refresh, property, method):
 
     status_code=response.status_code
     if status_code != HTTPStatus.OK:
-        raise ValueError(f"Error getting initial response for \'{request}\': code={status_code}, details={response.text}")
+        detail=response.json()
+        if 'detail' in detail:
+            detail=detail['detail']
+        raise ValueError(f"Error getting initial response for \'{request}\': code={status_code}, details={detail}")
 
     body = response.json()
     pending = body["pending"]

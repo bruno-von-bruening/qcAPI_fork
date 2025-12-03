@@ -32,6 +32,8 @@ def check_record_convereged(entry:SQLModel) -> bool:
         for e in errors:
             message+=f'\n{e}'
         raise Exception(message)
+    else:
+        return True
 
 
 

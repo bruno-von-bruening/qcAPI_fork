@@ -15,8 +15,10 @@ def run_psi4_base(
         wfn_record:Wave_Function, 
         geom:geometry,
         job_tag: Literal['single_point','polarizability_finite_field'],
-        num_threads=1, max_iter=150, 
-) -> job_results:
+        max_iter=150, 
+) -> Tuple[Tracker, Wave_Function, my_run_data]:
+    """ Run a basic psi4 calculation according to the specified job type
+    """
     # create ID
 
     try:

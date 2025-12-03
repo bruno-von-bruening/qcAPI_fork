@@ -1,7 +1,8 @@
-#!/usr/bin/env python
+##    !/usr/bin/env python
 from . import *
 
-from util.util import AVAILABLE_OPERATIONS, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, OP_DROP_TABLE, check_address
+from util.util import AVAILABLE_OPERATIONS, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, OP_DROP_TABLE
+from util.http_util import  check_address
 from data_base.utils import AVAILABLE_PROPERTIES, get_unique_tag
 
 import requests
@@ -9,6 +10,7 @@ from http import HTTPStatus
 from pydantic import validate_call
 from typing import List
 import re
+from .wrapper import process_argv
 
 
 separator='__'
@@ -17,13 +19,19 @@ def process_filters(input: List[str]):
     f""" 
     Expects list of argument separated by \'{separator}\' each forming a dictionary entry
     """
-    dic=[]
+    dic=dict()
     for it in input:
         assert re.search(separator, it), f"Expect \'{separator}\' between dictionary key and item"
         ar=it.split(separator)
         assert len(ar)==2, f"Expected two argument (key and value separated by {separator}), got: {it}"
-        dic.append(ar)
-    return dict(dic)
+        
+        if not ar[0] in dic.keys(): # Not there, then make an entry
+            dic[ar[0]] = ar[1] 
+        else: # if there then make current entry a list
+            if not isinstance(dic[ar[0]], list):
+                dic[ar[0]]=[dic[ar[0]]]
+            dic[ar[0]].append( ar[1] )
+    return dic
 
 def main_internal(mode, address, prop, force=False, filters=None):
     """ """
@@ -97,23 +105,23 @@ def main_internal(mode, address, prop, force=False, filters=None):
 
 
 
+from .wrapper import get_property_args, add_client_args, add_property_arg, process_client_args
+
+@process_argv
 def main_core(argv):
-    description=None
+
+    # Parser
+    description=f"Manipulare database with a given mode (see keyword options)"
     epilog=None
     prog=None
-    import argparse; par=argparse.ArgumentParser(description=description, epilog=epilog, prog=prog)
+    par=argparse.ArgumentParser(description=description, epilog=epilog, prog=prog)
+
+    par=add_client_args(par)
+    par=add_property_arg(par)
     add = par.add_argument
     add(
         'MODE', type=str, choices=AVAILABLE_OPERATIONS,
         help=f"Mode to be executed",
-    )
-    add(
-        '--address', type=str, default='0.0.0.0:8000',
-        help=f"Server address (ip:port)"
-    )
-    add(
-        '--property', '-p', required=True, #choices=available_properties, required=True,
-        help=f"Name of property to be deleted", 
     )
     add(
         '--force', action='store_true', help=f"In case there are critical changes that caused wanring use this flag to force their execution"
@@ -125,10 +133,10 @@ def main_core(argv):
     
     #
     args=par.parse_args(argv)
+    address=process_client_args(args)
+    prop=get_property_args(args)
     mode=args.MODE 
-    prop=args.property
     the_filters=args.filters
-    address=f"http://{args.address}"
     force=args.force
 
     # Check validty of 

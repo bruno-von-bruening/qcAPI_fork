@@ -1,7 +1,7 @@
 
 from . import *
 
-from .utils import pdtc_address
+from util.http_util import pdtc_address
 from util.requests import get_request
 
 

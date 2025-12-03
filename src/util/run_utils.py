@@ -46,10 +46,11 @@ class Tracker_data(Tracker_data):
     main_record_id: str|int
     job_name: str # Should be inherited maybe
     server_address: str
-    num_threads: int|None=None
+    num_threads: int | None = Field(default=None, gt=0, description="Number of threads to be used in the calculation")
+    memory_GB: float|None=None
     target_dir: str|None=None
     test: bool=False
-    config_file: pdtc_file
+    config_file: pdtc_file|None=None
     working_dir: str
 
     def __init__(self,*args,**kwargs):

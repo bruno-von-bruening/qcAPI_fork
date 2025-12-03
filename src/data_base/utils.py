@@ -78,7 +78,9 @@ import sys
 def make_object_mapper():
     the_mod='data_base.database_declaration'
     keys=[x for x in  dir(sys.modules[the_mod]) if not x.startswith('_') ] 
-    return dict( (k,getattr(sys.modules[the_mod], k))  for k in keys)
+    return dict( 
+        (k,getattr(sys.modules[the_mod], k))  for k in keys 
+        if isinstance( getattr(sys.modules[the_mod],k),SQLModelMetaclass) )
 
 object_mapper=make_object_mapper()
 object_mapper.update({
@@ -139,7 +141,14 @@ def get_object_for_tag(tag):
         for the_object, tags in mapper.items():
             if tag.lower() in tags:
                 found.append(the_object)
-        assert len(found)==1, f"Did not found exately one object for tag \'{tag}\': {found}"
+        
+        if len(found)!=1:
+            def do_print_options():
+                max_leng=max([ len(the_key) for the_key in mapper.keys() ])
+                string=f"Available options are:\n"
+                string+='\n'.join([4*' '+f'- {k:<{max_leng}}: {v}' for k,v in mapper.items()])
+                return string
+            raise Exception(f"Did not find exactely one object for tag \'{tag}\':{found}\n"+do_print_options())
 
         return classes[found[0]]
     except Exception as ex:

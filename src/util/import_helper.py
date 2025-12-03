@@ -8,8 +8,8 @@ from pydantic import (
     ValidationError,
     BaseModel, BeforeValidator, PlainSerializer, Field
 )
-    
-val_call=validate_call(config=dict(arbitrary_types_allowed=True))
+
+val_call=validate_call(config=dict(arbitrary_types_allowed=True, validate_return=True))
 
 import sys, os, re, yaml, json, glob, shutil
 from functools import partial

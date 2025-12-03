@@ -7,6 +7,7 @@ from qcp_global_utils.environment.file_handling import load_json_or_yaml
 from qcp_global_utils.parser.parser import controller_model
 
 from .import_helper import *
+from .http_util import pdtc_address
 
 
 
@@ -84,6 +85,12 @@ class config_base(BaseModel):
     port: int|None = None
     imports:       List[pdtc_file]|pdtc_file|None = None
     environment: dict={} #qcAPI_environment_info=qcAPI_environment_info()
+    @property
+    def address(self) -> pdtc_address|None:
+        if self.host is None or self.port is None:
+            raise Exception(f"Cannot construct address since host or port is None: host={self.host}, port={self.port}")
+        else:
+            return f"http://{self.host}:{self.port}"
     def query(self, query_tags:List[str]):
         try:
             return query_config(self.model_dump(), query_tags)
@@ -91,6 +98,13 @@ class config_base(BaseModel):
     def __init__(self,*args,**kwargs):
         if 'imports' in kwargs.keys():
             kwargs=process_imports(kwargs,kwargs['imports'])
+        if len(args)==1:
+            source=kwargs.get('source', None)
+            if source is None:
+                source=args[0]
+            else:
+                assert os.path.realpath(source)==os.path.realpath(args[0])
+            kwargs.update(source=os.path.realpath(source))
         super().__init__(*args,**kwargs)
 
 # class qcAPI_server_config(config_base):
@@ -114,7 +128,7 @@ class qcAPI_server_config(config_base,controller_model):
         return value.replace('.db','')+'.db'
 
 class qcAPI_worker_config(config_base):
-    source: file
+    pass
 
 
 ###### HANDLE CONFIG

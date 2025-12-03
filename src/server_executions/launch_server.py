@@ -128,7 +128,7 @@ def app_setup(db_file, storage_info):
     return app
     
 
-def main(config_file, host, port):
+def main(config_file):
     """ Starts the server """
 
     config=load_server_config(config_file)
@@ -138,4 +138,4 @@ def main(config_file, host, port):
     app=app_setup(db_file=sqlite_file_name, storage_info=storage_info)
 
     import uvicorn
-    uvicorn.run(app,port=port, host=host)
+    uvicorn.run(app,port=config.port, host=config.host)

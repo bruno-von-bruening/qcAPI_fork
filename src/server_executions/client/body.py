@@ -80,7 +80,7 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
 @val_call
 def get_next_record(
     serv_adr, property='part', method='lisa', for_production:bool=True
-) -> return_data:
+) -> return_data|None:
     """ Get a the next record to be worked at (in case there is none, return none) """
     while True:
 

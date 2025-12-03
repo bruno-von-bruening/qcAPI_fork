@@ -9,8 +9,14 @@ def parse_dict(filters_plain:List[str]):
         for x in filters_plain:
             sep='--'
             ar=x.split(sep)
-            assert len(ar)==2, f"Expected separator \'{sep}\' in filters option but got {x}"
-            new_filters.update({ar[0]:ar[1]})
+            assert len(ar)==2, f"Expected separator '{sep}' in filters option but got {x}"
+
+            if ar[0] in new_filters.keys():
+                if not isinstance(new_filters[ar[0]], list):
+                    new_filters[ar[0]]=[ new_filters[ar[0]] ]
+                new_filters[ar[0]].append(ar[1])
+            else:
+                new_filters[ar[0]]=ar[1]
         return new_filters
     except Exception as ex: my_exception(f"Could not interprete as dictionary:\n{filters_plain}",ex)
 
@@ -109,7 +115,7 @@ def operation_functions(app, SessionDep):
                 try:
                     attr=getattr(the_object,k)
                 except Exception as ex:
-                    raise Exception(f"Object \'{the_object.__name__}\' has no attribute \'{k}\' (vailable keys={[x for x in list(the_object.__dict__.keys()) if not x.startswith('_') and not x.endswith('_')]}")
+                    raise Exception(f"Object '{the_object.__name__}' has no attribute '{k}' (vailable keys={[x for x in list(the_object.__dict__.keys()) if not x.startswith('_') and not x.endswith('_')]}")
                 query=query.where(attr==v)
             results=session.exec(query).all()
 
@@ -133,7 +139,7 @@ def operation_functions(app, SessionDep):
             else:
                 raise Exception(f"You are about to reset the status of {len(results)} files are you sure about that (could use the option clone instead for the moment and delete after)")
             
-            return {'message':f"Reset Status to pending for {len(results)} rows from table \'{the_object.__name__}\' (with filter={filters})"}
+            return {'message':f"Reset Status to pending for {len(results)} rows from table '{the_object.__name__}' (with filter={filters})"}
         except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR,
                 f"Could not process delete request: {analyse_exception(ex)}")        
 
@@ -152,7 +158,7 @@ def operation_functions(app, SessionDep):
 
         try:
             the_object=get_object_for_tag(prop)
-        except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot find table object for key \'{prop}\', available keys are {object_mapper.keys()}:\n{str(ex)}")
+        except Exception as ex: raise HTTPException(HTTPStatus.BAD_REQUEST, f"Cannot find table object for key '{prop}', available keys are {object_mapper.keys()}:\n{str(ex)}")
 
         try:
             ids=filter_db(session, the_object, filter_args=filters, only_ids=True)
@@ -227,7 +233,7 @@ def operation_functions(app, SessionDep):
                         for wfn_id, row in dic.items():
                             converged=[ x[0] for x in row if x[1]==1]
                             pending=[ x[0] for x in row if x[1]!=-1]
-                            failed=[ x[0] for x in row if x[1]!=0]
+                            failed=[ x[0] for x in row if x[1]==0]
                             if len(converged)>1:
                                 to_delete.doubly_converged+=sorted(converged)[1:]
                                 to_delete.pending+=sorted(pending)
@@ -391,18 +397,6 @@ def operation_functions(app, SessionDep):
                 return messanger.dump()
             else:
                 raise Exception(f"Method {the_object.__name__} not implemented yet")
-
-
-                                
-                            
-                                
-                            
-
-
-
-                
-
-
         except Exception as ex: raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR,
             f"Couldn not execute {clean_double}: {analyse_exception(ex)}")
 

@@ -23,8 +23,11 @@ def the_function(cmd, worker_id, worker_tag="local_worker", directory:pdtc_direc
     stdout, stderr= run_shell_command(cmd, stdout_file=stdout_file, stderr_file=stderr_file)
 
 @validate_call
-def main_core(address:str, config:file, target_dir:pdtc_directory, prop:str, num_processes:int =10, num_threads_per_process:int =1, method:str|None=None,
-    do_test=False, job_name=None
+def main_core(config_file:pdtc_file, target_dir:pdtc_directory, prop:str,
+        num_processes:int =10, 
+        num_threads_per_process:int =1, 
+        memory_gb_per_process:float|None=None,
+        method:str|None=None, do_test=False, job_name=None
 ):
     worker_directory=f"{prop}_worker_output"
     if os.path.isdir(worker_directory): run_shell_command(f"rm -r {worker_directory}")
@@ -36,8 +39,9 @@ def main_core(address:str, config:file, target_dir:pdtc_directory, prop:str, num
         method=''
     loc=os.path.dirname(os.path.realpath(__file__))
     cmd=(
-            f"qcp_server.py client {address} --config {config} --delay 10" \
+            f"qcp_server.py client --config {config_file}  --delay 10" \
         +f" --num_threads {num_threads_per_process}"
+        +(f" --memory {memory_gb_per_process}" if not memory_gb_per_process is None else '' )
         +f" --target_dir {target_dir}  --property {prop} {method}" + ('' if not do_test else ' --test')
     )
     jobs=[ job( function=partial(the_function,cmd, ), args=[ worker_idx] , kwargs={
@@ -46,57 +50,59 @@ def main_core(address:str, config:file, target_dir:pdtc_directory, prop:str, num
         ) for worker_idx in range(num_processes)]
     spawn_workers(jobs, num_processes=num_processes)
 
-def main(argv=None):
-    argv = argv if argv is not None else sys.argv[1:]
+from .wrapper import process_argv, add_client_args,add_property_arg, get_property_args,process_client_args
+from argparse import ArgumentParser, Namespace
 
-    default_address='0.0.0.0:8000'
-    default_num_proc=10
-    default_threads_per_proc=1
-
-    from data_base.utils import names as prop_names
-    prop_choices=list( prop_names.keys() )
-
-    description=None
-    prog=f"{__file__} {default_address} --num_processes --property wfn"
+DEFAULT_NUM_PROC=10
+DEFAULT_THREADS_PER_PROC=1
+@process_argv
+def main(argv:list|Namespace):
+    description=f"Spawn multiple workers through calling qcp_server.py client ..."
+    prog=None
+    #prog=f"{__file__} {default_address} --num_processes --property wfn"
     epilog=None
-    import argparse; par=argparse.ArgumentParser(description=description, prog=prog, epilog=epilog)
+    par=ArgumentParser(description=description, prog=prog, epilog=epilog)
+
+
+    par=add_client_args(par, require_config=True)
+    par=add_property_arg(par)
+
     add=par.add_argument
     add(
-        '--num_processes', '--np', default=default_num_proc, help=f"Number of process"
+        '--num_processes', '--np', default=DEFAULT_NUM_PROC, help=f"Number of process"
     )
     add(
-        '--num_threads_per_process', '--nt', default=default_threads_per_proc, help=f"How many threads should each process be run with"
+        '--num_threads_per_process', '--nt', default=DEFAULT_THREADS_PER_PROC, help=f"How many threads should each process be run with"
+    )
+    add(
+        '--memory_per_process', '--mem', type=float, default=None, help=f"Memory (in GB) to allocate for each process"
     )
     add(
         '--target_dir','--trgt', required=True, help=f"Directory where to store results"
     )
     add(
-        '--address', required=False, default=default_address, help=f"Http address where database server runs"
-    )
-    add(
-        '--property', '-p', required=True, help=f"Which property to run", choices=prop_choices,
-    )
-    add(
         '--method', '-m', help=f"Which method to select",
-    )
-    add(
-        '--config', '-c', required=True, help=f"Config file to provide",
     )
     add(
         '--test', '-t', action='store_true', help=f"Will raise error in case worker fails",
     )
     #
     args=par.parse_args(argv)
+    address, config_file=process_client_args(args, require_config=True)
+    prop=get_property_args(args)
+    #
     num_processes=args.num_processes
     num_threads_per_proc=args.num_threads_per_process
+    memory_gb=args.memory_per_process
     target_dir=args.target_dir
-    address=args.address
-    prop=args.property
     method=args.method
-    config=args.config
     do_test=args.test
 
-    main_core(address, config, target_dir, prop, num_processes=num_processes, num_threads_per_process=num_threads_per_proc, method=method, do_test=do_test)
+    main_core(config_file, target_dir, prop, 
+              num_processes=num_processes, 
+              num_threads_per_process=num_threads_per_proc, 
+              memory_gb_per_process=memory_gb,
+              method=method, do_test=do_test)
         
 
 if __name__=='__main__':

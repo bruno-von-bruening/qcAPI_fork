@@ -2,6 +2,7 @@ from util.import_helper import *
 import importlib.metadata
 __version__ = importlib.metadata.version("qcpAPI")
 from server_processes.get.get_ext import return_data
+from util.http_util import pdtc_address
 
 from data_base.utils import  (
     NAME_CONF, NAME_IDSURF, NAME_PART, NAME_WFN,

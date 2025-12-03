@@ -10,7 +10,7 @@ from ..psi4.run_psi4_help import open_storage_file, get_fchk_file
 def compute_polarizability_psi4(
     python, psi4_script, tracker:Tracker, 
     record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry
-) -> Callable:
+) -> job_results:
 
 
     try: # Run the psi4 calculation

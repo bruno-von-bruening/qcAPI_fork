@@ -111,11 +111,3 @@ def copy_file(
 
 
 
-
-def check_address(address):
-    import requests
-    try:
-        response=requests.get(address)
-    except Exception as ex:
-        raise Exception(f"Cannot communicate with address ({address}):\n {ex}")
-

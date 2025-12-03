@@ -1,4 +1,4 @@
-from . import *
+from .. import *
 
 from data_base.utils import object_mapper
 

@@ -22,7 +22,25 @@ def compute_core(
     try:
         cmd=f"{python_exc} {psi4_script}"
         my_sep('START psi4 calculation',tracker.job_name,'+')
-        run_shell_command(cmd, [ job_tag], dict(func=method, basis=basis, geom=xyz_file, exc=True, num_thread=tracker.num_threads))
+
+        # Default for psi4 threads
+        if tracker.num_threads is None:
+            num_threads=4
+            warn(f"No number of threads specified, using default: {tracker.num_threads}")
+        else:
+            num_threads=tracker.num_threads
+
+        # Default for psi4 memory
+        if tracker.memory_GB is not None:
+            mem=tracker.memory_GB
+        else:
+            mem_per_thread_GB=2
+            mem=tracker.num_threads*mem_per_thread_GB
+            warn(f"No memory specified, using default ({mem_per_thread_GB} GB per thread): {mem} GB")
+        run_shell_command(cmd, [ job_tag], dict(
+            func=method, basis=basis, geom=xyz_file, exc=True, 
+            num_thread=num_threads, memory=f"{mem}_GB",
+        ))
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
 
     return record, tracker

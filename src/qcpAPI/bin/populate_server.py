@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from server_executions.populate_server import main as main_internal
-from data_base.utils import names as prop_names, get_unique_tag
 
 from . import *
 available_properties=list(prop_names.keys())
@@ -9,9 +8,6 @@ available_properties=list(prop_names.keys())
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
-    print(argv)
-
-
 
     parser = argparse.ArgumentParser(description='Populate a qcAPI database with jobs')
     parser.add_argument('--files', type=str, nargs='+', help='Filenames of the pickled configurations', default=[])
