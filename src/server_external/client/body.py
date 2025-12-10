@@ -19,7 +19,8 @@ from .util import *
 from .prepare_input import *
 
 
-def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[dict|job_results], bool]:
+@val_call
+def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tuple[Tracker,Union[dict|job_results|None], bool]:
     """ Check status of job until it changes.
     The job may be done by another worker, then return this info in job_already_done variable"""
 
@@ -39,20 +40,21 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
         
 
     @val_call
-    def internal_loop() -> Tuple[Union[dict|job_results|None], bool]:
+    def internal_loop(tracker) -> Tuple[Tracker,Union[dict|job_results|None], bool]:
         """ Check if the job finished continously. For certain increments check if job has been done by other worker"""
         delay_rand = np.random.uniform(0.8, 1.2) * delay
         t0=time.time()
         while True:
             try:
-                ret = res.get(timeout=0.1) # in sec
-                return ret, False
+                tracker,ret = res.get(timeout=0.1) # in sec
+                return tracker,ret, False
             except mp.TimeoutError:
                 if time.time()-t0>0:
                     job_already_done=check_job_already_done()
                     t0=time.time()+delay_rand
                     if job_already_done:
-                        return None,True 
+                        tracker.add_message(f"Job was already done by other worker")
+                        return tracker,None,True 
             except Exception as ex:
                 raise Exception(f"Error in getting results from thread: {ex}") from ex
     def print_info(record:job_results):
@@ -70,12 +72,12 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
         info='\n'.join([info_string]+ [ indent+x for x in info_lines])
         print(info)
             
-    ret, job_done_by_other_worker=internal_loop()
+    tracker,ret, job_done_by_other_worker=internal_loop(tracker)
 
     if not job_done_by_other_worker:
         print_info(ret.record)
 
-    return ret, job_done_by_other_worker
+    return tracker, ret, job_done_by_other_worker
 
 @val_call
 def get_next_record(
@@ -118,8 +120,8 @@ def get_next_record(
 
 @val_call
 def run_job(
-    tracker, data:return_data, max_iter, delay, do_test
-)->Tuple[Union[job_results|None], bool]:
+        tracker:Tracker, data:return_data, max_iter, delay, do_test
+)->Tuple[Tracker,Union[job_results|None], bool]:
     """ 
     Assumes that you already navigated to the appropiate working directory
     """
@@ -134,7 +136,7 @@ def run_job(
         proc = pool.apply_async(script, error_callback=lambda e:None)
         
         # Check return of job
-        results, job_already_done =wait_for_job_completion(tracker,data.record ,proc, delay)
+        tracker,results, job_already_done =wait_for_job_completion(tracker,data.record ,proc, delay)
     except Exception as ex: 
         # if do_test:
         #     try:
@@ -148,4 +150,4 @@ def run_job(
         pool.terminate()
         pool.join()
 
-    return results, job_already_done
+    return tracker,results, job_already_done

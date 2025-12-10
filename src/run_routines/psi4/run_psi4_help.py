@@ -8,6 +8,7 @@ def compute_core(
     record:SQLModel,geom:geometry,
     job_tag:str,
     tracker: Tracker,
+    extra_cmdln_opts: dict,
 ):
 
     try:
@@ -42,7 +43,7 @@ def compute_core(
         run_shell_command(cmd, [ job_tag], dict(
             func=method, basis=basis, geom=xyz_file, exc=True, 
             num_thread=num_threads, memory=f"{mem}_GB",
-        ))
+        )| extra_cmdln_opts)
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
 
     return record, tracker

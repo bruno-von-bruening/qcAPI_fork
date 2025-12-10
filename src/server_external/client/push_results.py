@@ -18,14 +18,17 @@ def get_name_from_record(entry:dict) -> str:
 
 
 @val_call
-def check_record_convereged(entry:SQLModel) -> bool:
+def check_record_convereged(tracker,entry:SQLModel) -> bool:
     if entry.converged!=RecordStatus.converged:
         message=f"Failed to compute property {type(entry).__name__}:"
-        errors=entry.errors
+        errors=tracker.errors
         if isinstance(errors, str):
             errors=json.loads(errors)
-        for e in errors:
-            message+=f'\n{e}'
+        if len(errors)==0:
+            message+=f"\nNo errors message pushed from calculation"
+        else:
+            for e in errors:
+                message+=f'\n{e}'
         raise Exception(message)
     else:
         return True
@@ -71,7 +74,7 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
 
     if do_test:
         try:
-            check_record_convereged(record)
+            check_record_convereged(tracker,record)
         except Exception as ex: raise Exception(f"Record did not converged. Terminating since test was requested."+
                                                 f"\nThe run directory is {os.path.realpath(results.run_data.run_directory)}:\n {ex}") from ex
 

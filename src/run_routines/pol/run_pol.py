@@ -14,10 +14,13 @@ def compute_polarizability_psi4(
     record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry
 ) -> job_results:
 
-
+    extra_cmdln_opts=dict(
+            no_freeze_core=True, no_df=True, no_mom_ff=True, unrestricted=True
+    )
     try: # Run the psi4 calculation
         job_tag=f"polarizability_finite_field"
-        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
+        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag,
+                                                      extra_cmdln_opts=extra_cmdln_opts)
         sub_entries={}
         files_for_entries={ }
     except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}") from ex
@@ -41,13 +44,18 @@ def compute_polarizability_psi4(
             except Exception as ex: 
                 raise Exception(f"Could not generate polarizability tensor: {ex}") from ex
 
-            mom_from_dens=get_from_storage(storage_file, ['results','properties','MolMom'])
             center=get_from_storage(storage_file, ['results','properties','expansion_center'])
             try:
-                mom=MolecularMultipoleMoments(mom_from_dens, expansion_center=center, 
-                                             type_of_center=MolecularMultipoleMoments.__allowed_centers__.CONC)
-            except Exception as ex:
-                raise Exception(f"Could not generate molecular multipole moment: {ex}") from ex
+                mom=get_from_storage(storage_file, ['results','properties','MolMom'])
+            except:
+                warn(f"Could not recover molecular moments (may be impossible for CCSD(T) without DF)")
+                mom=None
+            if not mom is None:
+                try:
+                    mom=MolecularMultipoleMoments(mom_from_dens, expansion_center=center, 
+                                                 type_of_center=MolecularMultipoleMoments.__allowed_centers__.CONC)
+                except Exception as ex:
+                    raise Exception(f"Could not generate molecular multipole moment: {ex}") from ex
 
             
 
@@ -77,12 +85,12 @@ def compute_polarizability_psi4(
         raise Exception(f"Error in updating polarizability record:\n {ex}") from ex
 
     try:
-        keys=['messages','errors','warnings']
-        for key in keys:
-            try:
-                setattr(record, key, getattr(tracker, key))
-            except:
-                warn(f"Could not copy attribute {key} from {type(tracker)} to {type(record)}")
+        # keys=['messages','errors','warnings']
+        # for key in keys:
+        #     try:
+        #         setattr(record, key, getattr(tracker, key))
+        #     except:
+        #         warn(f"Could not copy attribute {key} from {type(tracker)} to {type(record)}")
 
         run_info={'status':tracker.status, 'status_code':tracker.status_code}
         results=job_results(
@@ -92,7 +100,7 @@ def compute_polarizability_psi4(
             sub_entries=sub_entries,
             files_for_entries=files_for_entries,
         )
-        return results
+        return tracker,results
     except Exception as ex:
         raise Exception(f"Error in formatting results:\n {ex}") from ex
 

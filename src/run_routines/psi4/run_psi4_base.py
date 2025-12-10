@@ -16,6 +16,7 @@ def run_psi4_base(
         geom:geometry,
         job_tag: Literal['single_point','polarizability_finite_field'],
         max_iter=150, 
+        extra_cmdln_opts: dict={},
 ) -> Tuple[Tracker, Wave_Function, my_run_data]:
     """ Run a basic psi4 calculation according to the specified job type
     """
@@ -26,7 +27,7 @@ def run_psi4_base(
         try:
             wfn_record,tracker = compute_core(
                 python, psi4_script,
-                wfn_record, geom, job_tag, tracker
+                wfn_record, geom, job_tag, tracker, extra_cmdln_opts,
             )
         except Exception as ex: my_exception(f"Could not compute wave function",  ex)
 
@@ -44,19 +45,19 @@ def run_psi4_base(
         converged=1
         message='SUCCESS in psi4 calculation'
     except Exception as ex:
+        message='FAILED psi4 calculation'
         converged=0
         files={}
         tracker.add_error(str(ex))
         sub_entries=None
-        message='FAILED psi4 calculation'
     finally:
         the_sep(message)
         wfn_record.converged = converged
-        for k,v in tracker.model_dump(include={'messages', 'errors', 'warnings'}).items():
-            if not hasattr(wfn_record, k):
-                warn(f"Could not write key {k} in {type(wfn_record)}")
-            else:
-                setattr(wfn_record, k, v)
+        # for k,v in tracker.model_dump(include={'messages', 'errors', 'warnings'}).items():
+        #     if not hasattr(wfn_record, k):
+        #         warn(f"Could not write key {k} in {type(wfn_record)}")
+        #     else:
+        #         setattr(wfn_record, k, v)
     
     try:
         run_data=my_run_data(
