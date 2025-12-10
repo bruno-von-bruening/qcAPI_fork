@@ -52,7 +52,7 @@ def wait_for_job_completion(tracker, record:SQLModel, res, delay) ->Tuple[Union[
                     job_already_done=check_job_already_done()
                     t0=time.time()+delay_rand
                     if job_already_done:
-                        return None,None, 
+                        return None,True 
             except Exception as ex:
                 raise Exception(f"Error in getting results from thread: {ex}") from ex
     def print_info(record:job_results):
