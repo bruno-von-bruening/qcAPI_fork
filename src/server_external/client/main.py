@@ -60,7 +60,7 @@ def main(
                 raise Exception(f"Problem in setting up environment {ex}") from ex
 
             try: # Execute the job
-                results, job_already_done= run_job(tracker, data, max_iter, delay, do_test)
+                tracker,results, job_already_done= run_job(tracker, data, max_iter, delay, do_test)
             except Exception as ex: 
                 raise Exception(f"Problem in running job: {ex}") from ex
                 
