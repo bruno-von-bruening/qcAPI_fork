@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 from . import *
-from server_executions.client.main import main as main_internal
+from server_external.client.main import main as main_internal
 
 from util.util import check_dir_exists
 from .wrapper import add_client_args, process_client_args, add_property_arg, get_property_args
-from data_base.utils import AVAILABLE_PROPERTIES
+from orm_import.utils import AVAILABLE_PROPERTIES
 
 def main(argv):
     argv = argv if argv is not None else sys.argv[1:]

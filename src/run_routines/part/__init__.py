@@ -11,10 +11,9 @@ from util.run_utils import Tracker
 from util.environment import file, directory, link_file
 
 
-from data_base.qcAPI_database import RecordStatus
-from data_base.database_declaration import DMP_ESP_MAP_Stats
+from orm_import.qcAPI_database import RecordStatus
+from orm_import.database_declaration import DMP_ESP_MAP_Stats
 
-from qcp_database.data_models.utilities import File_Model, Map_Stats_Model
 
 from qcp_objects.objects.properties import geometry, multipoles
 from qcp_objects.objects.basis import molecular_radial_basis

@@ -111,3 +111,9 @@ def copy_file(
 
 
 
+
+
+@val_call
+def exit(msg:str):
+    print(msg)
+    sys.exit(1)

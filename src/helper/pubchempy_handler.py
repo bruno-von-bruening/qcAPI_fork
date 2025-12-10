@@ -1,5 +1,6 @@
 import pubchempy as pcp
 from . import *
+from qcp_orm.tables.tables import Compound_Base
 
 @val_call
 def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[]):
@@ -73,6 +74,5 @@ class pubchem_handler(pubchem_handler):
             (k,self_di[k]) for k in keys
         ]))
 
-        from qcp_database.tables import Compound_Base
         comp=Compound_Base(**kwargs)
         return comp.model_dump()

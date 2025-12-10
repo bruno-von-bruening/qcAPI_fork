@@ -4,7 +4,7 @@ from . import *
 from .wrapper import process_argv, add_client_args, process_client_args, add_property_arg, get_property_args
 
 
-from server_executions.probe_server import probe_server
+from server_external.probe_server import probe_server
 import argparse
 
 @process_argv

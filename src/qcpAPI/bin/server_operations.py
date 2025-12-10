@@ -3,7 +3,7 @@ from . import *
 
 from util.util import AVAILABLE_OPERATIONS, OP_DELETE, OP_CLEAN_DOUBLE, OP_CLEAN_PENDING, OP_RESET, OP_DROP_TABLE
 from util.http_util import  check_address
-from data_base.utils import AVAILABLE_PROPERTIES, get_unique_tag
+from orm_import.utils import AVAILABLE_PROPERTIES, get_unique_tag
 
 import requests
 from http import HTTPStatus

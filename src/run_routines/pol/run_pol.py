@@ -2,9 +2,11 @@ from . import *
 
 from ..psi4.run_psi4_base import run_psi4_base
 # from ..psi4.run_psi4_help import open_storage_file
-from qcp_objects.objects.properties import polarizability_tensor
-from ..psi4.run_psi4_help import open_storage_file, get_fchk_file
-
+from qcp_objects.objects.properties import polarizability_tensor, MolecularMultipoleMoments
+from ..psi4.run_psi4_help import open_storage_file, get_fchk_file, get_from_storage
+from orm_import.database_declaration import (
+    Molecular_Multipoles
+)
 
 @val_call
 def compute_polarizability_psi4(
@@ -17,6 +19,7 @@ def compute_polarizability_psi4(
         job_tag=f"polarizability_finite_field"
         tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag)
         sub_entries={}
+        files_for_entries={ }
     except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}") from ex
 
     # Now the results are there and we recover the data for the polarizability object 
@@ -27,30 +30,35 @@ def compute_polarizability_psi4(
         try: # Inherit data from wave function to polarizability record
         
             storage_file=run_data.files['storage_file']
-            storage_data=open_storage_file(storage_file)
 
-            sub_entries.update( **get_fchk_file(storage_file, id=wfn_record.id) )
+            files_for_entries.update( **get_fchk_file(storage_file, id=wfn_record.id) )
             
-            tag='pol_ff'
-            assert tag in storage_data.keys(), f"Expected key '{tag}' in storage data from file {storage_file}"
-            data=storage_data[tag]
+            
 
-
+            pol_from_dens=get_from_storage(storage_file, ['results','properties','MolPol_FinFie_through_dens'])
             try:
-                tensor=polarizability_tensor(data)
+                tensor=polarizability_tensor(pol_from_dens)
             except Exception as ex: 
                 raise Exception(f"Could not generate polarizability tensor: {ex}") from ex
+
+            mom_from_dens=get_from_storage(storage_file, ['results','properties','MolMom'])
+            center=get_from_storage(storage_file, ['results','properties','expansion_center'])
+            try:
+                mom=MolecularMultipoleMoments(mom_from_dens, expansion_center=center, 
+                                             type_of_center=MolecularMultipoleMoments.__allowed_centers__.CONC)
+            except Exception as ex:
+                raise Exception(f"Could not generate molecular multipole moment: {ex}") from ex
+
             
 
         except Exception as ex:
             raise Exception(f"Error in recovering polarizability data from storage file {analyse_exception(ex)}") from ex
     else:
         tensor=None
+        mom=None
 
     try:
-        wfn_record.messages=json.dumps(
-            [f"Filled through {Molecular_Polarizability.__name__} (id={record.id})"]+json.loads(wfn_record.messages)
-        )
+        wfn_record.side_result_from=f"{Molecular_Polarizability.__name__}%{record.id})"
         sub_entries.update({
             Wave_Function.__name__:wfn_record
         })
@@ -59,6 +67,12 @@ def compute_polarizability_psi4(
             record.tensor_elements=str(tensor.tensor_elements)
             record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])
             record.field_ranks=' '.join( [ str(x) for x in tensor.field_ranks])
+
+        if mom is not None:
+            the_mom=Molecular_Multipoles.from_object(mom, wfn_id=wfn_record.id)
+            sub_entries.update({
+                Molecular_Multipoles.__name__:the_mom
+            })
     except Exception as ex:
         raise Exception(f"Error in updating polarizability record:\n {ex}") from ex
 
@@ -76,6 +90,7 @@ def compute_polarizability_psi4(
             record=record,
             run_info=run_info,
             sub_entries=sub_entries,
+            files_for_entries=files_for_entries,
         )
         return results
     except Exception as ex:

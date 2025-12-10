@@ -1,4 +1,4 @@
-from ..basic_imports import *
+from util.import_helper import *
 
 def get_relevant_files(working_directory: pdtc_directory, run_data: dict) -> list: 
     """
@@ -8,3 +8,5 @@ def get_relevant_files(working_directory: pdtc_directory, run_data: dict) -> lis
             item for item in glob.glob('*') 
             if not bool(re.search(r'.fchk', item.lower())) and not item in files_there
     ]
+
+from util.run_utils import Tracker

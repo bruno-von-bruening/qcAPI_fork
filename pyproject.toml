@@ -10,7 +10,7 @@ classifiers = [
 ]
 
 [tool.setuptools.package-data]
-server_executions= ["*.py","*.ico"]
+server_external= ["*.ico"] # add favicon icon that lives under server_internal subfolder
 # [project.scripts]
 # "qcp_server_start.py" = "qcpAPI.bin.server:main"
 [tool.setuptools]

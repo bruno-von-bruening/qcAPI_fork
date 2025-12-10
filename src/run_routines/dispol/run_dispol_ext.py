@@ -11,7 +11,7 @@ from qcp_global_utils.environment.file_handling import temporary_file
     # except Exception as ex: raise Exception(f"Problem in reaching server: {ex}")
 
 
-from qcp_database.data_models.isa import ISA_Weights_Base
+from qcp_orm.data_models.isa import ISA_Weights_Base
 from qcp_objects.objects.basis import molecular_radial_basis
 import json, os
 from receiver.get_request import get_file

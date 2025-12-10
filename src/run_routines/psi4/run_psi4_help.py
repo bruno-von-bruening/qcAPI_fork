@@ -1,4 +1,6 @@
-from ..basic_imports import *
+from . import *
+from qcp_objects.objects.properties import geometry
+from orm_import.database_declaration import FCHK_File
 
 @val_call 
 def compute_core(
@@ -56,14 +58,19 @@ def recover_storage(jobname) -> pdtc_file:
     
     
 
-def get_from_storage(storage_file:pdtc_file, key:str):
-    storage=open_storage_file(storage_file)
-    assert key in storage.keys(), f"Expected key '{key}' in storage data from file {storage_file}"
-    data=storage[key]
-    return data
 
 def open_storage_file(storage_file:pdtc_file) -> dict:
     storage_data=load_json_or_yaml(storage_file)
+    return storage_data
+
+@val_call
+def get_from_storage(storage_file:pdtc_file, path:List[str]|str):
+    if isinstance(path,str):
+        path=[path]
+    storage_data=open_storage_file(storage_file)
+    for i,p in enumerate(path):
+        assert p in storage_data.keys(), f"Expected key '{p}' in storage data under path ({' -> '.join(path[:i+1])}) from file {storage_file}"
+        storage_data=storage_data[p]
     return storage_data
 
 @val_call

@@ -27,8 +27,11 @@ def get_primary_key_name(obj:Union[SQLModel,SQLModelMetaclass]):
     if isinstance(obj, SQLModel): # To find the primary key we need the metaclass not the instance
         obj=type(obj)
 
-    from sqlalchemy.inspection import inspect
-    primary_key=inspect(obj).primary_key
+    try:
+        from sqlalchemy.inspection import inspect
+        primary_key=inspect(obj).primary_key
+    except Exception as ex:
+        raise my_exception(f"Could not get primary key for object {obj.__name__} {type(obj)}", ex)
     assert len(primary_key)==1, f"Object {obj.__name__} has multiple primary keys"
     primary_key=primary_key[0]
 
@@ -51,9 +54,7 @@ def  get_ids_for_table(session: session_meta, the_object:SQLModelMetaclass, filt
             the_ids=all_ids
         else: raise Exception(f"Unkown key for conformations_ids: \'{filtered_ids}\'")
     else:
-        id_not_there=[ the_id for the_id in all_ids if the_id not in filtered_ids ]
         the_ids=[ the_id for the_id in all_ids if the_id in filtered_ids ]
-        for the_id in id_not_there: id_tracker.add_prequisites_not_met(the_id)
     return the_ids
 
 def filter_db_query(object, filter_args: my_dict, only_ids:bool=False):
@@ -238,7 +239,7 @@ def make_tag_to_object_mapper(session) -> dict[str,str]:
     try:
         table_names=get_all_available_table_names(session)
 
-        the_mod='data_base.database_declaration'
+        the_mod='orm_import.database_declaration'
         keys=dir(sys.modules[the_mod])
         mapper=[]
         for tab in table_names:

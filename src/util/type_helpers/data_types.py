@@ -2,7 +2,7 @@
 # They may be parsed from other types
 
 
-from qcp_database.tables import Conformation_Base, Wave_Function_Base
+from qcp_orm.tables.tables import Conformation_Base, Wave_Function_Base
 from qcp_objects.objects.properties import geometry
 class Conformation_pass(Conformation_Base):
     def __init__(self, *args, **kwargs):

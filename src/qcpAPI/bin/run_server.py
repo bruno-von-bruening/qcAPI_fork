@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from . import *
-from server_executions.launch_server import main as main_internal, make_auto_config_file, DEFAULT_CONFIG_FILE
+from server_external.launch_server import main as main_internal, make_auto_config_file, DEFAULT_CONFIG_FILE
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]

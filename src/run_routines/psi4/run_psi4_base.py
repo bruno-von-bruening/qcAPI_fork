@@ -62,7 +62,7 @@ def run_psi4_base(
         run_data=my_run_data(
             run_directory=tracker.working_dir,
             files=files,
-            run_files_to_store=tracker.working_dir
+            #run_files_to_store={'working_dir':tracker.working_dir}
         )
 
         return tracker, wfn_record, run_data,  

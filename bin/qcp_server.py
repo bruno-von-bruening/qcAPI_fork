@@ -3,11 +3,12 @@
 import sys, os, importlib, argparse
 
 from qcpAPI.bin.run_server         import main as main_run
-from qcpAPI.bin.populate_server    import main as main_pop
+from qcpAPI.bin.populate           import main as main_pop
 from qcpAPI.bin.spawn_workers      import main as main_spawn
 from qcpAPI.bin.client             import main as main_client
 from qcpAPI.bin.server_operations  import main as main_operations 
 from qcpAPI.bin.probe_server       import main as main_probe_server
+from qcpAPI.bin.restart_server     import main as main_restart
 
 
 
@@ -18,6 +19,7 @@ class command_options():
     CLIENT='CLIENT'
     OPERATIONS='OPERATIONS'
     PROBE_SERVER='PROBE_SERVER'
+    RESTART='RESTART'
     __mapper__=dict(
         RUN=[],
         POPULATE=[],
@@ -25,6 +27,7 @@ class command_options():
         CLIENT=[],
         OPERATIONS=[],
         PROBE_SERVER=[],
+        RESTART=[],
     )
     @classmethod
     def unique_tag(self,input):
@@ -38,7 +41,9 @@ class command_options():
         return found[0]
 
 available_commands=[ command_options.RUN, command_options.POPULATE , command_options.SPAWN_WORKERS,
-                    command_options.OPERATIONS, command_options.CLIENT, command_options.PROBE_SERVER ]
+                    command_options.OPERATIONS, command_options.CLIENT, command_options.PROBE_SERVER,
+                    command_options.RESTART,
+]
 
 func_mapper=dict(
     RUN           =main_run   ,
@@ -47,11 +52,28 @@ func_mapper=dict(
     CLIENT        =main_client,
     OPERATIONS    =main_operations,
     PROBE_SERVER  =main_probe_server,
+    RESTART       =main_restart,
 )
+
+help_texts={
+    command_options.RUN           :"Start the QCP API server",
+    command_options.POPULATE      :"Populate the database with tables",
+    command_options.SPAWN_WORKERS :"Spawn multiple workers for processing outstanding jobs",
+    command_options.CLIENT        :"Single worker",
+    command_options.OPERATIONS    :"Manipulate data base (e.g. delete records)",
+    command_options.PROBE_SERVER  :"Show completition progress of running jobs",
+    command_options.RESTART       :"Send restart command to server (convenience for incorporating updated conda env)",
+}
 
 
 def usage():
-    print(f"Usage: {os.path.basename(__file__)} <{','.join(available_commands)}> [args...]")
+    string=f"Usage: {os.path.basename(__file__)} <{','.join(available_commands)}> [args...]"
+    info_strings=[]
+    for k in available_commands:
+        info_strings+=[ (k,help_texts.get(k,'No description available')) ]
+    max_key_len=max( len(k) for k in available_commands)
+    string+='\nINFO about available commands purpose:\n'+'\n'.join([ f" -  {k:{max_key_len}} : {v}" for k,v in info_strings])
+    print(string)
 
 def main():
     # Expect first argument as the subcommand

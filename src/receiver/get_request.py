@@ -3,6 +3,8 @@ from . import *
 
 from util.http_util import pdtc_address
 from util.requests import get_request
+from util.sql_util import get_primary_key, SQLModelMetaclass
+from orm_import.utils import get_object_for_tag
 
 
 @validate_call
@@ -115,14 +117,19 @@ def get_group_tree(address: pdtc_address):
     request_code=f"{address}/get/group_tree"
     return get_request(request_code).json()['json']
 
+
 @val_call
 def upload_file(
-    srv_address:str, key:str|sqlmodel_meta, id:str|int, file:file, delete_old=False,
+    srv_address: pdtc_address,
+    table: SQLModelMetaclass,
+    id: str|int,
+    file: pdtc_file,
+    delete_old: bool=False,
 ):
-    if isinstance(key, sqlmodel_meta):
-        key=key.__name__
 
-    url=f"{srv_address}/upload_file/{key}/{id}"
+    url=f"{srv_address}/upload_file/{table.__name__}/{id}"
+
+    # Post the files
     with open(file,'rb') as rd:
         files={"file": (rd.name, rd, "multipart/form-data")}
         response=requests.post(url=url, files=files)

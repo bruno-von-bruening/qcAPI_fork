@@ -6,6 +6,7 @@ from util.util import copy_file
 from util.environment import directory, file
 from functools import partial
 import copy
+from orm_import.qcAPI_database import File_Model
 
 @validate_call
 def setup_environment(
