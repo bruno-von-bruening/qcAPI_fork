@@ -18,4 +18,11 @@ dependencies:
     - requests
     - rdkit
     - setuptools
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_tables.git@qcp_orm_restruct
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git
+    - git+ssh://git@github.com/bruno-von-bruening/run_psi4.git
+    - git+ssh://git@github.com/bruno-von-bruening/run_camcasp.git
+    # - -e $QCAPI_HOME/
+    # - git+ssh://git@github.com/comecattin/SULLEY.git
   - build
