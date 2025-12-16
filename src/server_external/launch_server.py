@@ -46,12 +46,20 @@ def make_auto_config_file(host:str|None, port:int|None):
     store=qcAPI_storage_info(
         storage_root_directory=f"{os.getcwd()}/storage",
     )
+    def find_setup():
+        supposed_path=os.path.join( os.environ['QCPAPI_HOME'], 'install','env_setup.yaml' )
+        if os.path.isfile(supposed_path):
+            imports=supposed_path
+        else:
+            warn(f"Could not find setup under default path {supposed_path}")
+            imports='find_me'
+        return imports
     config=qcAPI_server_config.construct(
         database_file="<make_me>",
         storage_info=store,
         host=host,
         port=port,
-        imports="<find_me>",
+        imports=find_setup(),
         
     )
     with open(DEFAULT_CONFIG_FILE, 'w') as f:
