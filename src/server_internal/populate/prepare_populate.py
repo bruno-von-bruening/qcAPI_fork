@@ -19,16 +19,22 @@ def prep_molpol_pop(
         the_ids=tracker.get_ids_for_table(ancestor, ids=ids)
     except Exception as ex: raise my_exception(f"Problem in getting available ids for {the_object.__name__} population:", ex)
 
+    # Get existing childs:
+    query=select(the_object.wfn_id)
+    existing_ids=tracker.session.exec(query).all()
+
 
     records=[]
     try: # Make new objects
         for the_id in the_ids:
-            records+=[the_object(
-                wfn_id=the_id,
-                approach='finite_field',
-                code='psi4',
-                tensor='dummy',
-            )]
+            if the_id in existing_ids:
+                tracker.id_tracker.add_omitted(the_id)
+            else:
+                records+=[the_object(
+                    wfn_id=the_id,
+                    approach='finite_field',
+                    code='psi4',
+                )]
     except Exception as ex: raise my_exception(f"Problem in preparing new {the_object.__name__} objects:", ex)
 
     return tracker,[ x.model_dump() for x in records]

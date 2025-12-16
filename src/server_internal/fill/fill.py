@@ -33,7 +33,10 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
         except Exception as ex: my_exception(f"Problem in finding previous record",ex)
 
         try:
-            record=the_object(**entry)
+            if 'converged' in entry.keys():
+                fill=( entry['converged']==1 )
+            else: fill=False
+            record=the_object(**entry, fill=fill)
             converged_key='converged'
             if hasattr(record, converged_key):
                 record_status=getattr(record, 'converged')
@@ -125,7 +128,7 @@ def upload_file_ext(storage_info,file, the_model, id):
         # Check if there or make directory
         total_path=root_directory
         for member in lower_path:
-            assert os.path.isdir(total_path)
+            assert os.path.isdir(total_path), f"Not a directory {total_path}"
             new_path=os.path.join(total_path,member)
             if not os.path.isdir(new_path):
                 os.mkdir(new_path)

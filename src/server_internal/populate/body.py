@@ -59,6 +59,9 @@ def generic_populate(
     prim_name = get_primary_key_name(object)
     records_in_format=parse_records(records)
     tracker.id_tracker=identify_existing_records(records_in_format, tracker.id_tracker)
+
+    for id in tracker.id_tracker.omitted:
+        tracker.counter.already_there+=1
     
     # Insert
     try:

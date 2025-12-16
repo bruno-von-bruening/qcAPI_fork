@@ -75,10 +75,14 @@ def get_from_storage(storage_file:pdtc_file, path:List[str]|str):
     return storage_data
 
 @val_call
-def get_fchk_file(storage_file:pdtc_file,id):
+def get_fchk_file(tracker:Tracker,storage_file:pdtc_file,id):
     files=get_from_storage(storage_file, 'files')
     assert 'final_fchk' in files.keys(), f"Key \'final_fchk\' not in \'files\' section of storage file: {storage_file}"
     fchk_file=files['final_fchk']
+
+    if fchk_file is None:
+        tracker.add_warning(f"No fchk file available (that may happen for some specific methods in psi4")
+        return tracker,{}
 
     compresssed_fchk_file=compress_file(fchk_file, compression_type='xz',compression_level=None)
     sub_entries={
@@ -89,4 +93,4 @@ def get_fchk_file(storage_file:pdtc_file,id):
             file_name= os.path.realpath(compresssed_fchk_file),
         )
     }
-    return sub_entries
+    return tracker, sub_entries

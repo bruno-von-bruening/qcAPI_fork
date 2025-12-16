@@ -5,7 +5,8 @@ from ..psi4.run_psi4_base import run_psi4_base
 from qcp_objects.objects.properties import polarizability_tensor, MolecularMultipoleMoments
 from ..psi4.run_psi4_help import open_storage_file, get_fchk_file, get_from_storage
 from orm_import.database_declaration import (
-    Molecular_Multipoles
+    Molecular_Multipoles,
+    Molecular_Polarizability,
 )
 
 @val_call
@@ -34,17 +35,55 @@ def compute_polarizability_psi4(
         
             storage_file=run_data.files['storage_file']
 
-            files_for_entries.update( **get_fchk_file(storage_file, id=wfn_record.id) )
+            tracker, di=get_fchk_file(tracker,storage_file, id=wfn_record.id)
+            files_for_entries.update( **di )
             
-            
-
-            pol_from_dens=get_from_storage(storage_file, ['results','properties','MolPol_FinFie_through_dens'])
-            try:
-                tensor=polarizability_tensor(pol_from_dens)
-            except Exception as ex: 
-                raise Exception(f"Could not generate polarizability tensor: {ex}") from ex
-
+            pols=dict()
             center=get_from_storage(storage_file, ['results','properties','expansion_center'])
+            for tag in ['dens','eng']:
+                key=f"MolPol_FinFie_through_{tag}"
+                try:
+                    pol_data=get_from_storage(storage_file, ['results','properties',key])
+                except Exception as ex:
+                    warn(f"Could not get {key} from {storage_file}: {str(ex)}")
+                    continue
+                pol_tensor=None
+                if pol_data is not None:
+                    if len(pol_data)>0:
+                        try:
+                            pol_tensor=polarizability_tensor(pol_data)
+                        except Exception as ex: 
+                            raise Exception(f"Could not generate \'{tag}\' polarizability tensor: {ex}") from ex
+                        pols.update({ tag : pol_tensor})
+            if len(pols)==0:
+                raise Exception(f"Could find neither energy not density moments polarisabilities!")
+
+            # if dens in pols that's the main object, otherwise create a new one
+            if 'dens' in pols.keys():
+                tensor=pols['dens']
+                specs='density_evaluation'
+                if 'eng' in pols.keys(): # If energy also there make a side entry
+                    new_rec=record.model_dump()
+                    tens2=pols['eng']
+                    specs='energy'
+                    new_rec.update(
+                            id=None, # will be auto assigned
+                            specs=json.dumps(f"obtained_from: {specs}"),
+                            expansion_center=' '.join([ str(x) for x in center]),
+                            tensor_elements=str(tens2.tensor_elements),
+                            induced_ranks=' '.join( [ str(x) for x in tens2.induced_ranks]),
+                            field_ranks=' '.join( [ str(x) for x in tens2.field_ranks]),
+                    )
+                    sub_entries.update({
+                        Molecular_Polarizability.__name__ : MolecularPolarizability(**new_rec)
+                    })
+
+            else:
+                tensor=pols['eng']
+                specs='energy'
+
+
+
             try:
                 mom=get_from_storage(storage_file, ['results','properties','MolMom'])
             except:
@@ -52,7 +91,7 @@ def compute_polarizability_psi4(
                 mom=None
             if not mom is None:
                 try:
-                    mom=MolecularMultipoleMoments(mom_from_dens, expansion_center=center, 
+                    mom=MolecularMultipoleMoments(mom, expansion_center=center, 
                                                  type_of_center=MolecularMultipoleMoments.__allowed_centers__.CONC)
                 except Exception as ex:
                     raise Exception(f"Could not generate molecular multipole moment: {ex}") from ex
@@ -64,6 +103,8 @@ def compute_polarizability_psi4(
     else:
         tensor=None
         mom=None
+        specs=None
+        center=None
 
     try:
         wfn_record.side_result_from=f"{Molecular_Polarizability.__name__}%{record.id})"
@@ -75,6 +116,8 @@ def compute_polarizability_psi4(
             record.tensor_elements=str(tensor.tensor_elements)
             record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])
             record.field_ranks=' '.join( [ str(x) for x in tensor.field_ranks])
+            if not specs is None: record.specs=json.dumps(f"obtained_from: {specs}")
+            if not center is None: record.expansion_center=' '.join([str(x) for x in center])
 
         if mom is not None:
             the_mom=Molecular_Multipoles.from_object(mom, wfn_id=wfn_record.id)

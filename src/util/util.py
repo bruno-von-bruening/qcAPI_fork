@@ -31,7 +31,8 @@ NAME_GDMA='GDMA'
 NAME_MBIS='MBIS'
 
 
-def auto_inchi(coordinates, atom_types):
+from rdkit import Chem
+def auto_inchi(coordinates, atom_types, charge=0):
     #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
     mol_block=f"{len(coordinates)}\n\n"
     for ty,coor in zip( atom_types, coordinates):
@@ -39,9 +40,15 @@ def auto_inchi(coordinates, atom_types):
         coor=[f"{float(x)*fac:.8f}" for x in coor]
         mol_block+=f"{ty} {' '.join(coor)}\n"
     rdmol=rdchem.MolFromXYZBlock(mol_block)
-    rdDetermineBonds.DetermineBonds(rdmol, charge=0)
-    auto_inchi=rdchem.inchi.MolToInchi(rdmol)
-    auto_inchi_key=rdchem.inchi.MolToInchiKey(rdmol)
+    if rdmol.GetNumAtoms() == 1:
+        auto_inchi = f'InChI=1S/{rdmol.GetAtomWithIdx(0).GetSymbol()}'
+        if charge != 0:
+            # Get the charge: e.g. InChI=1S/Mg/q+2 (including sign!)
+            auto_inchi += f"/q{charge:+d}"
+        auto_inchi_key = Chem.InchiToInchiKey(auto_inchi)
+    else:
+        auto_inchi = rdchem.inchi.MolToInchi(rdmol)
+        auto_inchi_key = rdchem.inchi.MolToInchiKey(rdmol)
 
     return auto_inchi, auto_inchi_key
 
