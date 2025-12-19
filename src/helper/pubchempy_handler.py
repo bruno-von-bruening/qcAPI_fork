@@ -1,12 +1,15 @@
 import pubchempy as pcp
 from . import *
 from qcp_orm.tables.tables import Compound_Base
+import rdkit.Chem as rdchem
 
 @val_call
-def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[]):
+def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi_mapper:dict|None=None):
     """ Loads pubchem information and returns information object """
     """ 3d or 2d info doesnt make much time difference ( test for a list of 96 was 2 secs, single took 0.3 s!) """
     num_cids=len(cids)
+    #inchikeys=[ rdchem.inchi.InchiToInchiKey(inchi) for inchi in inchis ]
+    #mapper={ inchi_key:inchi for inchi, inchi_key in zip(inchis, inchikeys) }
     num_inchis=len(inchikeys)
     assert sum([ num_cids, num_inchis])>0, f"Did not provide any keys!"
 
@@ -20,13 +23,14 @@ def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[]):
         for inchi in inchikeys:
             matches=[ x for x in comp_by_inchi if x.inchikey==inchi ]
             if len(matches)==0:
-                raise Exception(f"Could not find compound with inchi={inchi} in pubchem")
+                raise Exception(f"Could not find compound" + (f"inchi={inchi_mapper[inchi]})" if ( not inchi_mapper is None and inchi in inchi_mapper.keys()) else "") + f" with inchikey={inchi} in pubchem")
             elif len(matches)==1:
                 c+=matches
             else:
                 match_objects=sorted([ (x,pubchem_handler(input=x).cid) for x in matches ],
                                      key=lambda x: x[1] )
-                warn(f"Multiple matches found for inchikey={inchi} in pubchem, taking the one with lowest cid={match_objects[0][1]}"
+                warn(f"Multiple matches found "+
+                     f"inchikey={inchi} in pubchem, taking the one with lowest cid={match_objects[0][1]}"
                      f" (available cids={[ x[1] for x in match_objects ]})"
                 )
                 c+= [ match_objects[0][0] ]

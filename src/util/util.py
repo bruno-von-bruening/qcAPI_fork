@@ -32,14 +32,30 @@ NAME_MBIS='MBIS'
 
 
 from rdkit import Chem
-def auto_inchi(coordinates, atom_types, charge=0):
+
+@val_call
+def auto_inchi(coordinates:List[Tuple[float,float,float]], atom_types:List[str], charge=0):
     #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
     mol_block=f"{len(coordinates)}\n\n"
     for ty,coor in zip( atom_types, coordinates):
         fac=BOHR_TO_ANGSTROM
-        coor=[f"{float(x)*fac:.8f}" for x in coor]
+        coor=[f"{x:.8f}" for x in coor]
         mol_block+=f"{ty} {' '.join(coor)}\n"
-    rdmol=rdchem.MolFromXYZBlock(mol_block)
+
+    
+    raw_mol=rdchem.MolFromXYZBlock(mol_block)
+    for atom in raw_mol.GetAtoms():
+        atom.SetNoImplicit(True)
+    rdchem.SanitizeMol(
+        raw_mol     ,
+        sanitizeOps=rdchem.SanitizeFlags.SANITIZE_ALL
+                    ^ rdchem.SanitizeFlags.SANITIZE_ADJUSTHS
+    )
+
+    from rdkit.Chem import rdDetermineBonds
+    rdmol = Chem.Mol(raw_mol)
+    rdDetermineBonds.DetermineConnectivity(rdmol)
+
     if rdmol.GetNumAtoms() == 1:
         auto_inchi = f'InChI=1S/{rdmol.GetAtomWithIdx(0).GetSymbol()}'
         if charge != 0:
@@ -49,6 +65,7 @@ def auto_inchi(coordinates, atom_types, charge=0):
     else:
         auto_inchi = rdchem.inchi.MolToInchi(rdmol)
         auto_inchi_key = rdchem.inchi.MolToInchiKey(rdmol)
+
 
     return auto_inchi, auto_inchi_key
 

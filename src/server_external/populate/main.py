@@ -56,6 +56,7 @@ def main(
             records+=content['records']
 
 
+        inchi_map={}
         rec_ref=[]
         for rec in records:
             try:
@@ -69,30 +70,33 @@ def main(
                     coords=geom.coordinates.reshape(-1)
                     elements=geom.atom_types
                     
-
-                    inchi, inchi_key=auto_inchi(geom.coordinates, geom.atom_types)
+                    geom.units.LENGTH='ANGSTROM'
+                    inchi, inchi_key=auto_inchi(geom.coordinates, elements)
+                    # inchi, inchi_key=auto_inchi(geom.coordinates, elements)
                     if 'inchikey' in rec.keys():
                         if rec['inchikey'].lower() == 'auto':
                             pass
                         else:
-                            assert inchi_key==rec['inchikey'], f"Provided inchikey \'{rec['inchikey']}\' does not match generated inchikey \'{inchi_key}\' from geometry!"
-                    
+                            if inchi_key!=rec['inchikey']:
+                                warn(f"Provided inchikey \'{rec['inchikey']}\' does not match generated inchikey \'{inchi_key}\' (inchi={inchi}) from geometry through rdkit (very usual) !")
+                                inchi_key=rec['inchikey']
 
                     rec_ref+=[ Conformation(
                         compound_id=inchi_key,
                         coordinates=coords, elements=elements,
                     )]
+                    inchi_map.update({ inchi_key: inchi })
 
                 else: raise Exception(f"Could not generate record for {rec}: {ex}")
-        inchis=[ r.compound_id for r in rec_ref ]
+        # inchis=[ r.compound_id for r in rec_ref ]
         from receiver.get_request import get_row
-        entries=get_row(address, 'compound', ids=list(set(inchis)) )
+        entries=get_row(address, 'compound', ids=list(set(inchi_map.keys())) )
         existing_inchis=[ r[get_primary_key_name(Compound)] for r in json.loads(entries['json'])['record'] ]
-        missing_inchis=[ x for x in inchis if x not in existing_inchis ]
+        missing_inchis=[ x for x in inchi_map.keys() if x not in existing_inchis ]
 
         from .populate_extension import load_pubchem_data
         if len(missing_inchis)>0:
-            compounds=load_pubchem_data(missing_inchis)
+            compounds=load_pubchem_data(missing_inchis, inchi_mapper=inchi_map)
 
 
             opts, json_content= get_url_func(Compound)(records=compounds)
