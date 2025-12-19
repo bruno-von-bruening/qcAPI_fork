@@ -22,18 +22,23 @@ def prep_molpol_pop(
     # Get existing childs:
     query=select(the_object.wfn_id)
     existing_ids=tracker.session.exec(query).all()
+    existing_ids=[]
 
 
     records=[]
     try: # Make new objects
+        approach=Molecular_Polarizability.allowed_approaches.finite_field
         for the_id in the_ids:
             if the_id in existing_ids:
                 tracker.id_tracker.add_omitted(the_id)
             else:
+                specs=Molecular_Polarizability.specs_model_ff
+                specs=specs( finfie_stepsize_dip=1.e-3, finfie_stepsize_qad=1.e-4, eval_through=specs.allowed_eval_from.energy )
                 records+=[the_object(
                     wfn_id=the_id,
-                    approach='finite_field',
+                    approach=approach,
                     code='psi4',
+                    specs=specs.model_dump(),
                 )]
     except Exception as ex: raise my_exception(f"Problem in preparing new {the_object.__name__} objects:", ex)
 

@@ -19,7 +19,7 @@ def get_name_from_record(entry:dict) -> str:
 
 @val_call
 def check_record_convereged(tracker,entry:SQLModel) -> bool:
-    if entry.converged!=RecordStatus.converged:
+    if entry.status!=RecordStatus.succeeded:
         message=f"Failed to compute property {type(entry).__name__}:"
         errors=tracker.errors
         if isinstance(errors, str):
@@ -119,7 +119,7 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
 
         # Push files will allways be the same array and files will not be changed
         #the_push=partial(push_file_from_tag, files)
-        if record.converged==RecordStatus.converged:
+        if record.status==RecordStatus.succeeded:
             for tag, file in results.files_for_entries.items():
                 if isinstance(file, SQLModel):
                     id=get_primary_key(file)

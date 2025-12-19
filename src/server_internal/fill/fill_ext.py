@@ -9,7 +9,7 @@ def get_previous_record_wrap(session, object, id: str|int):
     old_record=get_prev_record(session, object, id)
     if old_record is None:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
-    if old_record.converged == 1:
+    if old_record.status == 1:
         raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
     return old_record
 
@@ -48,7 +48,7 @@ def fill_idsurf(session, entry):
     surface_file.update({'id':id})
     create_record(session, IsoDens_Surf_File, surface_file)
     
-    if entry['converged'] < 0:
+    if entry['status'] < 0:
         return {"message": "Record not processed. Ignoring."}
     else:
         pass
@@ -64,11 +64,11 @@ def fill_esprho(session, entry):
     run_data=entry['run_data']
     del entry['run_data']
 
-    if entry['converged'] < 0:
+    if entry['status'] < 0:
         return {"message": "Record not processed. Ignoring."}
-    elif entry['converged']!=0:
+    elif entry['status']!=0:
         if run_data is None:
-            entry['converged']=0
+            entry['status']=0
         else:
             map_key='map_file'
             if map_key in run_data.keys():
@@ -77,9 +77,9 @@ def fill_esprho(session, entry):
                     the_file.update({'id':id})
                     create_record(session, file_obj, the_file)
                 else:
-                    entry['converged']=0
+                    entry['status']=0
             else:
-                entry['converged']=0
+                entry['status']=0
     
         stats_key='stats'
         if stats_key in run_data.keys():
@@ -131,13 +131,13 @@ def fill_part(session:Session, tracker:track_http_request, the_model:SQLModelMet
         for k,v in mapper.items():
             assert k in expected.keys(), f"Key {k} not recognized"
         for k,v in expected.items():
-            if entry['converged']==RecordStatus.converged:
+            if entry['status']==RecordStatus.succeeded:
                 if v['mandatory']:
                     assert k in mapper.keys(), f"Expected key for {k}"
                     assert mapper[k] is  not None, f"Expected dictionary for {k} but is None"
                     assert isinstance(mapper[k] , dict), f"Expected dictionary for {k} but is {mapper[k]}"
     except Exception as ex: raise Exception(f"Problem during check of validity of provided sub entries", ex)
-        #entry['converged']=0
+        #entry['status']=0
         #tracker.add_error(f"Could not fill the record, {str(ex)}")
         #return entry
 
@@ -205,7 +205,7 @@ def fill_map_file(
         entry=inner_func()
     except Exception as ex:
         entry['errors']=json.dumps( json.loads(entry['errors'])+[str(ex)])
-        entry.update({'converged':0})
+        entry.update({'status':0})
     return entry
 
 
@@ -218,8 +218,8 @@ def fill_espdmp(session, entry: dict):
     id=entry['id']
     old_record=get_previous_record_wrap(session,the_object, id)
 
-    converged=entry['converged']
-    if converged==RecordStatus.converged:
+    converged=entry['status']
+    if converged==RecordStatus.succeeded:
         entry=fill_map_file(session, file_obj, stats_obj, entry)
 
     new_record=the_object(**entry)
@@ -237,8 +237,8 @@ def fill_espcmp(
         id=entry['id']
         old_record=get_previous_record_wrap(session,the_object, id)
 
-        converged=entry['converged']
-        if converged==RecordStatus.converged:
+        converged=entry['status']
+        if converged==RecordStatus.succeeded:
             entry=fill_map_file(session, file_obj, stats_obj, entry)
 
         new_record=the_object(**entry)

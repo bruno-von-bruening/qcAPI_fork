@@ -81,7 +81,7 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
 
 
             record['spacing']=the_spacing
-            record['converged']=1
+            record['status']=1
             record['num_faces']=num_faces
             record['num_vertices']=num_vertices
 
@@ -99,7 +99,7 @@ def run_isodens_surf(python_exc, esp_script, fchk_file: str, record, worker_id, 
             tracker.add_error(ex)
 
     if tracker.no_error:
-        record.update({'converged':converged, **tracker.model_dump()})
+        record.update({'status':converged, **tracker.model_dump()})
         run_info={'status':tracker.status,'status_code':tracker.status_code}
         record.update({'run_data':run_data, 'run_info':run_info})
         return record

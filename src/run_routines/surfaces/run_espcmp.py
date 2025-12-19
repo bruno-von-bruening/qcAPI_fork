@@ -78,11 +78,11 @@ def run_espcmp(python:file, script:file, dmp_map_file:file, rho_map_file:file,
             tracker, run_data=recover_output(tracker)
         except Exception as ex: raise Exception(f"Failed to recover results: {ex}")
 
-        converged=RecordStatus.converged
+        converged=RecordStatus.succeeded
     except Exception as ex:
         tracker.add_error(ex)
         converged=RecordStatus.failed
         run_data=None        
 
-    record.update({'converged':converged, 'run_data':run_data, **tracker.model_dump() })
+    record.update({'status':converged, 'run_data':run_data, **tracker.model_dump() })
     return record

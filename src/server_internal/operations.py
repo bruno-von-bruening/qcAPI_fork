@@ -116,7 +116,7 @@ def operation_functions(app, SessionDep):
             #
             #status_converged=1
             query=select(the_object).where(get_primary_key(the_object).in_(ids))
-            #.where(the_object.converged!=status_converged)
+            #.where(the_object.status!=status_converged)
             for k,v in filters.items():
                 try:
                     attr=getattr(the_object,k)
@@ -129,7 +129,7 @@ def operation_functions(app, SessionDep):
             if force:
                 status_pending=-1
                 for r in results:
-                    r.converged=status_pending
+                    r.status=status_pending
                     # If clone is active clone the row by letting a new id get assigned
                     if clone:
                         setattr(r,get_primary_key_name(r),None)
@@ -191,7 +191,7 @@ def operation_functions(app, SessionDep):
             pending_status_key=-1
             the_pending=session.exec(
                 select(the_object)
-                .where(the_object.converged==pending_status_key)
+                .where(the_object.status==pending_status_key)
             ).all()
             [ session.delete(x) for x in the_pending ]
             session.commit()
@@ -211,9 +211,9 @@ def operation_functions(app, SessionDep):
             to_delete=deleter()
             if the_object==IsoDens_Surface:
                 #entries = [ x for x in
-                #           session.exec( select(the_object.id, the_object.wave_function_id,the_object.iso_density, the_object.spacing, the_object.converged)).all()]
+                #           session.exec( select(the_object.id, the_object.wave_function_id,the_object.iso_density, the_object.spacing, the_object.status)).all()]
                 entries = [ x for x in
-                           session.exec( select(the_object.id, the_object.wave_function_id,the_object.iso_density, the_object.spacing, the_object.converged)).all()]
+                           session.exec( select(the_object.id, the_object.wave_function_id,the_object.iso_density, the_object.spacing, the_object.status)).all()]
                 
                 # see all entries where iso_density and spacing is the same
                 iso_densities=list(set([ e[2] for e in entries]))
@@ -252,7 +252,7 @@ def operation_functions(app, SessionDep):
                 return {'message':f"{messanger.message}"}
 
             elif the_object==RHO_ESP_Map:
-                entries=session.exec( select(the_object.id, the_object.surface_id, the_object.converged) ).all()
+                entries=session.exec( select(the_object.id, the_object.surface_id, the_object.status) ).all()
                 dic={}
                 for id, surf_id, conv in entries:
                     if not surf_id in dic.keys():
@@ -277,7 +277,7 @@ def operation_functions(app, SessionDep):
                 messanger=message_tracker()
 
                 # Get all entries
-                entries=session.exec( select(the_object.id, the_object.dmp_map_id, the_object.rho_map_id, the_object.converged) ).all()
+                entries=session.exec( select(the_object.id, the_object.dmp_map_id, the_object.rho_map_id, the_object.status) ).all()
                 messanger.add_message(f"Found {len(entries)} rows for table {the_object.__table__}")
 
                 # Make a dictinonary of comparison_id@rho_map_id@dmp_map_id
@@ -318,7 +318,7 @@ def operation_functions(app, SessionDep):
                 messanger=message_tracker()
 
                 # Get all entries
-                entries=session.exec( select(the_object.id, the_object.surface_id, the_object.partitioning_id, the_object.ranks, the_object.converged) ).all()
+                entries=session.exec( select(the_object.id, the_object.surface_id, the_object.partitioning_id, the_object.ranks, the_object.status) ).all()
                 messanger.add_message(f"Found {len(entries)} rows for table {the_object.__table__}")
 
                 # Make a dictinonary of comparison_id@rho_map_id@dmp_map_id
@@ -364,7 +364,7 @@ def operation_functions(app, SessionDep):
                 id_groups, uniques= get_duplicate_entries(session,the_object)
                 
                 id_to_converged= np.array( session.exec(select( 
-                    get_primary_key(the_object), getattr(the_object, 'converged'), getattr(the_object,'timestamp')
+                    get_primary_key(the_object), getattr(the_object, 'status'), getattr(the_object,'timestamp')
                 )).all()  )
 
                 entries=[]
@@ -384,9 +384,9 @@ def operation_functions(app, SessionDep):
                     print(id_by_status)
                     def get_id(array):
                         return [x[0] for x in array]
-                    if len(id_by_status['converged'])>0:
-                        if len(id_by_status['converged'])>1:
-                            track_deleter.doubly_converged+= get_id(id_by_status['converged'][1:])
+                    if len(id_by_status['status'])>0:
+                        if len(id_by_status['status'])>1:
+                            track_deleter.doubly_converged+= get_id(id_by_status['status'][1:])
                         track_deleter.pending+= get_id(id_by_status['pending'][:])
                         track_deleter.failed+= get_id(id_by_status['failed'][:])
                     elif len(id_by_status['failed'])>0:

@@ -68,7 +68,7 @@ def get_functions(app, SessionDep):
             the_object=object_mapper[ get_unique_tag(property) ]
             record = session.get(the_object, id)
                     
-            return record.converged
+            return record.status
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, analyse_exception(ex))
 

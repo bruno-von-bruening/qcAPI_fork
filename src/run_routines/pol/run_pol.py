@@ -16,7 +16,7 @@ def compute_polarizability_psi4(
 ) -> job_results:
 
     extra_cmdln_opts=dict(
-            no_freeze_core=True, no_df=True, no_mom_ff=True, unrestricted=True
+            no_freeze_core=True, no_df=True, no_mom_ff=True, unrestricted=False
     )
     try: # Run the psi4 calculation
         job_tag=f"polarizability_finite_field"
@@ -28,7 +28,7 @@ def compute_polarizability_psi4(
 
     # Now the results are there and we recover the data for the polarizability object 
 
-    converged= ( wfn_record.converged==RecordStatus.converged )
+    converged= ( wfn_record.status==RecordStatus.succeeded )
 
     if converged:
         try: # Inherit data from wave function to polarizability record
@@ -59,29 +59,30 @@ def compute_polarizability_psi4(
                 raise Exception(f"Could find neither energy not density moments polarisabilities!")
 
             # if dens in pols that's the main object, otherwise create a new one
+            spec_model=Molecular_Polarizability.specs_model_ff
             if 'dens' in pols.keys():
                 tensor=pols['dens']
-                specs='density_evaluation'
                 if 'eng' in pols.keys(): # If energy also there make a side entry
                     new_rec=record.model_dump()
                     tens2=pols['eng']
-                    specs='energy'
+                    old_specs=spec_model(**json.loads(record.specs))
+                    old_specs.eval_through=spec_model.allowed_eval_from.energy
+                    specs=spec_model(**old_specs.model_dump())
+                    
                     new_rec.update(
-                            id=None, # will be auto assigned
-                            specs=json.dumps(f"obtained_from: {specs}"),
-                            expansion_center=' '.join([ str(x) for x in center]),
-                            tensor_elements=str(tens2.tensor_elements),
-                            induced_ranks=' '.join( [ str(x) for x in tens2.induced_ranks]),
-                            field_ranks=' '.join( [ str(x) for x in tens2.field_ranks]),
+                        id=None,  # will be auto assigned
+                        specs=specs,
+                        expansion_center=' '.join([str(x) for x in center]),
+                        tensor_elements=str(tens2.tensor_elements),
+                        induced_ranks=' '.join([str(x) for x in tens2.induced_ranks]),
+                        field_ranks=' '.join([str(x) for x in tens2.field_ranks]),
                     )
                     sub_entries.update({
-                        Molecular_Polarizability.__name__ : MolecularPolarizability(**new_rec)
+                        Molecular_Polarizability.__name__ : Molecular_Polarizability(**new_rec)
                     })
 
             else:
                 tensor=pols['eng']
-                specs='energy'
-
 
 
             try:
@@ -100,10 +101,10 @@ def compute_polarizability_psi4(
 
         except Exception as ex:
             raise Exception(f"Error in recovering polarizability data from storage file {analyse_exception(ex)}") from ex
+
     else:
         tensor=None
         mom=None
-        specs=None
         center=None
 
     try:
@@ -111,12 +112,11 @@ def compute_polarizability_psi4(
         sub_entries.update({
             Wave_Function.__name__:wfn_record
         })
-        record.converged=wfn_record.converged
+        record.status=wfn_record.status
         if tensor is not None: # otherwise keep the defaults
             record.tensor_elements=str(tensor.tensor_elements)
             record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])
             record.field_ranks=' '.join( [ str(x) for x in tensor.field_ranks])
-            if not specs is None: record.specs=json.dumps(f"obtained_from: {specs}")
             if not center is None: record.expansion_center=' '.join([str(x) for x in center])
 
         if mom is not None:

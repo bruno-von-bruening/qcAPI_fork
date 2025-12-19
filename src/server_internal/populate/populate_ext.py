@@ -51,7 +51,7 @@ def populate_part(session, method, wave_function_ids: str | List, basis:str|None
     ids=[]
     if isinstance(wave_function_ids, str):
         if wave_function_ids.lower()=='all':
-            wave_function_ids=session.exec(select(Wave_Function.id).where(Wave_Function.converged==1)).all()
+            wave_function_ids=session.exec(select(Wave_Function.id).where(Wave_Function.status==1)).all()
         else:
             raise Exception(f"Unkonw code for ids: {wave_function_ids}")
     elif isinstance(wave_function_ids, list):
@@ -128,8 +128,8 @@ def populate_espdmp(session, surf_ids, part_ids, method=None):
         crosses=[]
         # For every wave function get the product between all of its multipoles and surfaces!
         for wfn_id in wfn_ids:
-            surf_ids=get_rows(session, IsoDens_Surface, selection=['primary_key','converged'], filter_args={'wave_function_id':wfn_id})
-            part_ids=get_rows(session, Hirshfeld_Partitioning, selection=['primary_key','converged'], filter_args={'wave_function_id':wfn_id})
+            surf_ids=get_rows(session, IsoDens_Surface, selection=['primary_key','status'], filter_args={'wave_function_id':wfn_id})
+            part_ids=get_rows(session, Hirshfeld_Partitioning, selection=['primary_key','status'], filter_args={'wave_function_id':wfn_id})
             for surf_id, surf_converged in surf_ids:
                 for part_id,part_converged in part_ids:
                     cross={'surf_id':surf_id,'part_id':part_id, 'surf_converged':surf_converged,'part_converged':part_converged}
@@ -182,7 +182,7 @@ def populate_espdmp(session, surf_ids, part_ids, method=None):
                     #for k,v in new_di.items():
                     #    query=query.where(getattr(DMP_ESP_Map, k)==v)
                     ## Check if there is already a map with the same content
-                    #already_there=any([x.converged for x in session.exec(query).all()])
+                    #already_there=any([x.status for x in session.exec(query).all()])
                 
                     if not already_there:
                         create_record(session, DMP_ESP_Map, new_di, commit=False)
@@ -223,8 +223,8 @@ def populate_espcmp(session, espdmp_ids:List[int|str]|None=None, espwfn_ids:List
         start=time.time()
         crosses=[]
         for surf_id in surf_ids:
-            dmp_ids = get_rows(session, dmp_tab, selection=['primary_key','converged'] , filter_args={'surface_id':surf_id})
-            rho_ids = get_rows(session, rho_tab, selection=['primary_key','converged'] , filter_args={'surface_id':surf_id})
+            dmp_ids = get_rows(session, dmp_tab, selection=['primary_key','status'] , filter_args={'surface_id':surf_id})
+            rho_ids = get_rows(session, rho_tab, selection=['primary_key','status'] , filter_args={'surface_id':surf_id})
 
             for dmp_id, dmp_converged in dmp_ids:
                 for rho_id, rho_converged in rho_ids:
@@ -235,7 +235,7 @@ def populate_espcmp(session, espdmp_ids:List[int|str]|None=None, espwfn_ids:List
     # Will
     try:
         start=time.time()
-        cmp_keys=[get_primary_key_name(dmp_vs_rho_tab),'dmp_map_id','rho_map_id','converged']
+        cmp_keys=[get_primary_key_name(dmp_vs_rho_tab),'dmp_map_id','rho_map_id','status']
         existing_cmp=get_rows(session, dmp_vs_rho_tab, selection=cmp_keys)
 
         rows_there=[]

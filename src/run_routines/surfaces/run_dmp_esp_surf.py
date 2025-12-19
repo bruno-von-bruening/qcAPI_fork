@@ -121,7 +121,7 @@ def run_dmp_esp(
             files_to_store=files_to_store
         ))
 
-        converged=RecordStatus.converged
+        converged=RecordStatus.succeeded
     except Exception as ex:
         converged=RecordStatus.failed
         run_data=None

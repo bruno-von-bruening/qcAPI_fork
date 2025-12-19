@@ -26,7 +26,7 @@ def info_functions(app, SessionDep):
             status_mapper=RecordStatus.to_dict()
             id_by_status={}
             for k,v in status_mapper.items():
-                id_by_status.update({k: [ x.id for x in res if x.converged==v]})
+                id_by_status.update({k: [ x.id for x in res if x.status==v]})
             
             counts=dict([ (k,len(v)) for k,v in id_by_status.items()])
         

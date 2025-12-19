@@ -113,7 +113,7 @@ def get_next_record(session, object, prop_args:my_dict={}):
     # Check validity of the generic object
     keys=object.__dict__.keys()
     keys=[ k for k in keys if not k.startswith('_')]
-    for mandatory_key in ['converged', 'timestamp']+list(prop_args.keys()):
+    for mandatory_key in ['status', 'timestamp']+list(prop_args.keys()):
         if mandatory_key not in keys: raise Exception(f"Key {mandatory_key} not in available keys ({keys}) or {object}")
 
     record=get_next_record_from_db(session, object, status=-1, prop_args=prop_args)
@@ -136,7 +136,7 @@ def create_worker(session,host_address, record):
 
         # Update record
         record.timestamp = timestamp
-        #   record.converged = -2 # Set this record to running (So it does not get executed doubly)
+        record.status = -2 # Set this record to running (So it does not get executed doubly)
         session.add(record)
         session.commit()
         session.refresh(record)

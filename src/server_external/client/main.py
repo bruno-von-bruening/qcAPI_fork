@@ -36,40 +36,47 @@ def main(
         # Obtain the next record to work on
         data=get_next_record(address, method=method, property=property)
 
-        if data is None: # That means no worker has been generated since there is nothing left to do
-            return False
-        else:
-            tracker=Tracker(
-                server_address=address,
-                worker_id=data.worker_id,
-                main_record_id=get_primary_key(data.record),
-                target_dir=os.path.realpath(target_dir),
-                num_threads=num_threads,
-                memory_GB=mem_GB,
-                test=do_test,
-                config_file=os.path.realpath(config_file),
-            )
-
-            errors=[]
-
-            origin=os.getcwd()
-            try: # Make the directory where things will be execute in
-                os.makedirs(tracker.working_dir, exist_ok=False)
-                os.chdir(tracker.working_dir)
-            except Exception as ex: 
-                raise Exception(f"Problem in setting up environment {ex}") from ex
-
-            try: # Execute the job
-                tracker,results, job_already_done= run_job(tracker, data, max_iter, delay, do_test)
-            except Exception as ex: 
-                raise Exception(f"Problem in running job: {ex}") from ex
-                
-            if job_already_done: # In case the has been done by annother worker I still want to kill the worker 
-                print_flush("Job already done by another worker. Killing QC calculation and getting a new job.")
+        try:
+            if data is None: # That means no worker has been generated since there is nothing left to do
+                return False
             else:
-                process_job_results(tracker, results, tracker.server_address, tracker.worker_id, do_test=do_test)
+                tracker=Tracker(
+                    record_type=type(data.record),
+                    server_address=address,
+                    worker_id=data.worker_id,
+                    main_record_id=get_primary_key(data.record),
+                    target_dir=os.path.realpath(target_dir),
+                    num_threads=num_threads,
+                    memory_GB=mem_GB,
+                    test=do_test,
+                    config_file=os.path.realpath(config_file),
+                )
 
-            return True
+                errors=[]
+
+                origin=os.getcwd()
+                try: # Make the directory where things will be execute in
+                    os.makedirs(tracker.working_dir, exist_ok=False)
+                    os.chdir(tracker.working_dir)
+                except Exception as ex: 
+                    raise Exception(f"Problem in setting up environment {ex}") from ex
+
+                try: # Execute the job
+                    tracker,results, job_already_done= run_job(tracker, data, max_iter, delay, do_test)
+                except Exception as ex: 
+                    raise Exception(f"Problem in running job: {ex}") from ex
+                    
+                if job_already_done: # In case the has been done by annother worker I still want to kill the worker 
+                    print_flush("Job already done by another worker. Killing QC calculation and getting a new job.")
+                else:
+                    process_job_results(tracker, results, tracker.server_address, tracker.worker_id, do_test=do_test)
+
+                return True
+        except KeyboardInterrupt:
+            the_request=os.path.join( os.path.join(address, 'kill_worker'), str(data.worker_id))
+            response = requests.post(the_request)
+        except Exception as ex:
+            raise Exception(ex)
  
 
     # Server Address

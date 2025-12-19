@@ -35,7 +35,7 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
         else:
             job_status = response.json()
             print_flush("JOB STATUS: ", job_status)
-            job_already_done = ( job_status in [RecordStatus.converged,RecordStatus.failed] )
+            job_already_done = ( job_status in [RecordStatus.succeeded,RecordStatus.failed] )
         return job_already_done
         
 

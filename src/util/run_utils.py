@@ -52,6 +52,7 @@ class Tracker_data(Tracker_data):
     test: bool=False
     config_file: pdtc_file|None=None
     working_dir: str
+    record_type: SQLModelMetaclass
 
     def __init__(self,*args,**kwargs):
 
@@ -71,7 +72,7 @@ class Tracker_data(Tracker_data):
             kwargs['working_dir']='auto'
 
         super().__init__(*args,**kwargs)
-        self.job_name=f"{self.main_record_id}_wid-{self.worker_id}"
+        self.job_name=f"{self.record_type.__name__}_{self.main_record_id}_wid-{self.worker_id}"
         self.working_dir=os.path.join(self.target_dir, self.job_name)
 
 

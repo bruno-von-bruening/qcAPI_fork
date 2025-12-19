@@ -22,7 +22,9 @@ def gen_prepare_records(tracker:pop_tracker, model:SQLModelMetaclass, ids:Union[
     elif model==Molecular_Polarizability:
         func=prep_molpol_pop
     else: raise NotImplementedError(f"Did not implement prepare_records for model: {model}")
-    return func(tracker=tracker, ids=ids, json=json_data)
+    try:
+        return func(tracker=tracker, ids=ids, json=json_data)
+    except Exception as ex: raise my_exception(f"Problem in preparing records for {model.__name__} with {func}:", ex)
 
 @val_call
 def generic_populate(
@@ -62,6 +64,33 @@ def generic_populate(
 
     for id in tracker.id_tracker.omitted:
         tracker.counter.already_there+=1
+
+    try:
+        from sqlalchemy import UniqueConstraint
+        constraints=[]
+        for constraint in object.__table__.constraints:
+            if isinstance(constraint, UniqueConstraint):
+                constraints+=tuple(constraint.columns.keys())
+        if len(constraints)>0:
+            # Get all existing combinations
+            existing_combos=set()
+            query=select( *( getattr(object, c) for c in [prim_name]+constraints ) )
+            existing_rows=session.exec(query).all()
+            for row in existing_rows:
+                existing_combos.add( tuple( row[1:] ) )
+            # Now check provided records if already there remove them from list
+            to_be_removed=[]
+            for i,c in enumerate(records_in_format):
+                combo=tuple( getattr(c, col) for col in constraints )
+                if combo in existing_combos:
+                    id_key=getattr(c, prim_name)
+                    if id_key is not None: tracker.id_tracker.add_omitted(id_key)
+                    tracker.counter.already_there+=1
+                    to_be_removed+=[i]
+            # Remove in reverse order to not mess up indices
+            records_in_format=[ c for i,c in enumerate(records_in_format) if not i in to_be_removed ]
+    except Exception as ex:
+        raise my_exception(f"Problem in checking unique constraints for {object.__name__}:", ex)
     
     # Insert
     try:

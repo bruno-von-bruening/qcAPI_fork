@@ -44,7 +44,7 @@ def get_rows(session, sql_table, selection, filter_args:dict={}):
 @validate_call
 def get_ids_for_object(session,sql_table):
     selection=get_primary_key(sql_table)
-    return get_rows(session, sql_table, [selection], filter_args={'converged':1})
+    return get_rows(session, sql_table, [selection], filter_args={'status':1})
 
 message_tracker_dum=message_tracker
 counter_dum=counter

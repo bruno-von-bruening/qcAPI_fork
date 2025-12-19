@@ -32,5 +32,8 @@ def make_url(srv_adress:pdtc_address, tag:str, opts:dict={} ):
         else:
             opts_str+=[ make_opts(k,v) ]
     opts_str= ( f"?{'&'.join(opts_str)}" if len(opts_str)>0 else '' )
-    request_code=os.path.join(srv_adress,tag,opts_str)
+    if len(opts_str)>0:
+        request_code=os.path.join(srv_adress,tag,opts_str)
+    else:
+        request_code=os.path.join(srv_adress,tag)
     return request_code

@@ -129,7 +129,7 @@ def get_next_record_from_db(session, object, status=-1, prop_args={}):
     """ Returns the pending record with the oldest timestamp given possible filtering arguments """
 
     # Generate the query
-    prop_args.update({'converged':status})
+    prop_args.update({'status':status})
     query=filter_db_query(object, filter_args=prop_args)
 
     # retrieve oldest record

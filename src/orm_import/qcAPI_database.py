@@ -3,7 +3,7 @@ from sqlmodel import Field, SQLModel
 from enum import Enum
 
 class RecordStatus(int, Enum):
-    converged = 1
+    succeeded = 1
     failed = 0
     pending = -1
     running = -2

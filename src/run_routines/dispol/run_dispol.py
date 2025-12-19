@@ -90,8 +90,8 @@ def run_dispol(
     except Exception as ex:
         raise Exception(f"Unexpected Exception {ex}")
 
-    converged=RecordStatus.converged if tracker.no_error else RecordStatus.failed
-    record.update({'converged':converged,**tracker.model_dump()})
+    converged=RecordStatus.succeeded if tracker.no_error else RecordStatus.failed
+    record.update({'status':converged,**tracker.model_dump()})
     
     run_info={'status':tracker.status, 'status_code':tracker.status_code}
     record.update({"run_data":run_data, 'run_info':run_info})

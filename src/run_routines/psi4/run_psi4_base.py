@@ -52,7 +52,7 @@ def run_psi4_base(
         sub_entries=None
     finally:
         the_sep(message)
-        wfn_record.converged = converged
+        wfn_record.status = converged
         # for k,v in tracker.model_dump(include={'messages', 'errors', 'warnings'}).items():
         #     if not hasattr(wfn_record, k):
         #         warn(f"Could not write key {k} in {type(wfn_record)}")

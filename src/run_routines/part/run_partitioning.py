@@ -302,7 +302,7 @@ def exc_partitioning(address,python_exc, horton_script, fchk_file_entry, record,
         run_directory=working_dir,
         to_store=working_dir,
     )
-    record.update({'converged':converged, **tracker.model_dump()})
+    record.update({'status':converged, **tracker.model_dump()})
     record.update({'run_data':run_data, 'run_info':run_info})
     return record
 

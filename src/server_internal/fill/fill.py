@@ -5,7 +5,7 @@ from .fill_ext import fill_espdmp, fill_esprho, fill_idsurf, fill_part, fill_esp
 from orm_import.qcAPI_database import File_Model
 
 
-def kill_woker(session,worker_id):
+def kill_the_worker(session,worker_id):
     # Kill worker
     worker = session.get(Worker, uuid.UUID(worker_id))
     if worker is None:
@@ -27,20 +27,20 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             if lead:
                 if prev_record is None:
                     raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
-                if prev_record.converged == 1:
+                if prev_record.status == 1:
                     raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
         except HTTPException as ex: raise ex
         except Exception as ex: my_exception(f"Problem in finding previous record",ex)
 
         try:
-            if 'converged' in entry.keys():
-                fill=( entry['converged']==1 )
+            if 'status' in entry.keys():
+                fill=( entry['status']==1 )
             else: fill=False
             record=the_object(**entry, fill=fill)
-            converged_key='converged'
+            converged_key='status'
             if hasattr(record, converged_key):
-                record_status=getattr(record, 'converged')
-                assert record_status in [RecordStatus.converged,RecordStatus.failed], f"Unexpected status, {record_status}"
+                record_status=getattr(record, 'status')
+                assert record_status in [RecordStatus.succeeded,RecordStatus.failed], f"Unexpected status, {record_status}"
         except Exception as ex: my_exception(f"Problem in data of record {the_object}", ex)
             #record.warnings=json.dumps( json.loads(record.warnings)+warnings )
             
@@ -62,47 +62,40 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
 
     try:
         UNIQUE_NAME=get_unique_tag(property)
-        kill_woker(session=session, worker_id=worker_id)
         warnings=[]
         if UNIQUE_NAME==NAME_PART:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged:
+            if entry['status']==RecordStatus.succeeded:
                 tracker=fill_part(session, tracker, the_model, entry, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_DISPOL == UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            #if entry['status']==RecordStatus.succeeded and sub_entries is not None:
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_WFN == UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif UNIQUE_NAME==NAME_IDSURF:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_ESPRHO==UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_ESPDMP==UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_ESPCMP == UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         elif NAME_MOLPOL == UNIQUE_NAME:
             the_model=get_object_for_tag(UNIQUE_NAME)
-            if entry['converged']==RecordStatus.converged and sub_entries is not None:
-                fill_sub_entries(tracker, sub_entries)
+            fill_sub_entries(tracker, sub_entries)
             tracker=fill(tracker, the_model, entry)
         else:
             raise Exception(f"Unkown property \'{UNIQUE_NAME}\'")
@@ -112,6 +105,8 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
         raise HTTPException(ex.status_code, f"HH {ex.status_code}")
     except Exception as ex:
         raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute {wrapper_gen_fill}: {analyse_exception(ex)}")
+    finally:
+        kill_the_worker(session=session, worker_id=worker_id)
 @val_call
 def upload_file_ext(storage_info,file, the_model, id):
     # where to drop (put info into extend_app of this function -> storage_info
@@ -217,7 +212,21 @@ def add_upload_functions(app, SessionDep,
             raise HTTPException(ex.status_code, ex.detail)
         except Exception as ex:
             raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {str(ex)}")
-    
+    @app.post("/kill_worker/{worker_id}")
+    async def kill_worker(
+        worker_id: str,
+        session: SessionDep, request: Request,
+    ):
+        try:
+            tracker=track_http_request()
+
+            kill_the_worker(session=session, worker_id=worker_id)
+
+            return tracker.dump()
+        except HTTPException as ex:
+            raise HTTPException(ex.status_code, ex.detail)
+        except Exception as ex:
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {str(ex)}")
     @app.post("/upload_file/{the_property}/{id}")
     async def upload_file(
         the_property: str, 

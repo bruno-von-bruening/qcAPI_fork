@@ -11,7 +11,7 @@ import database_massages_util as util
 
 failed_value=RecordStatus.failed.value
 pending_value=RecordStatus.pending.value
-success_value=RecordStatus.converged.value
+success_value=RecordStatus.succeeded.value
 status_mapper={
     'failed':failed_value,
     'pending':pending_value,
@@ -24,7 +24,7 @@ def reset_converged_status(session, object, method=None):
     if not isinstance(method, type(None)):
         query_args.update({"method":method})
 
-    query_args.update({'converged':failed_value})
+    query_args.update({'status':failed_value})
 
     results=util.query(session,object, attribute_targets=query_args)    
 
@@ -32,7 +32,7 @@ def reset_converged_status(session, object, method=None):
 
     # reset the converged status for the found objects
     for r in results:
-        r.converged=pending_value
+        r.status=pending_value
         session.add(r)
         session.commit()
         session.refresh(r)
@@ -51,7 +51,7 @@ def print_info(session, objects, method=None):
     def get_counts(results):
         counts={}
         for k,v in status_mapper.items():
-            the_count=util.count_hits(results, 'converged', v)
+            the_count=util.count_hits(results, 'status', v)
             counts.update({k:the_count})
         remainder=len(results)-sum(counts.values())
         if remainder!=0:

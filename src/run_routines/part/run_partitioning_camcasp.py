@@ -272,7 +272,7 @@ def exc_partitioning_camcasp(address, camcasp_path, fchk_file_entry, record, wor
     # mul_key='multipoles'
     # sol_key='solution'
     # mom_fi_key='mom_file'
-    record.update({'converged':converged,**tracker.model_dump()})
+    record.update({'status':converged,**tracker.model_dump()})
     run_info={'status':tracker.status, 'status_code':tracker.status_code}
     record.update({"run_data":run_data, 'run_info':run_info})
 
