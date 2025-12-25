@@ -36,7 +36,6 @@ from server_internal.get.get import get_functions
 from server_internal.fill.fill import  add_upload_functions
 from server_internal.operations import operation_functions
 from server_internal.get.info import info_functions
-from server_internal.other.restart import RestartRequest, add_other_functions 
 
 from util.config import load_server_config, qcAPI_server_config, qcAPI_storage_info
 import os
@@ -78,7 +77,7 @@ def make_app_functions(app, SessionDep, storage_info):
 
     info_functions(app, SessionDep)
 
-    add_other_functions(app, SessionDep)
+    #add_other_functions(app, SessionDep)
 
 
     return app
@@ -172,7 +171,6 @@ def main(config_file):
         except Exception as ex:
             raise Exception(f"Error restarting server: {ex}")
 
-    from server_internal.other.restart import restart_flag
     try:
         import uvicorn
         from uvicorn import Config
@@ -219,9 +217,7 @@ def main(config_file):
 
                     time.sleep(0.1)
 
-        import server_internal.other.restart as restart_mod
         server = Server(config=conf)
-        restart_mod.server = server
 
         server.run_in_thread()
     except Exception as ex:
