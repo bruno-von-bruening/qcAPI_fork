@@ -43,8 +43,8 @@ def probe_server(address, delay, refresh, property, method):
         raise ValueError(f"Error getting initial response for \'{request}\': code={status_code}, details={detail}")
 
     body = response.json()
-    pending = body["pending"]
-    converged = body["converged"]
+    pending = body["pending"]+body['running']
+    converged = body["succeeded"]
     failed = body["failed"]
     total = pending + converged + failed
     processed = converged + failed
@@ -64,8 +64,8 @@ def probe_server(address, delay, refresh, property, method):
                     continue
 
                 body = response.json()
-                pending      = body["pending"]
-                converged    = body["converged"]
+                pending      = body["pending"]+body['running']
+                converged    = body["succeeded"]
                 failed       = body["failed"]
                 added        = converged + failed - processed
                 pbar.total   = pending + converged + failed
