@@ -1,12 +1,13 @@
 from . import *
 from qcp_objects.objects.properties import geometry
 from orm_import.database_declaration import FCHK_File
+from .psi4_helper import job_opts
 
 @val_call 
 def compute_core(
     python_exc:pdtc_file, psi4_script:pdtc_file,
     record:SQLModel,geom:geometry,
-    job_tag:str,
+    job_tag:job_opts,
     tracker: Tracker,
     extra_cmdln_opts: dict,
 ):
@@ -40,8 +41,8 @@ def compute_core(
             mem_per_thread_GB=2
             mem=tracker.num_threads*mem_per_thread_GB
             warn(f"No memory specified, using default ({mem_per_thread_GB} GB per thread): {mem} GB")
-        run_shell_command(cmd, [ job_tag], dict(
-            func=method, basis=basis, geom=xyz_file, exc=True, 
+        run_shell_command(cmd, [ job_tag.value], dict(
+            method=method, basis=basis, geom=xyz_file, exc=True, 
             num_thread=num_threads, memory=f"{mem}_GB",
         )| extra_cmdln_opts)
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)

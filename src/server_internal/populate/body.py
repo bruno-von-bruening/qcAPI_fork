@@ -10,7 +10,12 @@ from .prepare_populate import (
 )
 
 @val_call
-def gen_prepare_records(tracker:pop_tracker, model:SQLModelMetaclass, ids:Union[List[str],Literal['all'],None], json_data
+def gen_prepare_records(
+    tracker:pop_tracker, 
+    model:SQLModelMetaclass, 
+    ids:Union[List[str],Literal['all'],None], 
+    specs:dict={},
+    json_data:dict={},
 ) -> Tuple[pop_tracker,List[dict]]:
     """ Pass the right arugments to the prepare function for UNIQUE_TAG"""
     if model==Compound:
@@ -23,7 +28,7 @@ def gen_prepare_records(tracker:pop_tracker, model:SQLModelMetaclass, ids:Union[
         func=prep_molpol_pop
     else: raise NotImplementedError(f"Did not implement prepare_records for model: {model}")
     try:
-        return func(tracker=tracker, ids=ids, json=json_data)
+        return func(tracker=tracker, ids=ids, specs=specs, json=json_data)
     except Exception as ex: raise my_exception(f"Problem in preparing records for {model.__name__} with {func}:", ex)
 
 @val_call
@@ -104,7 +109,7 @@ def generic_populate(
             elif id_key in tracker.id_tracker.omitted:
                 tracker.counter.already_there+=1
             elif not id_key in tracker.id_tracker.omitted:
-                the_rec=create_record(session, object, c, commit=True)[0]
+                the_rec=create_record(session, c, commit=True)[0]
                 tracker.counter.populated +=1
                 tracker.id_tracker.add_successful( getattr(the_rec,prim_name) )
             else:

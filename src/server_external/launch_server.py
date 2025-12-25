@@ -205,7 +205,7 @@ def main(config_file):
                 def kill_server():
                     os.kill(os.getpid(), signal.SIGTERM)
 
-                time.sleep(0.1)  # give server time to start and possibly fail
+                time.sleep(0.5)  # give server time to start and possibly fail
                 while True:
                     if not self.started:
                         thread.join()
@@ -213,10 +213,11 @@ def main(config_file):
 
                     if self.should_exit:
                         thread.join()
+                        time.sleep(0.5)
                         restart_server()
                         break
 
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
         import server_internal.other.restart as restart_mod
         server = Server(config=conf)

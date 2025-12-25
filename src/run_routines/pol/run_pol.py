@@ -1,6 +1,6 @@
 from . import *
 
-from ..psi4.run_psi4_base import run_psi4_base
+from ..psi4.run_psi4_base import run_psi4_base, job_opts
 # from ..psi4.run_psi4_help import open_storage_file
 from qcp_objects.objects.properties import polarizability_tensor, MolecularMultipoleMoments
 from ..psi4.run_psi4_help import open_storage_file, get_fchk_file, get_from_storage
@@ -16,10 +16,17 @@ def compute_polarizability_psi4(
 ) -> job_results:
 
     extra_cmdln_opts=dict(
-            no_freeze_core=True, no_df=True, no_mom_ff=True, unrestricted=False
+            no_freeze_core=True, no_df=True, 
+            no_mom_ff=( any( wave_function.method.lower().startswith(x) for x in ['cc', 'mp'] ) ), 
+            unrestricted=False
     )
     try: # Run the psi4 calculation
-        job_tag=f"polarizability_finite_field"
+        if record.approach == record.allowed_approaches.finite_field.value:
+            job_tag=job_opts.MOLPOL_FINITE_FIELD
+        elif record.approach == record.allowed_approaches.linear_response.value:
+            job_tag=job_opts.MOLPOL_LINEAR_RESPONSE
+        else:
+            raise Exception(f"Approach {record.approach} not implemented for psi4 polarizability calculations")
         tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag,
                                                       extra_cmdln_opts=extra_cmdln_opts)
         sub_entries={}
@@ -29,6 +36,7 @@ def compute_polarizability_psi4(
     # Now the results are there and we recover the data for the polarizability object 
 
     converged= ( wfn_record.status==RecordStatus.succeeded )
+    record.status=wfn_record.status
 
     if converged:
         try: # Inherit data from wave function to polarizability record
@@ -40,50 +48,76 @@ def compute_polarizability_psi4(
             
             pols=dict()
             center=get_from_storage(storage_file, ['results','properties','expansion_center'])
-            for tag in ['dens','eng']:
-                key=f"MolPol_FinFie_through_{tag}"
+
+            def get_pol(key):
                 try:
                     pol_data=get_from_storage(storage_file, ['results','properties',key])
                 except Exception as ex:
                     warn(f"Could not get {key} from {storage_file}: {str(ex)}")
-                    continue
-                pol_tensor=None
-                if pol_data is not None:
-                    if len(pol_data)>0:
-                        try:
-                            pol_tensor=polarizability_tensor(pol_data)
-                        except Exception as ex: 
-                            raise Exception(f"Could not generate \'{tag}\' polarizability tensor: {ex}") from ex
-                        pols.update({ tag : pol_tensor})
-            if len(pols)==0:
-                raise Exception(f"Could find neither energy not density moments polarisabilities!")
 
-            # if dens in pols that's the main object, otherwise create a new one
-            spec_model=Molecular_Polarizability.specs_model_ff
-            if 'dens' in pols.keys():
-                tensor=pols['dens']
-                if 'eng' in pols.keys(): # If energy also there make a side entry
-                    new_rec=record.model_dump()
-                    tens2=pols['eng']
-                    old_specs=spec_model(**json.loads(record.specs))
-                    old_specs.eval_through=spec_model.allowed_eval_from.energy
-                    specs=spec_model(**old_specs.model_dump())
-                    
-                    new_rec.update(
-                        id=None,  # will be auto assigned
-                        specs=specs,
-                        expansion_center=' '.join([str(x) for x in center]),
-                        tensor_elements=str(tens2.tensor_elements),
-                        induced_ranks=' '.join([str(x) for x in tens2.induced_ranks]),
-                        field_ranks=' '.join([str(x) for x in tens2.field_ranks]),
-                    )
-                    sub_entries.update({
-                        Molecular_Polarizability.__name__ : Molecular_Polarizability(**new_rec)
-                    })
+                if len(pol_data)==0:
+                    raise Exception(f"Data of length zero found for polarizability key \'{key}\' in storage file {storage_file}!")
+
+                try:
+                    pol_tensor=polarizability_tensor(pol_data)
+                    return pol_tensor
+                except Exception as ex: 
+                    raise Exception(f"Could not generate \'{tag}\' polarizability tensor: {ex}") from ex
+            
+            if record.approach == record.allowed_approaches.linear_response.value:
+                key="MolPol_LinRsp"
+                tensor=get_pol(key)
 
             else:
-                tensor=pols['eng']
+                pol_tens=dict()
+                for tag in ['dens','eng']:
+                    key=f"MolPol_FinFie_through_{tag}"
 
+                    try:
+                        pol_tens=get_pol(key)
+                        pols.update({ tag : pol_tens})
+                    except Exception as ex:
+                        warn(f"Could not get {key} from {storage_file}: {str(ex)}")
+
+                if len(pols)==0:
+                    raise Exception(f"Could find neither energy not density moments polarisabilities!")
+
+                # if dens in pols that's the main object, otherwise create a new one
+                spec_model=Molecular_Polarizability.specs_model_ff
+                old_specs=spec_model(**json.loads(record.specs))
+                if old_specs.eval_through==spec_model.allowed_eval_from.energy:
+                    main_key='eng'
+                    side_key='dens'
+                elif old_specs.eval_through==spec_model.allowed_eval_from.multipoles:
+                    main_key='dens'
+                    side_key='eng'
+                else: raise Exception(f"Unknown eval_through specification in polarizability record: {old_specs.eval_through}")
+
+                if main_key in pols.keys():
+                    tensor=pols[main_key]
+                    if side_key in pols.keys():
+                        old_specs.eval_through=(spec_model.allowed_eval_from.energy if side_key=='eng' else spec_model.allowed_eval_from.multipoles)
+                        tensor_side=pols[side_key]
+                        new_rec=record.model_dump()
+                        new_rec.update(
+                            id=None,  # will be auto assigned
+                            ult_from=f"{Molecular_Polarizability.__name__}%{record.id})",
+                            specs=old_specs.model_dump(),
+                            expansion_center=' '.join([str(x) for x in center]),
+                            tensor_elements=str(tensor_side.tensor_elements),
+                            induced_ranks=' '.join([str(x) for x in tensor_side.induced_ranks]),
+                            field_ranks=' '.join([str(x) for x in tensor_side.field_ranks]),
+                            status=record.status,
+                            specs_hash=None,
+                        )
+                        sub_entries.update({
+                            Molecular_Polarizability.__name__ : Molecular_Polarizability(**new_rec)
+                        })
+                elif side_key in pols.keys():
+                    tensor=pols[side_key]
+                    spec_model.eval_through=(spec_model.allowed_eval_from.energy if main_key=='eng' else spec_model.allowed_eval_from.density)
+                    record.specs=json.dumps( spec_model.model_dump() )
+                else: raise Exception(f"Could no polarizability record in storage file {storage_file}!")
 
             try:
                 mom=get_from_storage(storage_file, ['results','properties','MolMom'])
@@ -108,11 +142,10 @@ def compute_polarizability_psi4(
         center=None
 
     try:
-        wfn_record.side_result_from=f"{Molecular_Polarizability.__name__}%{record.id})"
+        wfn_record.side_result_from=f"{Molecular_Polarizability.__name__}%{record.id}"
         sub_entries.update({
             Wave_Function.__name__:wfn_record
         })
-        record.status=wfn_record.status
         if tensor is not None: # otherwise keep the defaults
             record.tensor_elements=str(tensor.tensor_elements)
             record.induced_ranks=' '.join( [ str(x) for x in tensor.induced_ranks])

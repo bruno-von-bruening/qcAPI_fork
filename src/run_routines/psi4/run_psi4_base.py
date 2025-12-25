@@ -7,6 +7,7 @@ from util.trackers import message_tracker
 
 from qcp_objects.objects.properties import geometry
 
+from .psi4_helper import job_opts
 
 @val_call
 def run_psi4_base(
@@ -14,7 +15,7 @@ def run_psi4_base(
         tracker: Tracker,
         wfn_record:Wave_Function, 
         geom:geometry,
-        job_tag: Literal['single_point','polarizability_finite_field'],
+        job_tag: job_opts,
         max_iter=150, 
         extra_cmdln_opts: dict={},
 ) -> Tuple[Tracker, Wave_Function, my_run_data]:
