@@ -155,7 +155,9 @@ def update_record(session, prev_record, record, commit=True):
     #{"message": "Record stored successfully. Thanks for your contribution!" ,'error':None}
 
 @my_val
-def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql_row|dict]|pdtc_sql_row|dict, 
+def create_record(session:Session, 
+    data: List[SQLModel]|SQLModel,
+                  #object:SQLModelMetaclass, data: List[pdtc_sql_row|dict]|pdtc_sql_row|dict, 
     commit=True, 
     update_if_exists=False,
 ):
@@ -176,7 +178,7 @@ def create_record(session:Session, object:SQLModelMetaclass, data: List[pdtc_sql
         if update_if_exists:
             prim_key=get_primary_key_name(object)
         
-        data=[ object(**d, blank=True) if isinstance(d, dict) else d for d in data ]
+        data=[ type(d)(**d, blank=True) if isinstance(d, dict) else d for d in data ]
         
         instances=[my_add(d, update_if_exists=update_if_exists) for d in data]
         if commit:

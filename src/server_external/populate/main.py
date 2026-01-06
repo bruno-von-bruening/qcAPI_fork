@@ -14,7 +14,52 @@ from util.requests import make_url
 from qcp_objects.objects.properties import geometry
 
 from util.util import exit
+def open_file(f):
+    try:
+        data=load_json_or_yaml(f)
+        return data
+    except Exception as ex:
+        exit(f"Could not process file \'{f}\' as json or yaml file:\n{ex}")
 
+class MolPol_data(myBaseModel):
+    class Config:
+        extra='forbid'
+        validate_assignment = True
+    ids: List[str]|Literal['all']='all' # wfn ids
+    approach: Molecular_Polarizability.allowed_approaches | List[Molecular_Polarizability.allowed_approaches]=Molecular_Polarizability.allowed_approaches.finite_field.value
+    specs: dict={}
+    def create_records(self)-> List[dict]:
+        pass
+    def model_dump(self,**kwargs)-> dict:
+        dic= super().model_dump(**kwargs)
+        dic['approach']= self.approach if isinstance(self.approach, (Molecular_Polarizability.allowed_approaches,str)) else [ x for x in self.approach ]
+        return dic
+
+@val_call
+def get_kwargs_MolPol(files:List[pdtc_file]):
+    data = [load_json_or_yaml(f) for f in files]
+    if len(data)>1:
+        raise NotImplementedError(f"Implement merging of multiple MolPol data files.")
+    elif len(data)==0:
+        checked_d=MolPol_data()
+    else:
+        try:
+            checked_d=MolPol_data(**(data[0]))
+        except Exception as ex:
+            error=f"Could not process provided json or yaml file as MolPol_data:\n{ex}"
+            dummy_file=f"dummy_molpol_data.yaml"
+            with open(dummy_file,'w') as wr:
+                yaml.safe_dump(MolPol_data().model_dump(), wr)
+            error+=f"\nWrote dummy file as reference to \'{dummy_file}\'"
+            raise Exception(error)
+    kwargs=dict(
+        ids=checked_d.ids, 
+        specs=dict(
+            checked_d.model_dump(exclude={'ids'})
+        )
+    )
+
+    return kwargs
 
 @val_call
 def main(
@@ -146,24 +191,7 @@ def main(
     elif prop==Distributed_Polarisabilities:
         kwargs={}
     elif prop==Molecular_Polarizability:
-        def open_file(f):
-            try:
-                data=load_json_or_yaml(f)
-                return data
-            except Exception as ex:
-                exit(f"Could not process file \'{f}\' as json or yaml file:\n{ex}")
-        data=[ open_file(f) for f in filenames ]
-        def get_ids(d):
-            if not 'ids' in d.keys():
-                exit(f"Expected key \'ids\' in provided json or yaml file.")
-            else: 
-                ids=d['ids']
-                assert isinstance(ids, list), f"Expected key \'ids\' to hold a list in provided json or yaml file."
-                return ids
-        ids_list=[]
-        for d in data: ids_list+=get_ids(d) 
-
-        kwargs=dict(ids=ids_list)
+        kwargs=get_kwargs_MolPol(filenames)
     else:
         raise Exception(f"No case implemented for handling property {property}")
 

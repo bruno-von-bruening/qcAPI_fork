@@ -24,6 +24,7 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             prim_key= get_primary_key_name(the_object)
             id=entry[prim_key]
             prev_record = session.get(the_object, id)
+            print(id, prev_record)
             if lead:
                 if prev_record is None:
                     raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
@@ -41,15 +42,18 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             if hasattr(record, converged_key):
                 record_status=getattr(record, 'status')
                 assert record_status in [RecordStatus.succeeded,RecordStatus.failed], f"Unexpected status, {record_status}"
+            print(record.id)
         except Exception as ex: my_exception(f"Problem in data of record {the_object}", ex)
             #record.warnings=json.dumps( json.loads(record.warnings)+warnings )
             
-        try:
-            if prev_record is not None:
+        if prev_record is not None:
+            try:
                 update_record(session, prev_record, record)
-            else:
-                create_record(session, the_object, entry)
-        except Exception as ex: my_exception(f"Problem in updating record",ex)
+            except Exception as ex: my_exception(f"Problem in updating record",ex)
+        else:
+            try:
+                create_record(session, record)
+            except Exception as ex: my_exception(f"Problem in creating record",ex)
 
         return tracker
     @val_call
@@ -59,6 +63,10 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
                 the_model=get_object_for_tag(k)
                 tracker=fill(tracker, the_model, v, lead=False)
         except Exception as ex: my_exception(f"Problem in filling sub_entries:",ex)
+
+    try:
+        kill_the_worker(session=session, worker_id=worker_id)
+    except Exception as ex: my_exception(f"Problem in killing worker:",ex)
 
     try:
         UNIQUE_NAME=get_unique_tag(property)
@@ -101,12 +109,10 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             raise Exception(f"Unkown property \'{UNIQUE_NAME}\'")
         return tracker
     # Catch HTTP Exception to forward it. The receiver then has to print/interprete it
-    except HTTPException as ex:
-        raise HTTPException(ex.status_code, f"HH {ex.status_code}")
+    # except HTTPException as ex:
+    #     raise HTTPException(ex.status_code, f"HH {ex.status_code}")
     except Exception as ex:
-        raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Could not execute {wrapper_gen_fill}: {analyse_exception(ex)}")
-    finally:
-        kill_the_worker(session=session, worker_id=worker_id)
+        my_exception(f"Could not execute {wrapper_gen_fill}:",ex)
 @val_call
 def upload_file_ext(storage_info,file, the_model, id):
     # where to drop (put info into extend_app of this function -> storage_info
@@ -211,7 +217,7 @@ def add_upload_functions(app, SessionDep,
         except HTTPException as ex:
             raise HTTPException(ex.status_code, ex.detail)
         except Exception as ex:
-            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {str(ex)}")
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {analyse_exception(ex)}")
     @app.post("/kill_worker/{worker_id}")
     async def kill_worker(
         worker_id: str,
@@ -226,7 +232,7 @@ def add_upload_functions(app, SessionDep,
         except HTTPException as ex:
             raise HTTPException(ex.status_code, ex.detail)
         except Exception as ex:
-            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {str(ex)}")
+            raise HTTPException(HTTPStatus.INTERNAL_SERVER_ERROR, f"Failed request: {analyse_exception(ex)}")
     @app.post("/upload_file/{the_property}/{id}")
     async def upload_file(
         the_property: str, 
@@ -257,7 +263,7 @@ def add_upload_functions(app, SessionDep,
                     if os.path.realpath(prev_record.realpath)!=os.path.realpath(new_record.realpath):
                         prev_record.delete_file()
                 else:
-                    create_record(session, the_model, new_record)
+                    create_record(session, new_record)
             except Exception as ex: my_exception(f"Could not update the database", ex)
 
             return tracker.dump()

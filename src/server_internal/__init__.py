@@ -28,7 +28,7 @@ from util.sql_util import create_record, update_record, get_prev_record, get_pri
 
 from util.sql_util import get_next_record_from_db, filter_db, pdtc_sql_row, SQLModelMetaclass
 from orm_import.utils import get_unique_tag
-from util.util import my_exception
+from util.auxiliary import my_exception
 from typing import Optional
 from pydantic import Field, BeforeValidator
 

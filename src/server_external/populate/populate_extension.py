@@ -105,10 +105,14 @@ def espcmp_url(do_test=False):
     the_json={}
     return opts, the_json
 
-def molpol_url(ids:List[str]|str='all', do_test=False):
+def molpol_url(ids:List[str]|str='all', specs=dict(), do_test=False):
     """ """
-    opts={'ids':ids}
-    the_json={}
+    opts=dict(
+        ids=ids,
+        specs=json.dumps(specs),
+    )
+    the_json=dict(
+    )
     return opts, the_json
 
 def groups_url(content_file:str, do_test=False):
@@ -137,16 +141,11 @@ def conformations_url(
     records: List[dict],
     do_test: bool=False,
 ):
-
-
     confs=[]
     for rec in records:
         try:
             confs+=[ Conformation(**rec).model_dump() ]
         except Exception as ex: raise Exception(f"Could not generate record for {rec}: {ex}")
-
-
-
 
     the_json={'records':confs} 
     opts={}

@@ -3,15 +3,41 @@
 from . import *
 from .util import pop_tracker
 
+from sqlalchemy import UniqueConstraint
+from sqlmodel import SQLModel, select
+
+def get_unique_constraint_cols(model: type[SQLModel], name: str | None = None) -> list[str]:
+    """
+    Return the list of column names for a (named) UniqueConstraint on a SQLModel.
+    If `name` is None, returns the first table‑level UniqueConstraint.
+    """
+    tbl = model.__table__
+
+    constraints=[ c for c in tbl.constraints if isinstance(c, UniqueConstraint) ]  
+
+    if len(constraints)==0:
+        return []
+    else:
+        if name is not None:
+            found=[ c for c in constraints if c.name==name ]
+            assert len(found)==1,  f"Expected exactly one UniqueConstraint named {name} for {model.__name__}, found {len(found)}"
+        else:
+            found=constraints
+            assert len(found)==1,  f"Expected exactly one UniqueConstraint for {model.__name__}, found {len(found)}"
+        return [ c.name for c in found[0].columns ]
+
 @val_call
 def prep_molpol_pop(
     tracker:pop_tracker,
     ids:List[str]|Literal['all']|None=None, # The ids of wave funciton
+    specs:dict={},
     json:dict={},
 ) -> Tuple[pop_tracker,List[dict]]:
     """
     """
+    
     the_object=Molecular_Polarizability
+
     try: # Get available ids for objects
         if ids is None:
             ids='all'
@@ -19,34 +45,66 @@ def prep_molpol_pop(
         the_ids=tracker.get_ids_for_table(ancestor, ids=ids)
     except Exception as ex: raise my_exception(f"Problem in getting available ids for {the_object.__name__} population:", ex)
 
-    # Get existing childs:
-    query=select(the_object.wfn_id)
-    existing_ids=tracker.session.exec(query).all()
-    existing_ids=[]
+    # Get wfn ids that already exist
+    constraints=get_unique_constraint_cols(the_object)
+    query=select( *(getattr( the_object, c) for c in constraints) )
+    existing_entries=tracker.session.exec(query).all()
 
+    # Make the specs
+    approach=specs.get('approach', the_object.allowed_approaches.finite_field)
+    if approach==Molecular_Polarizability.allowed_approaches.finite_field:
+        specs_setup=Molecular_Polarizability.specs_model_ff
+        specs_setup=specs_setup( finfie_stepsize_dip=1.e-3, finfie_stepsize_qad=1.e-4, eval_through=specs_setup.allowed_eval_from.energy )
+    elif approach==Molecular_Polarizability.allowed_approaches.linear_response:
+        specs_setup=Molecular_Polarizability.specs_model_lr
+        specs_setup=specs_setup()
+    else:
+        raise Exception(f"Unknown approach provided for {the_object.__name__} population: {approach}")
+    kwargs_def=dict(
+        approach=approach,
+        code='psi4',
+        specs=specs_setup.model_dump(),
+    )
+    for k,v in specs.items():
+        if k in kwargs_def.keys():
+            if isinstance(kwargs_def[k], dict):
+                kwargs_def[k].update(v)
+            else:
+                kwargs_def[k]=v
+        else:
+            kwargs_def[k]=v
+    
+    candidates=[]
+    try: # Add all new ids
+        for the_id in [ 
+            x for x in the_ids 
+        ]:
+            candidates+=[the_object(
+                wfn_id=the_id,
+                **kwargs_def,
+                blank=True,
+            )]
+    except Exception as ex: raise my_exception(f"Problem in preparing new {the_object.__name__} objects:", ex)
 
     records=[]
-    try: # Make new objects
-        approach=Molecular_Polarizability.allowed_approaches.finite_field
-        for the_id in the_ids:
-            if the_id in existing_ids:
-                tracker.id_tracker.add_omitted(the_id)
+    tracker.messanger.start_timing()
+    try: # Filter out existing entries
+        for cand in candidates:
+            combo=tuple( getattr(cand, c) for c in constraints )
+            if not combo in existing_entries:
+                records+=[ cand ]
             else:
-                specs=Molecular_Polarizability.specs_model_ff
-                specs=specs( finfie_stepsize_dip=1.e-3, finfie_stepsize_qad=1.e-4, eval_through=specs.allowed_eval_from.energy )
-                records+=[the_object(
-                    wfn_id=the_id,
-                    approach=approach,
-                    code='psi4',
-                    specs=specs.model_dump(),
-                )]
-    except Exception as ex: raise my_exception(f"Problem in preparing new {the_object.__name__} objects:", ex)
+                tracker.id_tracker.add_omitted( cand.wfn_id )
+    except Exception as ex: raise my_exception(f"Problem in filtering existing {the_object.__name__} objects:", ex)
+    tracker.messanger.stop_timing(f"Get existing combos")
 
     return tracker,[ x.model_dump() for x in records]
 
 @val_call
 def prep_wfn_pop(
-    tracker:pop_tracker, ids:List[str]|str='all', json:dict={}
+    tracker:pop_tracker, ids:List[str]|str='all', 
+    specs:dict={},
+    json:dict={}
 ):
     """ Prepare wave function population """
 
@@ -75,13 +133,15 @@ def prep_wfn_pop(
     return tracker,new_wfn
 
 def prep_compound_pop(
-    tracker:pop_tracker, ids:None, json:dict
+    tracker:pop_tracker, ids:None, 
+    specs:dict={},
+    json:dict={},
 )-> Tuple[pop_tracker,List[dict]]:
 
     try:
         def check_in_json(key):
             if not key in json.keys():
-                raise Exception(f"Expected key \'{key}\' in provided json objects.")
+                raise Exception(f"Expected key \'{key}\' in provided json objects. Got keys: {json.keys()}")
             else: return json[key]
 
         compounds=check_in_json('records')
@@ -110,7 +170,9 @@ def prep_compound_pop(
     return tracker, [ x.model_dump() for x in records ]
 
 def prep_conformation_pop(
-        tracker:pop_tracker, ids:List[str]|str='all', json:dict={}                  
+        tracker:pop_tracker, ids:List[str]|str='all', 
+        specs:dict={},
+        json:dict={}                  
 )-> Tuple[pop_tracker,List[dict]]:
     
     # This are root entries
