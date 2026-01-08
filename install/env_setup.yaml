@@ -1,8 +1,8 @@
 TAG: "QCPAPI"
 environment:
     run_psi4:
-        python_env: "run_psi4_test2"
-        script: ['$RUN_PSI4_HOME','bin/run_psi4_exe.py']
+        python_env: "run_psi4_newpar"
+        script: ['$RUN_PSI4_HOME_NEWPAR','bin/run_psi4_exe.py']
     horton:
         python_env: "horton_part"
         script: '$HORTON_SCRIPT'

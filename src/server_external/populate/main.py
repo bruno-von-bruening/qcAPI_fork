@@ -26,13 +26,16 @@ class MolPol_data(myBaseModel):
         extra='forbid'
         validate_assignment = True
     ids: List[str]|Literal['all']='all' # wfn ids
-    approach: Molecular_Polarizability.allowed_approaches | List[Molecular_Polarizability.allowed_approaches]=Molecular_Polarizability.allowed_approaches.finite_field.value
-    specs: dict={}
-    def create_records(self)-> List[dict]:
-        pass
+    records: List[Molecular_Polarizability]=[ Molecular_Polarizability(blank=True) ]
+    # def create_records(self)-> List[dict]:
+    #     pass
+    # def model_dump(self,**kwargs)-> dict:
+    #     dic= super().model_dump(**kwargs)
+    #     dic['approach']= self.approach if isinstance(self.approach, (Molecular_Polarizability.allowed_approaches,str)) else [ x for x in self.approach ]
+    #     return dic
     def model_dump(self,**kwargs)-> dict:
         dic= super().model_dump(**kwargs)
-        dic['approach']= self.approach if isinstance(self.approach, (Molecular_Polarizability.allowed_approaches,str)) else [ x for x in self.approach ]
+        dic['records']= [ x.model_dump() for x in self.records ]
         return dic
 
 @val_call
@@ -46,18 +49,13 @@ def get_kwargs_MolPol(files:List[pdtc_file]):
         try:
             checked_d=MolPol_data(**(data[0]))
         except Exception as ex:
-            error=f"Could not process provided json or yaml file as MolPol_data:\n{ex}"
+            error=f"Could not process data from {files}:\n{ex}"
             dummy_file=f"dummy_molpol_data.yaml"
             with open(dummy_file,'w') as wr:
                 yaml.safe_dump(MolPol_data().model_dump(), wr)
             error+=f"\nWrote dummy file as reference to \'{dummy_file}\'"
             raise Exception(error)
-    kwargs=dict(
-        ids=checked_d.ids, 
-        specs=dict(
-            checked_d.model_dump(exclude={'ids'})
-        )
-    )
+    kwargs=checked_d.model_dump()
 
     return kwargs
 
@@ -156,15 +154,15 @@ def main(
         
     elif prop==Wave_Function:
         #assert all([ os.path.isfile(x) for x in filenames ])
-        from util.type_helpers.data_types import Wave_Function_pass
-        filenames=[]
+        #from util.type_helpers.data_types import Wave_Function_pass
+        # filenames=[]
 
         if content is not None:
             try:
                 assert isinstance(content, list), f"Expected list of level_of_theory entries in file \'{content_file}\'"
                 assert all( isinstance(x, dict) for x in content), f"Expected list of dictionaries in file \'{content_file}\'"
-                lots= [ Wave_Function_pass(**x) for x in content ]
-            except Exception as ex: raise Exception(f"Could not process content of file \'{content_file}\' as {level_of_theory_entries}:\n{ex}")
+                lots= [ Wave_Function(**x, blank=True) for x in content ]
+            except Exception as ex: raise Exception(f"Could not process content of file \'{content_file}\' as {Wave_Function}:\n{ex}")
         else:
             lots=[]
         
@@ -174,8 +172,8 @@ def main(
         elif cnt==1:
             exit(f"Provided only method or basis set but both needed to make wave function level of theory.")
         else: # cnt==2
-            lots+=[ Wave_Function_pass(method=method, basis=basis)]
-        kwargs=dict(level_of_theories=[ x.model_dump() for x in lots],conf_ids='all')
+            lots+=[ Wave_Function(method=method, basis=basis)]
+        kwargs=dict(records=[ x.model_dump() for x in lots],conf_ids='all')
     elif prop==Hirshfeld_Partitioning:
         kwargs=dict(method=method, basis=basis)
     elif prop==IsoDens_Surface:

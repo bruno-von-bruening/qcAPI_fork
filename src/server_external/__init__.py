@@ -28,7 +28,6 @@ from util.config import  load_global_config, load_worker_config
 from orm_import.database_declaration import Conformation, Compound
 
 # PYDANTIC
-from pydantic import validate_call; val_call=validate_call(config=dict(arbitrary_types_allowed=True))
 from typing import List, Union, Tuple
 
 from util.sql_util import sqlmodel_cl_meta, get_primary_key, get_primary_key_name

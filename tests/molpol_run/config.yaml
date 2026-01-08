@@ -1,0 +1,7 @@
+TAG: QCPAPI
+database_file: test_molpol.db
+imports: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/install/env_setup.yaml
+host: localhost
+port: 8101
+storage_info:
+  storage_root_directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/tests/molpol_run/storage

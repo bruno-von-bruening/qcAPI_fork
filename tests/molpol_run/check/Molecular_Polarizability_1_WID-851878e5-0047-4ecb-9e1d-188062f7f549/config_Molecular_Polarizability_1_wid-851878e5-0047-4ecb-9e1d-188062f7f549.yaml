@@ -1,0 +1,16 @@
+geom:
+  ac_shift: null
+  charge: 0
+  input: Molecular_Polarizability_1_wid-851878e5-0047-4ecb-9e1d-188062f7f549.xyz
+  multiplicity: 1
+job_settings: {}
+jobtag: polarizability_linear_response
+machine_settings:
+  memory: 4.0_GB
+  num_threads: 1
+method:
+  basis_set: cc-pvdz
+  freeze_core: true
+  method_tag: mp2
+  reference: RHF
+  scf_type: df

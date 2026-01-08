@@ -14,7 +14,7 @@ def gen_prepare_records(
     tracker:pop_tracker, 
     model:SQLModelMetaclass, 
     ids:Union[List[str],Literal['all'],None], 
-    specs:dict={},
+    # specs:dict={},
     json_data:dict={},
 ) -> Tuple[pop_tracker,List[dict]]:
     """ Pass the right arugments to the prepare function for UNIQUE_TAG"""
@@ -28,7 +28,7 @@ def gen_prepare_records(
         func=prep_molpol_pop
     else: raise NotImplementedError(f"Did not implement prepare_records for model: {model}")
     try:
-        return func(tracker=tracker, ids=ids, specs=specs, json=json_data)
+        return func(tracker=tracker, ids=ids, json=json_data)
     except Exception as ex: raise my_exception(f"Problem in preparing records for {model.__name__} with {func}:", ex)
 
 @val_call

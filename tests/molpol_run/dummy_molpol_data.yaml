@@ -1,0 +1,17 @@
+ids: all
+records:
+- approach: FinFie
+  code: psi4
+  expansion_center: to_fill
+  field_ranks: to_fill
+  id: null
+  induced_ranks: to_fill
+  side_result_from: none
+  specs:
+    eval_through: energy
+    finfie_stepsize_dip: 0.001
+    finfie_stepsize_qad: 0.0001
+  specs_hash: 8837760b8a3995c1
+  status: -1
+  tensor_elements: to_fill
+  timestamp: -1.0

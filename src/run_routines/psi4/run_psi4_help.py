@@ -3,24 +3,103 @@ from qcp_objects.objects.properties import geometry
 from orm_import.database_declaration import FCHK_File
 from .psi4_helper import job_opts
 
+# make config
+def config_base(
+    tracker:Tracker,
+    geom:geometry,
+    record:Wave_Function,
+) -> dict:
+    """Pass data from wave function and geometry to psi4 config"""
+    
+    try:
+        xyz_file=tracker.job_name
+        xyz_file=geom.print_out(format='xyz', output_name=xyz_file)
+    except Exception as ex: my_exception(f"Problem in generating geometry:", ex)
+    try:
+        method=record.method
+        basis=record.basis
+    except Exception as ex: my_exception(f"Problem in provided data",ex)
+    try:
+        pro=json.loads(record.protocol)
+        dat=record.protocol_model(**pro)
+        scf_type=dat.type
+        freeze_core=dat.frozen_core
+        reference=dat.reference
+
+    except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.specs}", ex)
+    
+    return dict(
+        geom=dict(
+            ac_shift=None,
+            charge=0,
+            multiplicity=1,
+            input=xyz_file,
+        ),
+        method=dict(
+            method_tag=method,
+            basis_set=basis,
+            scf_type=scf_type,
+            freeze_core=freeze_core,
+            reference=reference,
+        ),
+    )
+
+def machine_settings(tracker):
+    return dict(
+        machine_settings=dict(
+            memory=f"{tracker.memory_GB}_GB",
+            num_threads=tracker.num_threads,
+        )
+    )
+
+from orm_import.database_declaration import *
+def job_settings(job_tag:job_opts, record:SQLModel):
+    if job_tag==job_opts.MOLPOL_FINITE_FIELD:
+        assert isinstance(record, Molecular_Polarizability)
+        specs=json.loads(record.specs)
+        try:
+            model=Molecular_Polarizability.specs_model_ff(**specs)
+        except Exception as ex:
+            my_exception(f"Problem in parsing molecular polarizability finite field specs: {specs}", ex)
+
+        return dict(
+            job_settings=dict(
+                delta_dip=model.finfie_stepsize_dip,
+                delta_qad=model.finfie_stepsize_qad,
+            )
+        )
+    elif job_tag==job_opts.MOLPOL_LINEAR_RESPONSE:
+        assert isinstance(record, Molecular_Polarizability)
+        return dict(
+            job_settings=dict()
+        )
+    else:
+        raise NotImplementedError(f"Job tag {job_tag} not implemented in job_settings")
+
+
+
 @val_call 
 def compute_core(
     python_exc:pdtc_file, psi4_script:pdtc_file,
-    record:SQLModel,geom:geometry,
+    record:SQLModel,
+    super_record:SQLModel,
+    geom:geometry,
     job_tag:job_opts,
     tracker: Tracker,
     extra_cmdln_opts: dict,
 ):
 
-    try:
-        method=record.method
-        basis=record.basis
-    except Exception as ex: my_exception(f"Problem in provided data",ex)
 
-    try:
-        xyz_file=tracker.job_name
-        xyz_file=geom.print_out(format='xyz', output_name=xyz_file)
-    except Exception as ex: my_exception(f"Problem in generating geometry:", ex)
+    config=config_base(tracker, geom, record)
+    config.update( machine_settings(tracker) )
+    config.update( job_settings(job_tag, super_record) )
+    config.update(
+        jobtag=job_tag.value,
+    )
+
+    config_file=f"config_{tracker.job_name}.yaml"
+    with open(config_file,'w') as f:
+        yaml.dump(config,f)
     
     # Generic
     try:
@@ -41,10 +120,9 @@ def compute_core(
             mem_per_thread_GB=2
             mem=tracker.num_threads*mem_per_thread_GB
             warn(f"No memory specified, using default ({mem_per_thread_GB} GB per thread): {mem} GB")
-        run_shell_command(cmd, [ job_tag.value], dict(
-            method=method, basis=basis, geom=xyz_file, exc=True, 
-            num_thread=num_threads, memory=f"{mem}_GB",
-        )| extra_cmdln_opts)
+
+
+        run_shell_command(cmd, [ config_file ], dict(exc=True, **extra_cmdln_opts))
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
 
     return record, tracker

@@ -1,4 +1,4 @@
-name: qcpAPI_test
+name: qcpAPI_wfnset
 channels:
   #- conda-forge
   #- conda-forge/label/libint_dev

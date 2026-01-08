@@ -1,0 +1,59 @@
+JOB STATUS:  -2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+START psi4 calculation (2026-01-08 22:30:57) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_1_wid-c7e90655-baa4-44fb-bbd5-15c7ade03886'
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+############################################################
+SUCCESS in psi4 calculation (2026-01-08 22:30:59) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_1_wid-c7e90655-baa4-44fb-bbd5-15c7ade03886'
+############################################################
+[WARNING] Could not recover molecular moments (may be impossible for CCSD(T) without DF)
+Job completition:
+    No information tags where found in the output
+Normal Return:
+  Message=
+  Error=
+Normal Return:
+  Message=
+  Error=
+Normal Return:
+  Message=
+  Error=
+Deleted job run directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/tests/molpol_run/scratch/Molecular_Polarizability_1_wid-c7e90655-baa4-44fb-bbd5-15c7ade03886
+JOB STATUS:  -2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+START psi4 calculation (2026-01-08 22:31:00) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_2_wid-8146bef0-891a-442f-912e-de04f2e0acdf'
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+############################################################
+FAILED psi4 calculation (2026-01-08 22:31:02) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_2_wid-8146bef0-891a-442f-912e-de04f2e0acdf'
+############################################################
+Job completition:
+    No information tags where found in the output
+Normal Return:
+  Message=
+  Error=
+Normal Return:
+  Message=
+  Error=
+Deleted job run directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/tests/molpol_run/scratch/Molecular_Polarizability_2_wid-8146bef0-891a-442f-912e-de04f2e0acdf
+JOB STATUS:  -2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+START psi4 calculation (2026-01-08 22:31:03) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_3_wid-0a878f4a-60f5-466a-a4c2-18266d9f4d46'
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+############################################################
+FAILED psi4 calculation (2026-01-08 22:31:05) ( hostname='L5431' ):
+    jobname='Molecular_Polarizability_3_wid-0a878f4a-60f5-466a-a4c2-18266d9f4d46'
+############################################################
+Job completition:
+    No information tags where found in the output
+Normal Return:
+  Message=
+  Error=
+Normal Return:
+  Message=
+  Error=
+Deleted job run directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/tests/molpol_run/scratch/Molecular_Polarizability_3_wid-0a878f4a-60f5-466a-a4c2-18266d9f4d46
+No more records. Exiting.

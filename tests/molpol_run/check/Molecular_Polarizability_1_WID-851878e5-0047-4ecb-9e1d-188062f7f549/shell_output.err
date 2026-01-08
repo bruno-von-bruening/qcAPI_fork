@@ -1,0 +1,42 @@
+/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/qcp_objects/objects/geometry.py:68: UserWarning: Found key multiplicity both from input file and from kwargs. Using value from kwargs: 1
+  warn(f"Found key {k} both from input file and from kwargs. Using value from kwargs: {kwargs[k]}")
+/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/qcp_objects/objects/geometry.py:68: UserWarning: Found key charge both from input file and from kwargs. Using value from kwargs: 0
+  warn(f"Found key {k} both from input file and from kwargs. Using value from kwargs: {kwargs[k]}")
+Psi4 finished with return code 1:
+   stdout=Traceback (most recent call last):
+  File "/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/bin/psi4", line 388, in <module>
+    exec(content)
+  File "<string>", line 129, in <module>
+  File "<string>", line 115, in run_job
+  File "/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/psi4/driver/driver.py", line 792, in properties
+    wfn = procedures["properties"][lowername](lowername, molecule=molecule, **kwargs)
+  File "/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/psi4/driver/procrouting/proc.py", line 236, in select_mp2_property
+    return func(name, **kwargs)
+  File "/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/psi4/driver/procrouting/proc.py", line 3461, in run_dfmp2_property
+    proc_util.oeprop_validator(properties)
+  File "/home/bruno/0_Software/miniconda3/envs/run_psi4_newpar/lib/python3.10/site-packages/psi4/driver/procrouting/proc_util.py", line 90, in oeprop_validator
+    raise ValidationError("OEProp: Feature '%s' is not recognized. %s" % (prop, alternatives))
+
+psi4.driver.p4util.exceptions.ValidationError: OEProp: Feature 'DIPOLE_POLARIZABILITIES' is not recognized. 
+
+Printing out the relevant lines from the Psithon --> Python processed input file:
+        storage['results']['energetic']['energy']= E
+        pol_linresp_els=recover_polarisabilities_linrsp(method, variables())
+        storage['results']['properties']['MolPol_LinRsp']= pol_linresp_els
+    try:
+        start_polariz_lr=time.time()
+-->     run_job()
+        storage['about_the_run']['timings']['Total Time for POLARIZ_LR']= start_polariz_lr-time.time()
+    finally: clean()
+    try:
+        dump_storage()
+    except Exception as ex: raise Exception(f"Could not dump storage: {ex}")
+
+
+!----------------------------------------------------------------!
+!                                                                !
+!  OEProp: Feature 'DIPOLE_POLARIZABILITIES' is not recognized.  !
+!                                                                !
+!----------------------------------------------------------------!
+
+  error=

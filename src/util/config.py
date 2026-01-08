@@ -204,7 +204,8 @@ def load_config_generic(config_file:file, config_model):
     
     # Check database keys
     try:
-        qcapi_config=config_model(**config, source=os.path.realpath(config_file))
+        add_kwargs=dict(source=os.path.realpath(config_file)) if not 'source' in config.keys() else {}
+        qcapi_config=config_model(**config, **add_kwargs)
     except Exception as ex: my_exception(f"Could not construct a valid {str(config_model)} from \'{config_file}\':" , ex)
 
     return qcapi_config

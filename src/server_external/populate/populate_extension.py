@@ -5,15 +5,15 @@ from orm_import.database_declaration import Conformation
 
 from util.type_helpers.data_types import Wave_Function_pass
 def wave_functions_url(
-        level_of_theories: List[Wave_Function_pass],
+        records: List[Wave_Function_pass],
         conf_ids: List[str]|str='all', 
         do_test:bool=False
 ):
     request_code=f"populate/wave_function"
     opts={'json':dict(
-        level_of_theories=level_of_theories,
+        records=records,
     )}
-    the_json={'ids':conf_ids, 'level_of_theories':level_of_theories}
+    the_json={'ids':conf_ids, 'records':records}
     return opts, the_json
 
 def conformations_url(conformations):
@@ -105,13 +105,14 @@ def espcmp_url(do_test=False):
     the_json={}
     return opts, the_json
 
-def molpol_url(ids:List[str]|str='all', specs=dict(), do_test=False):
+@val_call
+def molpol_url(ids:List[str]|str='all', records:List[Molecular_Polarizability]=[], do_test=False):
     """ """
     opts=dict(
         ids=ids,
-        specs=json.dumps(specs),
     )
     the_json=dict(
+        records=[r.model_dump() for r in records]
     )
     return opts, the_json
 

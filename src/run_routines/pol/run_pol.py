@@ -15,11 +15,6 @@ def compute_polarizability_psi4(
     record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry
 ) -> job_results:
 
-    extra_cmdln_opts=dict(
-            no_freeze_core=True, no_df=True, 
-            no_mom_ff=( any( wave_function.method.lower().startswith(x) for x in ['cc', 'mp'] ) ), 
-            unrestricted=False
-    )
     try: # Run the psi4 calculation
         if record.approach == record.allowed_approaches.finite_field.value:
             job_tag=job_opts.MOLPOL_FINITE_FIELD
@@ -27,8 +22,8 @@ def compute_polarizability_psi4(
             job_tag=job_opts.MOLPOL_LINEAR_RESPONSE
         else:
             raise Exception(f"Approach {record.approach} not implemented for psi4 polarizability calculations")
-        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, geom, job_tag,
-                                                      extra_cmdln_opts=extra_cmdln_opts)
+        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, record, geom, job_tag,
+                                                      )
         sub_entries={}
         files_for_entries={ }
     except Exception as ex: raise Exception(f"Error in generic psi4 loop:\n{ex}") from ex
@@ -101,7 +96,7 @@ def compute_polarizability_psi4(
                         new_rec=record.model_dump()
                         new_rec.update(
                             id=None,  # will be auto assigned
-                            ult_from=f"{Molecular_Polarizability.__name__}%{record.id})",
+                            side_result_from=f"{Molecular_Polarizability.__name__}%{record.id}",
                             specs=old_specs.model_dump(),
                             expansion_center=' '.join([str(x) for x in center]),
                             tensor_elements=str(tensor_side.tensor_elements),

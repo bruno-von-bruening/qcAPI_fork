@@ -1,0 +1,10 @@
+- method: hf
+  basis: cc-pvdz
+  protocol: 
+    type: pk
+    frozen_core: false
+- method: hf
+  basis: cc-pvdz
+  protocol: 
+    type: df
+    frozen_core: true

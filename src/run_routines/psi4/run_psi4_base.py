@@ -13,7 +13,8 @@ from .psi4_helper import job_opts
 def run_psi4_base(
         python, psi4_script, 
         tracker: Tracker,
-        wfn_record:Wave_Function, 
+        wfn_record:Wave_Function,
+        super_record:SQLModel,
         geom:geometry,
         job_tag: job_opts,
         max_iter=150, 
@@ -28,7 +29,8 @@ def run_psi4_base(
         try:
             wfn_record,tracker = compute_core(
                 python, psi4_script,
-                wfn_record, geom, job_tag, tracker, extra_cmdln_opts,
+                wfn_record, super_record,
+                geom, job_tag, tracker, extra_cmdln_opts,
             )
         except Exception as ex: my_exception(f"Could not compute wave function",  ex)
 

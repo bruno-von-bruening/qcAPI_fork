@@ -2,7 +2,7 @@
 # They may be parsed from other types
 
 
-from qcp_orm.tables.tables import Conformation_Base, Wave_Function_Base
+from qcp_orm.tables.tables import Conformation_Base, Wave_Function_Base, Wave_Function
 from qcp_objects.objects.properties import geometry
 class Conformation_pass(Conformation_Base):
     def __init__(self, *args, **kwargs):
@@ -25,7 +25,11 @@ class Conformation_pass(Conformation_Base):
     
         super().__init__(**kwargs)
 
-class Wave_Function_pass(Wave_Function_Base):   
+class Wave_Function_pass(Wave_Function):   
     def __init__(self, *args, **kwargs):
         """ Should only use method and basis as mandatory arguments """
+        kwargs.update(
+            conformation_id='fill_me',
+        )
+
         super().__init__(**kwargs)

@@ -35,8 +35,17 @@ def prep_molpol_pop(
 ) -> Tuple[pop_tracker,List[dict]]:
     """
     """
+
+    assert 'records' in json.keys(), f"Expected key \'records\' in provided json objects. Found: {json.keys()}"
+    records_raw=json['records']    
     
     the_object=Molecular_Polarizability
+
+    # Check that objects are valid
+    for r in records_raw:
+        try:
+            the_object(**r, blank=True)
+        except Exception as ex: raise my_exception(f"Problem in preparing population of {the_object.__name__}:", ex)
 
     try: # Get available ids for objects
         if ids is None:
@@ -51,39 +60,42 @@ def prep_molpol_pop(
     existing_entries=tracker.session.exec(query).all()
 
     # Make the specs
-    approach=specs.get('approach', the_object.allowed_approaches.finite_field)
-    if approach==Molecular_Polarizability.allowed_approaches.finite_field:
-        specs_setup=Molecular_Polarizability.specs_model_ff
-        specs_setup=specs_setup( finfie_stepsize_dip=1.e-3, finfie_stepsize_qad=1.e-4, eval_through=specs_setup.allowed_eval_from.energy )
-    elif approach==Molecular_Polarizability.allowed_approaches.linear_response:
-        specs_setup=Molecular_Polarizability.specs_model_lr
-        specs_setup=specs_setup()
-    else:
-        raise Exception(f"Unknown approach provided for {the_object.__name__} population: {approach}")
-    kwargs_def=dict(
-        approach=approach,
-        code='psi4',
-        specs=specs_setup.model_dump(),
-    )
-    for k,v in specs.items():
-        if k in kwargs_def.keys():
-            if isinstance(kwargs_def[k], dict):
-                kwargs_def[k].update(v)
-            else:
-                kwargs_def[k]=v
-        else:
-            kwargs_def[k]=v
+    # approach=specs.get('approach', the_object.allowed_approaches.finite_field)
+    #  if approach==Molecular_Polarizability.allowed_approaches.finite_field:
+    #      specs_setup=Molecular_Polarizability.specs_model_ff
+    #      specs_setup=specs_setup( finfie_stepsize_dip=1.e-3, finfie_stepsize_qad=1.e-4, eval_through=specs_setup.allowed_eval_from.energy )
+    #  elif approach==Molecular_Polarizability.allowed_approaches.linear_response:
+    #      specs_setup=Molecular_Polarizability.specs_model_lr
+    #      specs_setup=specs_setup()
+    #  else:
+    #      raise Exception(f"Unknown approach provided for {the_object.__name__} population: {approach}")
+    # kwargs_def=dict(
+        # approach=approach,
+        # code='psi4',
+        # specs=specs_setup.model_dump(),
+    # )
+    # for k,v in specs.items():
+    #     for r in records_raw:
+    #         r[k]=v
+        # if k in kwargs_def.keys():
+        #     if isinstance(kwargs_def[k], dict):
+        #         kwargs_def[k].update(v)
+        #     else:
+        #         kwargs_def[k]=v
+        # else:
+        #     kwargs_def[k]=v
     
     candidates=[]
     try: # Add all new ids
         for the_id in [ 
             x for x in the_ids 
         ]:
-            candidates+=[the_object(
-                wfn_id=the_id,
-                **kwargs_def,
-                blank=True,
-            )]
+            for r in records_raw:
+                kwargs_def=r.copy()
+                kwargs_def['wfn_id']=the_id
+                candidates+=[the_object(
+                    **kwargs_def, blank=True
+                )]
     except Exception as ex: raise my_exception(f"Problem in preparing new {the_object.__name__} objects:", ex)
 
     records=[]
@@ -103,18 +115,18 @@ def prep_molpol_pop(
 @val_call
 def prep_wfn_pop(
     tracker:pop_tracker, ids:List[str]|str='all', 
-    specs:dict={},
-    json:dict={}
+    json:dict={} # should be list of entries
 ):
     """ Prepare wave function population """
 
     try: # Parse arguments
-        assert 'level_of_theories' in json.keys(), f"Expected key \'level_of_theories\' in provided json objects."
+        the_key='records'
+        assert the_key in json.keys(), f"Expected key \'{the_key}\' in provided json objects."
         try:
-            lots=[ Wave_Function_pass(**x) for x in json['level_of_theories'] ]
+            lots=[ Wave_Function(**x, blank=True) for x in json[the_key] ]
         except Exception as ex:
-            raise Exception(f"Could not process argument of 'level_of_theories' as list of {Wave_Function_pass} in provided json objects.")
-        assert len(lots)>0, f"Did not provide any level_of_theory entries!"
+            raise Exception(f"Could not process argument of '{the_key}' as list of {Wave_Function} in provided json objects.")
+        assert len(lots)>0, f"Did not provide any {the_key} entries!"
     except Exception as ex: my_exception(f"Problem in preparing wave base objects:", ex)
 
     # make the objects
@@ -124,9 +136,9 @@ def prep_wfn_pop(
         new_wfn=[]
         for the_id in selected_ids:
             for lot in lots:
-                method=lot.method
-                basis=lot.basis
-                new_wfn+=[Wave_Function(conformation_id=the_id, method=method, basis=basis, proctol=None).model_dump()]
+                kwargs=lot.model_dump()
+                kwargs['conformation_id']=the_id
+                new_wfn+=[Wave_Function(**kwargs ).model_dump()]
 
     except Exception as ex: my_exception(f"Problem in populationg conformations",ex)
 
@@ -134,7 +146,6 @@ def prep_wfn_pop(
 
 def prep_compound_pop(
     tracker:pop_tracker, ids:None, 
-    specs:dict={},
     json:dict={},
 )-> Tuple[pop_tracker,List[dict]]:
 
@@ -171,7 +182,6 @@ def prep_compound_pop(
 
 def prep_conformation_pop(
         tracker:pop_tracker, ids:List[str]|str='all', 
-        specs:dict={},
         json:dict={}                  
 )-> Tuple[pop_tracker,List[dict]]:
     

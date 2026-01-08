@@ -11,7 +11,7 @@ def populate_wrapper(
         object, session, # for both wfn and part
         grid_pairs=None, # For grid
         ids: List[str|int]|Literal['all']|None=None, # For wfn, part, esp
-        specs: dict={},
+        # specs: dict={},
         json:dict={},
 ):
     try:
@@ -24,7 +24,7 @@ def populate_wrapper(
 
     try:
         tracker=pop_tracker(session=session)
-        tracker,prep_rec=gen_prepare_records(tracker, model, ids, specs=specs, json_data=json)
+        tracker,prep_rec=gen_prepare_records(tracker, model, ids, json_data=json)
         tracker = generic_populate(tracker,model, prep_rec)
 
         return {'ids':tracker.id_tracker, 'counts':tracker.counter,'message':tracker.messanger.message}
