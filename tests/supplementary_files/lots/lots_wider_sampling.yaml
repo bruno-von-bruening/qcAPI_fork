@@ -28,11 +28,36 @@
   protocol: 
     type: df
     frozen_core: true
-- method: ccsd(t)
-  basis: cc-pvdz
+- method: mp2
+  basis: d-aug-cc-pvdz
   protocol: 
     type: df
     frozen_core: true
+- method: mp2
+  basis: cc-pvdz
+  protocol: 
+    type: conv
+    frozen_core: false
+- method: mp2
+  basis: d-aug-cc-pvdz
+  protocol: 
+    type: conv
+    frozen_core: false
+      # - method: ccsd(t)
+      #   basis: cc-pvdz
+      #   protocol: 
+      #     type: df
+      #     frozen_core: true
+      # - method: ccsd(t)
+      #   basis: cc-pvdz
+      #   protocol: 
+      #     type: conv
+      #     frozen_core: false
+      # - method: ccsd(t)
+      #   basis: d-aug-cc-pvdz
+      #   protocol: 
+      #     type: df
+      #     frozen_core: true
       # - method: ccsd
       #   basis: cc-pvdz
       #   protocol: 

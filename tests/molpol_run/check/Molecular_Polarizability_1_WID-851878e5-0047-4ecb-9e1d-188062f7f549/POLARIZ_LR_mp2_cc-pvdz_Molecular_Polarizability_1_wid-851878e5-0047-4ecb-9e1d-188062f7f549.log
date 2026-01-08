@@ -1,2 +1,0 @@
-2026-01-08:22:28:20,466 INFO     [psi4.driver.task_planner:259] PLANNING Atomic:  keywords={'D_CONVERGENCE': 1e-06, 'E_CONVERGENCE': 1e-10, 'FREEZE_CORE': '1', 'MP2_TYPE': 'DF', 'PROPERTIES_ORIGIN': [0.0, 0.0, 0.0], 'REFERENCE': 'RHF', 'SCF_TYPE': 'DF', 'function_kwargs': {}}
-2026-01-08:22:28:20,469 INFO     [psi4.driver.driver:790] Compute properties(): method=mp2, basis=cc-pvdz, molecule=default, nre=0.7151043387432433
