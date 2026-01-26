@@ -33,7 +33,7 @@ def config_base(
             ac_shift=None,
             charge=0,
             multiplicity=1,
-            input=xyz_file,
+            xyz_file=xyz_file,
         ),
         method=dict(
             method_tag=method,
