@@ -24,7 +24,6 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             prim_key= get_primary_key_name(the_object)
             id=entry[prim_key]
             prev_record = session.get(the_object, id)
-            print(id, prev_record)
             if lead:
                 if prev_record is None:
                     raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
@@ -42,7 +41,6 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             if hasattr(record, converged_key):
                 record_status=getattr(record, 'status')
                 assert record_status in [RecordStatus.succeeded,RecordStatus.failed], f"Unexpected status, {record_status}"
-            print(record.id)
         except Exception as ex: my_exception(f"Problem in data of record {the_object}", ex)
             #record.warnings=json.dumps( json.loads(record.warnings)+warnings )
             

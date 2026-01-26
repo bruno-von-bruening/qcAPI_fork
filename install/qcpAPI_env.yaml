@@ -1,4 +1,4 @@
-name: qcpAPI_wfnset
+name: qcpAPI_newver
 channels:
   #- conda-forge
   #- conda-forge/label/libint_dev
@@ -7,12 +7,11 @@ dependencies:
   - python=3.11
   - typing_extensions # pydantic needs that but for some reason does not install by itsself with my installation
   - exceptiongroup
-  #- git
   - numpy
-  #- psi4
   - tqdm
   - pip
   - pip:
+    - setuptools-scm
     - fastapi[standard]
     - sqlmodel
     - requests
@@ -23,6 +22,4 @@ dependencies:
     - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git
     - git+ssh://git@github.com/bruno-von-bruening/run_psi4.git
     - git+ssh://git@github.com/bruno-von-bruening/run_camcasp.git
-    # - -e $QCAPI_HOME/
-    # - git+ssh://git@github.com/comecattin/SULLEY.git
   - build

@@ -1,6 +1,7 @@
 [project]
 name = "qcpAPI"
-version = "0.2.0"
+# version = "0.2.0"
+dynamic=[ 'version' ] # Sources last tag to be defined (e.g. v1.2.3 and bumps it up to e.g. 1.2.3.<branch>+g<commit>), see build-system section below
 description = ''
 readme = "README.md"
 requires-python = ">=3.8"
@@ -15,4 +16,16 @@ server_external= ["*.ico"] # add favicon icon that lives under server_internal s
 # "qcp_server_start.py" = "qcpAPI.bin.server:main"
 [tool.setuptools]
 script-files = ["bin/qcp_server.py"]
+
+# Use setuptools_scm pip package (auto bumps branches)
+# see https://pypi.org/project/setuptools-scm/
+[build-system]
+requires = ["setuptools>=80", "wheel", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+# version_scheme = "post-release"
+# local_scheme = "dirty-tag"
+# Make a version file (can the be used by this very package)
+version_file = "src/qcpAPI/_version.py"
 
