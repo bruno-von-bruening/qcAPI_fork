@@ -62,7 +62,7 @@ try:
     cmd=f"{lead_command} populate --config {config_file} --p Molecular_Polarizability --files {molpol_file}" 
     run_wrapper(cmd)
 
-    cmd=f"{lead_command} client --config {config_file} --p Molecular_Polarizability --target scratch/"
+    cmd=f"{lead_command} client --config {config_file} --p Molecular_Polarizability --target scratch/ --test"
     run_wrapper(cmd)
 
 finally:

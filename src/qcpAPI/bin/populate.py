@@ -26,14 +26,14 @@ def main(argv:List[str]|Namespace):
     add('--test', action='store_true',help='test (less than 50 entries)')
 
     args=par.parse_args(argv)
-    address=process_client_args(args)
+    address, config_file=process_client_args(args, require_config=True)
     property=get_property_args(args)
     filenames=args.files
     method=args.method
     basis=args.basis
     do_test=args.test
 
-    main_internal(filenames, address, property, method, basis, do_test=do_test)
+    main_internal(filenames, address, config_file, property, method, basis, do_test=do_test)
 
 if __name__ == "__main__":
     main()

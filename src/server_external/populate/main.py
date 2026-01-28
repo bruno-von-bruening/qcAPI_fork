@@ -27,6 +27,7 @@ class MolPol_data(myBaseModel):
         validate_assignment = True
     ids: List[str]|Literal['all']='all' # wfn ids
     records: List[Molecular_Polarizability]=[ Molecular_Polarizability(blank=True) ]
+    codes: List[Code]=[]
     # def create_records(self)-> List[dict]:
     #     pass
     # def model_dump(self,**kwargs)-> dict:
@@ -36,10 +37,12 @@ class MolPol_data(myBaseModel):
     def model_dump(self,**kwargs)-> dict:
         dic= super().model_dump(**kwargs)
         dic['records']= [ x.model_dump() for x in self.records ]
+        dic['codes']= [ x.model_dump() for x in self.codes ]    
         return dic
 
 @val_call
-def get_kwargs_MolPol(files:List[pdtc_file]):
+def get_kwargs_MolPol(files:List[pdtc_file], config_file:pdtc_file):
+    """ Needs config file to get code entry for run_psi4 """
     data = [load_json_or_yaml(f) for f in files]
     if len(data)>1:
         raise NotImplementedError(f"Implement merging of multiple MolPol data files.")
@@ -55,13 +58,29 @@ def get_kwargs_MolPol(files:List[pdtc_file]):
                 yaml.safe_dump(MolPol_data().model_dump(), wr)
             error+=f"\nWrote dummy file as reference to \'{dummy_file}\'"
             raise Exception(error)
+    
+    try:
+        from qcp_versioning.foreign_version import get_foreign_version
+        from server_external.client.util import get_python_exc_and_script
+        python_exc,script=get_python_exc_and_script(config_file,'run_psi4')
+        version_hash=get_foreign_version(python_exc,'run_psi4')
+        code=Code(
+            code='run_psi4',
+            version_hash=version_hash
+        )
+        for rec in checked_d.records:
+            rec.code_tag=code.tag
+        checked_d.codes.append(code)
+    except Exception as ex:
+        raise Exception(f"Could not generate code entry for run_psi4: {ex}")
+
     kwargs=checked_d.model_dump()
 
     return kwargs
 
 @val_call
 def main(
-    filenames:List[file_pdtc],address, 
+    filenames:List[file_pdtc],address, config_file:pdtc_file,
     prop:sqlmodel_meta|str, 
     method:str|None=None, 
     basis:str|None=None, 
@@ -189,7 +208,7 @@ def main(
     elif prop==Distributed_Polarisabilities:
         kwargs={}
     elif prop==Molecular_Polarizability:
-        kwargs=get_kwargs_MolPol(filenames)
+        kwargs=get_kwargs_MolPol(filenames, config_file)
     else:
         raise Exception(f"No case implemented for handling property {property}")
 

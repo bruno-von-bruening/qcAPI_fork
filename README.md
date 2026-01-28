@@ -85,3 +85,7 @@ In case the server runs on a machine that requires ssh access one can bind the r
 ssh -L <port_local_host>:<remote_ip>:<port_remote_host> <username>@<remote_ip>
 ```
 Assuming port 8080 has been bound at local machine we can reach the server via "http://localhost:8080"
+
+
+
+

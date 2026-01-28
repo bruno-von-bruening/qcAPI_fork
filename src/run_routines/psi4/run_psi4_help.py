@@ -2,6 +2,7 @@ from . import *
 from qcp_objects.objects.properties import geometry
 from orm_import.database_declaration import FCHK_File
 from .psi4_helper import job_opts
+from qcp_versioning.foreign_version import get_foreign_version
 
 # make config
 def config_base(
@@ -11,6 +12,8 @@ def config_base(
 ) -> dict:
     """Pass data from wave function and geometry to psi4 config"""
     
+    
+
     try:
         xyz_file=tracker.job_name
         xyz_file=geom.print_out(format='xyz', output_name=xyz_file)
@@ -33,7 +36,7 @@ def config_base(
             ac_shift=None,
             charge=0,
             multiplicity=1,
-            input=xyz_file,
+            xyz_file=xyz_file,
         ),
         method=dict(
             method_tag=method,
@@ -77,11 +80,12 @@ def job_settings(job_tag:job_opts, record:SQLModel):
         raise NotImplementedError(f"Job tag {job_tag} not implemented in job_settings")
 
 
-
+CODE_ENTRY_DUMP="code_used.yaml"
 @val_call 
 def compute_core(
     python_exc:pdtc_file, psi4_script:pdtc_file,
     record:SQLModel,
+    code:Code,
     super_record:SQLModel,
     geom:geometry,
     job_tag:job_opts,
@@ -89,6 +93,12 @@ def compute_core(
     extra_cmdln_opts: dict,
 ):
 
+    try:
+        local_version_run_psi4=get_foreign_version(python_exc, "run_psi4")
+        assert code.code=='run_psi4', f"Expected code \'run_psi4\', got: {code.code}"
+        assert local_version_run_psi4==code.version_hash, f"Version hash mismatch for run_psi4: local {local_version_run_psi4} vs. provided {code.version_hash}"
+    except Exception as ex:
+        raise Exception(f"Version mismatch for run_psi4: {ex}")
 
     config=config_base(tracker, geom, record)
     config.update( machine_settings(tracker) )
@@ -134,6 +144,21 @@ def recover_storage(jobname) -> pdtc_file:
     assert len(storage_file)==1, f"Did not find exactely one storage file at {os.getcwd()} for {storage_file_search}: {storage_file}"
     storage_file=storage_file[0]
     return storage_file
+
+@val_call
+def recover_code() -> pdtc_file:
+    code_file_search=f"{CODE_ENTRY_DUMP}"
+    code_file=glob.glob(code_file_search)
+    assert len(code_file)==1, f"Did not find exactely one code file at {os.getcwd()} for {code_file_search}: {code_file}"
+    code_file=code_file[0]
+    return code_file
+
+@val_call
+def get_code_entry() -> Code:
+    code_file=recover_code()
+    code_data=load_json_or_yaml(code_file)
+    code_entry=Code.model_validate(code_data)
+    return code_entry
 
     
     

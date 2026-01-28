@@ -12,7 +12,8 @@ from orm_import.database_declaration import (
     RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map,
     Wave_Function, ISA_Weights,
     Group, Group_to_Group, Compound_to_Group,
-    Distributed_Multipoles, Distributed_Polarisabilities, Pairwise_Polarisabilities_File, Molecular_Polarizability,
+    Distributed_Multipoles, Distributed_Polarisabilities, Pairwise_Polarisabilities_File, Molecular_Polarizability, 
+    Code
 )
 
 from util.util import (

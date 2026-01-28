@@ -32,6 +32,7 @@ from qcp_orm.linked_tables.linked_tables import (
 )
 
 
+from qcp_orm.tables.meta import Meta, Code
 
 #from qcp_orm.tables_supplementary import BASE_File
 #from sqlmodel import Field, Relationship, SQLModel

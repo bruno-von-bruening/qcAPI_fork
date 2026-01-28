@@ -252,7 +252,7 @@ def make_tag_to_object_mapper(session) -> dict[str,str]:
                 found=[ obj for obj in found_objects if isinstance(obj, sqlmodel_cl_meta)]
                 assert len(found)==1, f"Not exactely one found for \'{tag}\': {found}"
                 found=found[0]
-            mapper+=[ (tab, found)] 
+                mapper+=[ (tab, found)] 
         return dict(mapper)
     except Exception as ex: my_exception(f"Problem in getting object to tag mapping", ex)
 

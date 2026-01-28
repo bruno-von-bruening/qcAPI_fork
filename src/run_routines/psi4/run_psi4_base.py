@@ -17,6 +17,7 @@ def run_psi4_base(
         super_record:SQLModel,
         geom:geometry,
         job_tag: job_opts,
+        code: Code,
         max_iter=150, 
         extra_cmdln_opts: dict={},
 ) -> Tuple[Tracker, Wave_Function, my_run_data]:
@@ -29,7 +30,7 @@ def run_psi4_base(
         try:
             wfn_record,tracker = compute_core(
                 python, psi4_script,
-                wfn_record, super_record,
+                wfn_record, code, super_record,
                 geom, job_tag, tracker, extra_cmdln_opts,
             )
         except Exception as ex: my_exception(f"Could not compute wave function",  ex)

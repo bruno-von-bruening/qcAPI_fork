@@ -93,14 +93,13 @@ def prepare_wfn_script(tracker:Tracker, record:sqlmodel_meta, max_iter=None):
     return script
 
 @val_call
-def prepare_molpol_script(tracker:Tracker, record:SQLModel, conformation, compound, wave_function):
+def prepare_molpol_script(tracker:Tracker, record:SQLModel, code:Code, conformation, compound, wave_function):
     geom=get_geometry(compound, conformation) # Pass either id or if conf and comp provided get that
 
-    if record.code=='psi4':
-        tag='run_psi4'
-        python_exc, psi4_script=get_python_exc_and_script(tracker.config_file,tag)
+    if code.code=='run_psi4':
+        python_exc, psi4_script=get_python_exc_and_script(tracker.config_file,code.code)
         script=compute_polarizability_psi4
-        return partial(script, python_exc, psi4_script, wave_function=wave_function, geom=geom)
+        return partial(script, python_exc, psi4_script, wave_function=wave_function, geom=geom, code=code)
     else:
         raise Exception(f"Requested unkown code: {record.code}")
 
@@ -165,7 +164,7 @@ def prepare_script(tracker:Tracker, results:return_data, max_iter:int|None=None)
         script=prepare_dispol_script(config_file, prod_data, serv_adr)
     elif NAME_MOLPOL == UNIQUE_NAME:
         kwargs= {}
-        for k in [Compound,Conformation, Wave_Function]:
+        for k in [Compound,Conformation, Wave_Function, Code]:
             try:
                 kwargs[k.__name__.lower()]=results.sub_entries[k.__name__]
             except Exception as ex: raise Exception(f"Expected \'{k}\' in provided sub_entries, got: {list(results.sub_entries.keys())}")

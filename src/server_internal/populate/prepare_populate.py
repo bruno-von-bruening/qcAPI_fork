@@ -36,6 +36,22 @@ def prep_molpol_pop(
     """
     """
 
+    assert 'codes' in json.keys(), f"Expected key \'codes\' in provided json objects. Found: {json.keys()}"
+    codes_raw=json['codes']
+    codes=[]
+    for c in codes_raw:
+        try:
+            codes+=[ Code(**c) ]
+        except Exception as ex: raise my_exception(f"Problem in preparing code entry for {Molecular_Polarizability.__name__} population:", ex)
+    found_code_tags=[ c.tag for c in codes ]
+
+    try:
+        for c in codes:
+            tracker.session.merge(c)
+        tracker.session.commit()
+    except Exception as ex: raise my_exception(f"Problem in adding code entries for {Molecular_Polarizability.__name__} population:", ex)
+
+
     assert 'records' in json.keys(), f"Expected key \'records\' in provided json objects. Found: {json.keys()}"
     records_raw=json['records']    
     
@@ -109,6 +125,10 @@ def prep_molpol_pop(
                 tracker.id_tracker.add_omitted( cand.wfn_id )
     except Exception as ex: raise my_exception(f"Problem in filtering existing {the_object.__name__} objects:", ex)
     tracker.messanger.stop_timing(f"Get existing combos")
+
+    for x in records:
+        if not x.code_tag in found_code_tags:
+            raise Exception(f"For {the_object.__name__} to be populated, the code_tag \'{x.code_tag}\' was not found among provided code entries: {found_code_tags}")
 
     return tracker,[ x.model_dump() for x in records]
 

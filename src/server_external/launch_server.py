@@ -39,6 +39,7 @@ from server_internal.get.info import info_functions
 
 from util.config import load_server_config, qcAPI_server_config, qcAPI_storage_info
 import os
+from orm_import.database_declaration import Meta
 
 DEFAULT_CONFIG_FILE="auto_config.yaml"
 def make_auto_config_file(host:str|None, port:int|None):
@@ -109,6 +110,45 @@ def app_setup(db_file, storage_info):
         connect_args = {"check_same_thread": False}
         engine = create_engine(sqlite_url, connect_args=connect_args, echo=False)
         return engine
+    def update_meta_table(engine):
+        import qcpAPI
+        import qcp_orm
+        with Session(engine) as session:
+            # Check if meta table has entry
+            current_meta= Meta(
+                    qcp_orm_version=qcp_orm.__version__,
+                    qcpAPI_version=qcpAPI.__version__,
+            )
+
+            old_meta=session.exec(select(Meta)).all()
+
+            # If not meta exist then make it
+            if len(old_meta)==0:
+                try:
+                    session.merge(current_meta)
+                    session.commit()
+                except Exception as ex:
+                    raise Exception(f"Warning: could not create meta table entry: {ex}") from ex
+            # There can only be one!
+            elif len(old_meta)>1:
+                raise Exception(f"Error: more than one meta table entry found ({len(old_meta)}). There should be only one.")
+            # The current meta should agree with the stored one! (otherwise we need complex migrations etc)
+            else:
+                def compare(meta1,meta2):
+                    di1,di2=meta1.model_dump(exclude=['created_on','last_updated']), meta2.model_dump(exclude=['created_on','last_updated'])
+                    disagreements=dict()
+                    for key in di1.keys():
+                        if di1[key]!=di2[key]:
+                            disagreements[key]=(di1[key], di2[key])
+                    return disagreements
+                disagreements=compare(old_meta[0], current_meta)
+                if len(disagreements)>0:
+                    msg="Meta table entry differs from current code version: (very strict at the moment)"
+                    for key in disagreements.keys():
+                        msg += f"\n - field {key}: database has {disagreements[key][0]}, current code has {disagreements[key][1]}"
+                    raise Exception(msg)
+
+
     def get_session():
         with Session(engine) as session:
             yield session
@@ -124,11 +164,13 @@ def app_setup(db_file, storage_info):
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         create_db_and_tables()
+        update_meta_table(engine)
         delete_all_workers()
         yield
 
     # SQL session
     engine=start_engine(db_file)
+
     from sqlalchemy import event
     @event.listens_for(engine, "connect")
     def enable_fk(dbapi_conn, conn_record):

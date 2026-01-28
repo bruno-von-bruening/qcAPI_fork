@@ -29,7 +29,7 @@ import json
 import uuid
 
 from orm_import.qcAPI_database import Worker
-from orm_import.database_declaration import Wave_Function, Hirshfeld_Partitioning, IsoDens_Surface, RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map
+from orm_import.database_declaration import Wave_Function, Hirshfeld_Partitioning, IsoDens_Surface, RHO_ESP_Map, DMP_ESP_Map, DMP_vs_RHO_ESP_Map, Code
 
 from util.trackers import message_tracker
 

@@ -106,13 +106,14 @@ def espcmp_url(do_test=False):
     return opts, the_json
 
 @val_call
-def molpol_url(ids:List[str]|str='all', records:List[Molecular_Polarizability]=[], do_test=False):
+def molpol_url(ids:List[str]|str='all', records:List[Molecular_Polarizability]=[], codes:List[Code]=[], do_test=False):
     """ """
     opts=dict(
         ids=ids,
     )
     the_json=dict(
-        records=[r.model_dump() for r in records]
+        records=[r.model_dump() for r in records],
+        codes=[c.model_dump() for c in codes]
     )
     return opts, the_json
 
@@ -132,6 +133,7 @@ def groups_url(content_file:str, do_test=False):
         else:
             raise Exception(f"Unkown extension of file \'{os.path.realpath(content_file)}\': {extension}")
     
+    # Get the code entry
     the_json={'records':data}
     opts={}
     return opts, the_json

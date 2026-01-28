@@ -3,7 +3,7 @@ from . import *
 from ..psi4.run_psi4_base import run_psi4_base, job_opts
 # from ..psi4.run_psi4_help import open_storage_file
 from qcp_objects.objects.properties import polarizability_tensor, MolecularMultipoleMoments
-from ..psi4.run_psi4_help import open_storage_file, get_fchk_file, get_from_storage
+from ..psi4.run_psi4_help import open_storage_file, get_fchk_file, get_from_storage, get_code_entry
 from orm_import.database_declaration import (
     Molecular_Multipoles,
     Molecular_Polarizability,
@@ -12,7 +12,8 @@ from orm_import.database_declaration import (
 @val_call
 def compute_polarizability_psi4(
     python, psi4_script, tracker:Tracker, 
-    record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry
+    record: Molecular_Polarizability, wave_function:Wave_Function, geom:geometry,
+    code:Code,
 ) -> job_results:
 
     try: # Run the psi4 calculation
@@ -22,7 +23,7 @@ def compute_polarizability_psi4(
             job_tag=job_opts.MOLPOL_LINEAR_RESPONSE
         else:
             raise Exception(f"Approach {record.approach} not implemented for psi4 polarizability calculations")
-        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, record, geom, job_tag,
+        tracker, wfn_record, run_data = run_psi4_base(python, psi4_script, tracker, wave_function, record, geom, job_tag, code,
                                                       )
         sub_entries={}
         files_for_entries={ }
@@ -176,4 +177,4 @@ def compute_polarizability_psi4(
         raise Exception(f"Error in formatting results:\n {ex}") from ex
 
 
-    
+

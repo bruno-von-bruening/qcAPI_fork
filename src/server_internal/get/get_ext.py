@@ -56,6 +56,7 @@ def make_production_data(data:return_data)->return_data:
                 Wave_Function.__name__  : wfn,
                 Compound.__name__       :comp,
                 Conformation.__name__   :conf,
+                Code.__name__          :data.record.code_entry,
             })
         #elif UNIQUE_NAME==NAME_WFN:
         #    production_data={}

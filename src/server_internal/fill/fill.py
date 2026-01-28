@@ -127,7 +127,8 @@ def upload_file_ext(storage_info,file, the_model, id):
         # Check if there or make directory
         total_path=root_directory
         for member in lower_path:
-            assert os.path.isdir(total_path), f"Not a directory {total_path}"
+            # If the directory to store in does not exist raise an error. This mistake could mean something else is wrong.
+            assert os.path.isdir(total_path), f"Directory that you requested to store in does not exist (do not create automatically for safety):\n{total_path}"
             new_path=os.path.join(total_path,member)
             if not os.path.isdir(new_path):
                 os.mkdir(new_path)
