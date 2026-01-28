@@ -11,11 +11,18 @@ classifiers = [
 ]
 
 [tool.setuptools.package-data]
-server_external= ["*.ico"] # add favicon icon that lives under server_internal subfolder
 # [project.scripts]
 # "qcp_server_start.py" = "qcpAPI.bin.server:main"
+server_external= ["*.ico"] # add favicon icon that lives under server_internal subfolder
+
 [tool.setuptools]
-script-files = ["bin/qcp_server.py"]
+script-files = ["bin/qcp_server.py", 'bin/qcp_export_envo.py']
+
+[tool.setuptools_scm]
+# version_scheme = "post-release"
+# local_scheme = "dirty-tag"
+# Make a version file (can the be used by this very package)
+version_file = "src/qcpAPI/_version.py"
 
 # Use setuptools_scm pip package (auto bumps branches)
 # see https://pypi.org/project/setuptools-scm/
@@ -23,9 +30,4 @@ script-files = ["bin/qcp_server.py"]
 requires = ["setuptools>=80", "wheel", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-# version_scheme = "post-release"
-# local_scheme = "dirty-tag"
-# Make a version file (can the be used by this very package)
-version_file = "src/qcpAPI/_version.py"
 

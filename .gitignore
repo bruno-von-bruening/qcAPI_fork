@@ -9,6 +9,11 @@ dist/
 timer.dat
 install/env_config.yaml
 install/environment_for_server_config.yaml
+
+
 **/dummy_config.yaml
 **/sandbox/
 tests/production_test/storage/
+
+src/qcpAPI/_version.py
+
