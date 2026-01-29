@@ -15,7 +15,7 @@ dependencies:
     - requests
     - rdkit
     - setuptools
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@203bcfec9
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@bc319ffc1
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@5cd49f067
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@b1309d414
     - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@e148b7891
   - build
