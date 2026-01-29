@@ -78,13 +78,26 @@ def process_imports(config,imports):
         return config
     except Exception as ex: my_exception(f"Problem in importing:", ex)
 
+from qcp_global_utils.environment.conda_env import get_current_conda_env
+class env_entry(BaseModel):
+    python_env: str
+    script: List[str]
+    def __init__(self,*args, **kwargs):
+        if 'script' in kwargs.keys():
+            script=kwargs['script']
+            if isinstance(script, str):
+                kwargs.update(script=[ script ])
+        super().__init__(*args, **kwargs)        
+        if self.python_env=='default':
+            self.python_env=get_current_conda_env()
+
 class config_base(BaseModel):
     TAG: str|None=None
     source: pdtc_file
     host: str|None = None
     port: int|None = None
     imports:       List[pdtc_file]|pdtc_file|None = None
-    environment: dict={} #qcAPI_environment_info=qcAPI_environment_info()
+    environment: Dict[str, env_entry]={} #qcAPI_environment_info=qcAPI_environment_info()
     @property
     def address(self) -> pdtc_address|None:
         if self.host is None or self.port is None:

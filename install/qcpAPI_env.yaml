@@ -15,9 +15,7 @@ dependencies:
     - requests
     - rdkit
     - setuptools
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@af842daa0
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@203bcfec9
     - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@bc319ffc1
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@784ba70eb
-    - git+ssh://git@github.com/bruno-von-bruening/run_camcasp.git@63736cc8b
-    - git+ssh://git@github.com/bruno-von-bruening/run_psi4.git@6aa5c5418
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@e148b7891
   - build

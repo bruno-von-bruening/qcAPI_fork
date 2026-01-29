@@ -13,16 +13,37 @@ def get_python_exc_and_script(config_file:file, tag)->Tuple[file,file]:
     python_env=worker_config.query( ('environment',tag, 'python_env'))
     script_exc=  worker_config.query( ('environment',tag, 'script')) 
     python_exc=os.path.join(get_python_from_conda_env(python_env))
+    import copy
 
-    try:
+    old_script=copy.deepcopy(script_exc)
+
+
+    try: # I could allow path variable but be careful, this may lead to loading them from current environment!
         try:
             script_exc=[
                 ( x if not x.startswith('$') else os.environ[x.lstrip('$')] ) for x in script_exc 
             ]
-        except Exception as ex: raise Exception(f"Problem in getting system variable: {ex}")
+        except Exception as ex: 
+            raise Exception(f"Problem in getting system variable: {ex}")
+
         script_exc=os.path.join( *script_exc )
-        assert os.path.isfile(script_exc), f"Not a file {script_exc}"
-    except Exception as ex: raise Exception(f"Provided script {script_exc} does not yield valid file.")
+
+        # def from_path(s):
+        #     script_exc_test=shutil.which( s )
+        #     path_exc=(script_exc_test is not None)
+            
+        # If not a path, then try to get from system variable
+        if not '/' in script_exc:
+
+
+            # maybe its conda
+            script_exc_test=get_python_from_conda_env(python_env).replace('python',script_exc)  # remove python from the end
+            if not os.path.isfile(script_exc_test):
+                raise Exception(f"Could not find executable {script_exc_test} for conda env {python_env}")
+            script_exc=script_exc_test
+        else:
+            assert os.path.isfile(script_exc), f"Not a file {script_exc}"
+    except Exception as ex: raise Exception(f"Provided script {old_script} (for {tag}) does not yield valid file. {ex}") from ex
 
     return python_exc, script_exc
 

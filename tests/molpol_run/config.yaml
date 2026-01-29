@@ -1,43 +1,7 @@
 TAG: QCPAPI
 database_file: test_molpol.db
-environment:
-  camcasp:
-    python_env: run_camcasp
-    script:
-    - $RUN_CAMCASP_HOME
-    - bin/my_runcamcasp.py
-  density_esp:
-    python_env: qcDENS
-    script:
-    - $DENSITY_OPERATIONS_HOME
-    - bin/calc_esp.py
-    shell_env:
-      QC_DENSITY_OPERATIONS_LIB: $DENSITY_OPERATIONS_LIB
-  esp_comparison:
-    python_env: qcp_objects
-    script:
-    - $PROPERTY_OBJECTS_HOME
-    - bin/compare_esp.py
-  horton:
-    python_env: horton_part
-    script: $HORTON_SCRIPT
-  iso_density_surface:
-    python_env: qcDENS
-    script:
-    - $DENSITY_OPERATIONS_HOME
-    - bin/calc_IsoDensSurf.py
-  multipolar_esp:
-    python_env: qcp_objects
-    script:
-    - $PROPERTY_OBJECTS_HOME
-    - bin/compute_dmp_esp.py
-  run_psi4:
-    python_env: run_psi4_test2
-    script:
-    - $RUN_PSI4_HOME
-    - bin/run_psi4_exe.py
 host: localhost
-imports: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation/install/env_setup.yaml
+imports: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_wfnset/install/env_setup.yaml
 port: 8101
 storage_info:
-  storage_root_directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_continuation_wfn_settings/tests/molpol_run/storage
+  storage_root_directory: /home/bruno/1_PhD/2_own_data_source/02-04_Custom_Software/qcpAPI_wfnset/tests/molpol_run/storage

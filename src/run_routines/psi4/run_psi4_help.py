@@ -28,6 +28,13 @@ def config_base(
         scf_type=dat.type
         freeze_core=dat.frozen_core
         reference=dat.reference
+        if dat.fno_thres: # not zero or none
+            do_fno=True
+            fno_thres=dat.fno_thres
+        else:
+            do_fno=False
+            fno_thres=0
+
 
     except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.specs}", ex)
     
@@ -44,6 +51,8 @@ def config_base(
             scf_type=scf_type,
             freeze_core=freeze_core,
             reference=reference,
+            fno=do_fno,
+            fno_thres=fno_thres,
         ),
     )
 

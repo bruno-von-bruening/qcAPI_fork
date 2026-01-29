@@ -43,6 +43,17 @@
   protocol: 
     type: conv
     frozen_core: false
+- method: ccsd(t)
+  basis: d-aug-cc-pvdz
+  protocol: 
+    type: conv
+    frozen_core: false
+- method: ccsd(t)
+  basis: d-aug-cc-pvdz
+  protocol: 
+    type: cd
+    frozen_core: true
+    fno_thres: 1.e-6
       # - method: ccsd(t)
       #   basis: cc-pvdz
       #   protocol: 
