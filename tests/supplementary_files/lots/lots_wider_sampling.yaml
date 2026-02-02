@@ -54,6 +54,7 @@
     type: cd
     frozen_core: true
     fno_thres: 1.e-6
+    cd_thres: 1.e-8
       # - method: ccsd(t)
       #   basis: cc-pvdz
       #   protocol: 

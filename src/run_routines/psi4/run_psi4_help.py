@@ -28,6 +28,7 @@ def config_base(
         scf_type=dat.type
         freeze_core=dat.frozen_core
         reference=dat.reference
+        cd_thres=dat.cd_thres
         if dat.fno_thres: # not zero or none
             do_fno=True
             fno_thres=dat.fno_thres
@@ -53,6 +54,7 @@ def config_base(
             reference=reference,
             fno=do_fno,
             fno_thres=fno_thres,
+            cd_thres=cd_thres,
         ),
     )
 
