@@ -135,18 +135,29 @@ def app_setup(db_file, storage_info):
             # The current meta should agree with the stored one! (otherwise we need complex migrations etc)
             else:
                 def compare(meta1,meta2):
-                    di1,di2=meta1.model_dump(exclude=['created_on','last_updated']), meta2.model_dump(exclude=['created_on','last_updated'])
+                    di1,di2=[ x.model_dump(exclude=['created_on','last_updated','id','other_info']) for x in [meta1,meta2]]
+                    from qcp_versioning.helper import get_version_hash
                     disagreements=dict()
                     for key in di1.keys():
-                        if di1[key]!=di2[key]:
-                            disagreements[key]=(di1[key], di2[key])
+                        try:
+                            one,two=[ get_version_hash(x[key],key) for x in [di1,di2] ]
+                        except Exception as ex:
+                            raise Exception(f"Could not get version hash for meta field {key}: {ex}") from ex
+                        if one!=two:
+                            disagreements[key]=(one, two)
                     return disagreements
                 disagreements=compare(old_meta[0], current_meta)
                 if len(disagreements)>0:
-                    msg="Meta table entry differs from current code version: (very strict at the moment)"
+                    msg="Meta table entry differs from current code version."
                     for key in disagreements.keys():
                         msg += f"\n - field {key}: database has {disagreements[key][0]}, current code has {disagreements[key][1]}"
-                    raise Exception(msg)
+                    msg += "\n Confirm if you want to continue using this database with the current code version by typing 'y' (otherwise type 'n' to abort): "
+                    # Get input y or n
+                    user_input = input(msg)
+                    if user_input.lower() != 'y':
+                        quit("User aborted: not using this database.")
+                    else:
+                        print("User confirmed: continuing with this database.")
 
 
     def get_session():
