@@ -3,6 +3,10 @@
 from test_helper import start_server
 import os, shutil
 import yaml
+from subprocess import call
+EDITOR = os.environ.get('EDITOR', 'vim')
+def edit(fi):
+    call([EDITOR,fi])
 
 from server_external.launch_server import make_auto_config_file
 from qcp_global_utils.shell_processes.execution import run_shell_command
@@ -16,11 +20,15 @@ if not os.path.isfile(config_file):
     shutil.move(auto_config,config_file)
     conf=yaml.safe_load(open(config_file))
     conf['database_file']='test_molpol.db'
-    conf=qcAPI_server_config(**conf, source=os.path.realpath(config_file)).model_dump(exclude=['source'])
+    conf=qcAPI_server_config(**conf, source=os.path.realpath(config_file)).model_dump(exclude=['source','environment','TAG'])
 
     with open(config_file,"w") as f:
         yaml.safe_dump(conf,f)
+    edit(config_file)
     print(f"Dropped automatic config under {config_file}")
+
+if not os.path.isdir('scratch'): os.mkdir('scratch')
+if not os.path.isdir('storage'): os.mkdir('storage')
 
 conf=yaml.safe_load(open(config_file))
 db_file=conf['database_file']
