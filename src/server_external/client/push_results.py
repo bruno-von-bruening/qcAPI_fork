@@ -126,9 +126,18 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
                     file=file.realpath
                 upload_file(serv_adr,get_object_for_tag(tag) if isinstance(tag, str) else tag, id,file)
         # Upload the lead record
+        def drop_them(v:dict|List[dict]|SQLModel|List[SQLModel]):
+            if isinstance(v,list):
+                return [ drop_them(vi) for vi in v ]
+            elif isinstance(v,dict):
+                return { k: drop_them(vi) for k,vi in v.items() }
+            elif issubclass(type(v), SQLModel):
+                return v.model_dump()
+            else:
+                return v
         data=dict(
             main_record= record.model_dump(),
-            sub_entries= dict( (k, (v if not issubclass(type(v),BaseModel) else v.model_dump() ))
+            sub_entries= dict( (k, drop_them(v))
                           for k,v in results.sub_entries.items()
             ),
         )

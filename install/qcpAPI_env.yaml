@@ -17,5 +17,5 @@ dependencies:
     - setuptools
     - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@10df6fc64
     - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@b1309d414
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@9ca09dec6
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@afa782bea
   - build

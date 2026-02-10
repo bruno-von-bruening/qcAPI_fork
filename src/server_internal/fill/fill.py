@@ -16,42 +16,49 @@ def kill_the_worker(session,worker_id):
 @val_call
 def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=None|dict):
     @val_call
-    def fill(tracker,the_object:SQLModelMetaclass, entry:dict, lead=True):
+    def fill(tracker,the_object:SQLModelMetaclass, entry:dict|List[dict], lead=True):
         """
         lead means that is a core object and not a dependant (e.g. outsourced file or data table )
         """
-        try:
-            prim_key= get_primary_key_name(the_object)
-            id=entry[prim_key]
-            prev_record = session.get(the_object, id)
-            if lead:
-                if prev_record is None:
-                    raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
-                if prev_record.status == 1:
-                    raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
-        except HTTPException as ex: raise ex
-        except Exception as ex: my_exception(f"Problem in finding previous record",ex)
 
-        try:
-            if 'status' in entry.keys():
-                fill=( entry['status']==1 )
-            else: fill=False
-            record=the_object(**entry, fill=fill)
-            converged_key='status'
-            if hasattr(record, converged_key):
-                record_status=getattr(record, 'status')
-                assert record_status in [RecordStatus.succeeded,RecordStatus.failed], f"Unexpected status, {record_status}"
-        except Exception as ex: my_exception(f"Problem in data of record {the_object}", ex)
-            #record.warnings=json.dumps( json.loads(record.warnings)+warnings )
-            
-        if prev_record is not None:
+        def for_single(entry:dict):
             try:
-                update_record(session, prev_record, record)
-            except Exception as ex: my_exception(f"Problem in updating record",ex)
-        else:
+                prim_key= get_primary_key_name(the_object)
+                id=entry[prim_key]
+                prev_record = session.get(the_object, id)
+                if lead:
+                    if prev_record is None:
+                        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
+                    if prev_record.status == 1:
+                        raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
+            except HTTPException as ex: raise ex
+            except Exception as ex: my_exception(f"Problem in finding previous record",ex)
+
             try:
-                create_record(session, record)
-            except Exception as ex: my_exception(f"Problem in creating record",ex)
+                if 'status' in entry.keys():
+                    fill=( entry['status']==1 )
+                else: fill=False
+                record=the_object(**entry, fill=fill)
+                converged_key='status'
+                if hasattr(record, converged_key):
+                    record_status=getattr(record, 'status')
+                    assert record_status in [RecordStatus.succeeded,RecordStatus.failed], f"Unexpected status, {record_status}"
+            except Exception as ex: my_exception(f"Problem in data of record {the_object}", ex)
+                #record.warnings=json.dumps( json.loads(record.warnings)+warnings )
+                
+            if prev_record is not None:
+                try:
+                    update_record(session, prev_record, record)
+                except Exception as ex: my_exception(f"Problem in updating record",ex)
+            else:
+                try:
+                    create_record(session, record)
+                except Exception as ex: my_exception(f"Problem in creating record",ex)
+        
+        if isinstance(entry, dict):
+            for_single(entry)
+        elif isinstance(entry, list):
+            [ for_single(e) for e in entry ]
 
         return tracker
     @val_call
@@ -183,7 +190,7 @@ def add_upload_functions(app, SessionDep,
         try:
 
             @val_call
-            def process_data(data:dict) -> Tuple[dict, dict]:
+            def process_data(data:dict) -> Tuple[dict, dict|List[dict]]:
                 entry_key='main_record'
                 sub_key='sub_entries'
 
@@ -199,7 +206,12 @@ def add_upload_functions(app, SessionDep,
                     if sub_entries is None:
                         pass
                     elif isinstance(sub_entries, dict):
-                        assert all( isinstance(v, dict) or v is None for k,v in sub_entries.items() ), f"Expected dictionary of dictionaryies, got:\n{sub_entries}"
+                        def is_okay(v):
+                            if isinstance(v, dict): return True
+                            elif isinstance(v, list): return all(isinstance(vi, dict) for vi in v)
+                            elif v is None: return True
+                            else: return False
+                        assert all( is_okay(v) for k,v in sub_entries.items() ), f"Expected dictionary (or list of dictionaries) of dictionaries, got:\n{sub_entries}"
                     else: raise Exception(f"Unexpected datatype for sub entries ({type(sub_entries)}): {sub_entries}")
 
                 return entry, sub_entries
