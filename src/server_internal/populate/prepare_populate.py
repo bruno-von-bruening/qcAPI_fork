@@ -152,6 +152,12 @@ def prep_wfn_pop(
     # make the objects
     try:
         selected_ids=tracker.get_ids_for_table(Conformation, ids)
+        if len(selected_ids)==0:
+            all_ids=tracker.get_ids_for_table(Conformation, 'all')
+            if len(all_ids)==0:
+                raise Exception(f"No conformations found in database to link wave functions to. Please populate conformations first.")
+            else:
+                raise Exception(f"No available conformations found for the provided ids: {ids}")
 
         new_wfn=[]
         for the_id in selected_ids:

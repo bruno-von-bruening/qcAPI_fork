@@ -118,47 +118,65 @@ def main(
             records+=content['records']
 
 
-        inchi_map={}
+        inchikey_to_inchi={}
         rec_ref=[]
         for rec in records:
             try:
                 rec_ref+=[ Conformation(**rec) ]
             except Exception as ex: 
-                required_keys=['inchikey','geometry']
-                cnt=sum([ k in rec.keys() for k in required_keys ])
-                if cnt==len(required_keys):
-                    geom=geometry(rec['geometry'])
-                    geom.units.LENGTH='BOHR'
-                    coords=geom.coordinates.reshape(-1)
-                    elements=geom.atom_types
-                    
-                    geom.units.LENGTH='ANGSTROM'
-                    inchi, inchi_key=auto_inchi(geom.coordinates, elements)
-                    # inchi, inchi_key=auto_inchi(geom.coordinates, elements)
-                    if 'inchikey' in rec.keys():
-                        if rec['inchikey'].lower() == 'auto':
-                            pass
+                from qcp_objects.objects.properties import geometry as geom_geom
+                class conf_data(myBaseModel):
+                    inchikey: str='auto'
+                    geometry: str # Supposed to be a file
+                    _geometry: geom_geom|None=None
+                    def __init__(self, source_file=None, **data):
+                        if data.get('geometry'):
+                            # replace any $ in geometry path with environment variables ($HERE is the dirname of the input file)
+                            if re.match(r'\$HERE', data['geometry']):
+                                if not source_file:
+                                    raise Exception(f"Provided geometry path starts with $HERE but no source file provided to resolve it.")
+                                else:
+                                    data['geometry']=data['geometry'].replace('$HERE', os.path.dirname(source_file))
+                            data['geometry']=os.path.expandvars(data['geometry'])
+                        super().__init__(**data)
+                    @property
+                    def processed_inchikey(self):
+                        inchi, inchikey=auto_inchi(geom=self.processed_geometry)
+                        if self.inchikey.lower()=='auto':
+                            return inchikey
                         else:
-                            if inchi_key!=rec['inchikey']:
-                                warn(f"Provided inchikey \'{rec['inchikey']}\' does not match generated inchikey \'{inchi_key}\' (inchi={inchi}) from geometry through rdkit (very usual) !")
-                                inchi_key=rec['inchikey']
+                            if inchikey!=self.inchikey:
+                                warn(f"Provided inchikey \'{self.inchikey}\' does not match generated inchikey \'{inchikey}\' (inchi={inchi}) from geometry through rdkit (very usual) !")
+                            return self.inchikey
+                    @property
+                    def processed_geometry(self):
+                        if self._geometry is None:
+                            self._geometry=geom_geom(self.geometry)
+                        self._geometry.units.LENGTH='BOHR'
+                        return self._geometry
 
-                    rec_ref+=[ Conformation(
-                        compound_id=inchi_key,
-                        coordinates=coords, elements=elements,
-                    )]
-                    inchi_map.update({ inchi_key: inchi })
+                    def to_conf_model(self):
+                        return Conformation(
+                            compound_id=self.processed_inchikey,
+                            coordinates=self.processed_geometry.coordinates.reshape(-1),
+                            elements=self.processed_geometry.atom_types,
+                        )
+                try:
+                    conf=conf_data(**rec, source_file=content_file)
+                    rec_ref+=[ conf.to_conf_model() ]
+                except Exception as ex:
+                    raise Exception(f"Could not generate record for {rec}: {ex}")
+                inchikey_to_inchi.update( dict([ tuple(list(auto_inchi(geom=conf.processed_geometry))[::-1]) ])  ) # needs to be reveresed
 
-                else: raise Exception(f"Could not generate record for {rec}: {ex}")
         # inchis=[ r.compound_id for r in rec_ref ]
         from receiver.get_request import get_row
-        entries=get_row(address, 'compound', ids=list(set(inchi_map.keys())) )
+        entries=get_row(address, 'compound', ids=list(set(inchikey_to_inchi.keys())) )
         existing_inchis=[ r[get_primary_key_name(Compound)] for r in json.loads(entries['json'])['record'] ]
-        missing_inchis=[ x for x in inchi_map.keys() if x not in existing_inchis ]
+        missing_inchis=[ x for x in inchikey_to_inchi.keys() if x not in existing_inchis ]
 
         from .populate_extension import load_pubchem_data
         if len(missing_inchis)>0:
-            compounds=load_pubchem_data(missing_inchis, inchi_mapper=inchi_map)
+            compounds=load_pubchem_data(missing_inchis, inchi_mapper=inchikey_to_inchi)
 
 
             opts, json_content= get_url_func(Compound)(records=compounds)

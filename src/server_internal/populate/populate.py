@@ -38,7 +38,7 @@ def populate_functions(app, SessionDep):
         object: str,
         session: SessionDep,
         ids: List[str|int|Literal['all']|None]=Query(None),
-        specs: str='{}',
+        # specs: str='{}', # suspect this is not needed anymore
         json: dict={},
     ):
         try:
@@ -58,10 +58,10 @@ def populate_functions(app, SessionDep):
         except Exception as ex:
             raise HTTPException(HTTPStatus.BAD_REQUEST, f"Problem in parsing ids parameter: {str(ex)}")
 
-        try:
-            specs=json_mod.loads(specs)
-        except Exception as ex:
-            raise HTTPException(HTTPStatus.BAD_REQUEST, f"Problem in parsing specs parameter as json:\n{specs}\n {str(ex)}")
+        # try:
+        #     specs=json_mod.loads(specs)
+        # except Exception as ex:
+        #     raise HTTPException(HTTPStatus.BAD_REQUEST, f"Problem in parsing specs parameter as json:\n{specs}\n {str(ex)}")
 
         
         try:
@@ -90,8 +90,8 @@ def populate_functions(app, SessionDep):
             except Exception as ex:
                 my_exception(f"Problem in preparing the initial arguments for {populate_wrapper}", ex)
 
-            if not len(specs)==0:
-                kwargs.update(dict(specs=specs))
+            # if not len(specs)==0:
+            #     kwargs.update(dict(specs=specs))
 
 
             # Actual population

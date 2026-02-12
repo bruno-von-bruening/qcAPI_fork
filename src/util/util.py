@@ -1,4 +1,3 @@
-
 from . import *
 
 import rdkit.Chem as rdchem
@@ -32,9 +31,13 @@ NAME_MBIS='MBIS'
 
 
 from rdkit import Chem
+from qcp_objects.objects.properties import geometry
+
+
 
 @val_call
-def auto_inchi(coordinates:List[Tuple[float,float,float]], atom_types:List[str], charge=0):
+def auto_inchi_hidden(coordinates:List[Tuple[float,float,float]]|geometry, atom_types:List[str], charge=0):
+    """ Needs to be in anstrom!"""
     #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
     mol_block=f"{len(coordinates)}\n\n"
     for ty,coor in zip( atom_types, coordinates):
@@ -70,6 +73,25 @@ def auto_inchi(coordinates:List[Tuple[float,float,float]], atom_types:List[str],
     return auto_inchi, auto_inchi_key
 
 
+
+@val_call
+def auto_inchi(
+    coordinates: List[Tuple[float, float, float]] = None,
+    atom_types: List[str] = None,
+    charge: int = 0,
+    geom: geometry = None,
+):
+    """
+    Higher-level function to generate InChI and InChIKey.
+    Accepts either (coordinates, atom_types, charge) or a geometry object.
+    """
+    if geom is not None:
+        geom.units.LENGTH = 'ANGSTROM'
+        return auto_inchi_hidden(geom.coordinates, geom.atom_types, geom.charge)
+    elif coordinates is not None and atom_types is not None:
+        return auto_inchi_hidden(coordinates, atom_types, charge)
+    else:
+        raise ValueError("Provide either a geometry object or both coordinates and atom_types.")
 
 
 print_flush = partial(print, flush=True)

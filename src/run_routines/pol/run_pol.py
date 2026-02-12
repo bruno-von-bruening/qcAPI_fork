@@ -70,6 +70,7 @@ def compute_polarizability_psi4(
         try: # Inherit data from wave function to polarizability record
         
             storage_file=run_data.files['storage_file']
+            center=get_center_from_storage(storage_file)
 
             tracker, di=get_fchk_file(tracker,storage_file, id=wfn_record.id)
             files_for_entries.update( **di )
