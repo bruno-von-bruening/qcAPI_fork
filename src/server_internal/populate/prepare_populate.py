@@ -5,6 +5,9 @@ from .util import pop_tracker
 
 from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, select
+from orm_import.qcAPI_database import (
+    RecordStatus
+)
 
 def get_unique_constraint_cols(model: type[SQLModel], name: str | None = None) -> list[str]:
     """
@@ -68,6 +71,7 @@ def prep_molpol_pop(
             ids='all'
         ancestor=Wave_Function
         the_ids=tracker.get_ids_for_table(ancestor, ids=ids)
+        stati=tracker.session.exec(select(ancestor.status).where(ancestor.id.in_(the_ids))).all()
     except Exception as ex: raise my_exception(f"Problem in getting available ids for {the_object.__name__} population:", ex)
 
     # Get wfn ids that already exist
@@ -103,12 +107,12 @@ def prep_molpol_pop(
     
     candidates=[]
     try: # Add all new ids
-        for the_id in [ 
-            x for x in the_ids 
-        ]:
+        for the_id,status in zip(the_ids, stati): 
             for r in records_raw:
                 kwargs_def=r.copy()
                 kwargs_def['wfn_id']=the_id
+                if status==RecordStatus.no_run_intended:
+                    kwargs_def['status']=RecordStatus.no_run_intended
                 candidates+=[the_object(
                     **kwargs_def, blank=True
                 )]
@@ -134,10 +138,15 @@ def prep_molpol_pop(
 
 @val_call
 def prep_wfn_pop(
-    tracker:pop_tracker, ids:List[str]|str='all', 
+    tracker:pop_tracker, 
+    ids:List[str]|str='all', 
     json:dict={} # should be list of entries
 ):
-    """ Prepare wave function population """
+    """ Prepare wave function population 
+    1. Recover data
+    2. Check if wave function to be inherited from is there (e.g. CCSD(T) psi4 calculation requires, CCSD MP2 HF wfn in preparations)
+    3. Link the wave function info with the available conformations        
+    """
 
     try: # Parse arguments
         the_key='records'
@@ -145,19 +154,51 @@ def prep_wfn_pop(
         try:
             lots=[ Wave_Function(**x, blank=True) for x in json[the_key] ]
         except Exception as ex:
-            raise Exception(f"Could not process argument of '{the_key}' as list of {Wave_Function} in provided json objects.")
+            raise Exception(f"Could not process argument of '{the_key}' as list of table \'{Wave_Function.__name__}\' in provided json objects.")   
         assert len(lots)>0, f"Did not provide any {the_key} entries!"
+        tracker.messanger.add_message(f"Parsed {len(lots)} wave function entries from provided json objects.")
     except Exception as ex: my_exception(f"Problem in preparing wave base objects:", ex)
 
-    # make the objects
+    # If lots are MP2 or CC there will be lower lying methods that get obtained automatically
+    try:
+        parent_methods={
+            "ccsd(t)": ["ccsd", "mp2",'hf'],
+            "ccsd": ["mp2",'hf'],
+            "mp2": ['hf'],
+        }
+        implicit_methods=[]
+        for lot in lots:
+            if any([lot.method.lower().startswith(x) for x in ['mp','cc']]):
+                found=[ x for x in parent_methods.keys() if lot.method.lower()==x ]
+                if len(found)==0:
+                    raise Exception(f"Method {lot.method} not recognized as a method with lower lying methods. But not among available mapping: {list(parent_methods.keys())}")
+                elif len(found)>1:
+                    raise Exception(f"Method {lot.method} matches multiple entries in parent method mapping: {found}")
+                else: # If only one found that generate the lower lying methods!
+                    parents=parent_methods[found[0]]
+                    for parent in parents:
+                        lot_parent=lot.copy(update=dict(
+                            method=parent,
+                            status=RecordStatus.no_run_intended
+                        ))
+                        lots+=[ lot_parent ]
+                        implicit_methods+=[ parent ]
+        # Print info 
+        if len(implicit_methods)>0:
+            method_counts=dict( (m, sum( [ 1 for x in lots if x.method==m ] ) ) for m in set(implicit_methods) )
+            tracker.messanger.add_message(
+                f"Added {len(implicit_methods)} implicit wave functions for lower lying methods of types:\n"
+                +'\n'.join( [ f"    - {m}: {c}" for m,c in method_counts.items() ] ) 
+            )
+    except Exception as ex: 
+        raise Exception(ex) from ex
+        tracker.messanger.add_warning(f"Problem in generating implicit wave functions for lower lying methods: {str(ex)}")
+    
+    # Link wave functions to Conformations
     try:
         selected_ids=tracker.get_ids_for_table(Conformation, ids)
         if len(selected_ids)==0:
-            all_ids=tracker.get_ids_for_table(Conformation, 'all')
-            if len(all_ids)==0:
-                raise Exception(f"No conformations found in database to link wave functions to. Please populate conformations first.")
-            else:
-                raise Exception(f"No available conformations found for the provided ids: {ids}")
+            raise Exception(f"No conformations found in database to link wave functions to (for selection {ids}). Please populate conformations first.")
 
         new_wfn=[]
         for the_id in selected_ids:

@@ -2,13 +2,15 @@ import uuid
 from sqlmodel import Field, SQLModel
 from enum import Enum
 
-class RecordStatus(int, Enum):
-    succeeded = 1
-    failed = 0
-    pending = -1
-    running = -2
-    def to_dict():
-        return dict([ (k,v) for k,v in zip(RecordStatus._member_names_, [x.value for x in RecordStatus])])
+from qcp_orm.data_holders.execution import RecordStatus
+
+# class RecordStatus(int, Enum):
+    # succeeded = 1
+    # failed = 0
+    # pending = -1
+    # running = -2
+    # def to_dict():
+        # return dict([ (k,v) for k,v in zip(RecordStatus._member_names_, [x.value for x in RecordStatus])])
 class Worker(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hostname: str

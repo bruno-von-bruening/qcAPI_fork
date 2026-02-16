@@ -23,8 +23,11 @@ def main(conda_env_file=None,install=True):
         new_envo_file=main_install(   MAIN_PKG, DEPENDENCIES, conda_env_file=conda_env_file, test=False)
         new_envo_data=load_json_or_yaml(new_envo_file)
         name=new_envo_data['name']
-        print(f"Removing old environment {name}")
-        run_shell_command(f"conda env remove -n {name} -y")
+        try:
+            print(f"Removing old environment {name}")
+            stdout,stderr=run_shell_command(f"conda env remove -n {name} -y")
+        except Exception as ex: 
+            print(f"Could not delete conda environment {name}: {ex}")
     new_envo_file=main_install(   MAIN_PKG, DEPENDENCIES, conda_env_file=conda_env_file, test=install)
     if install:
         run_shell_command( f" conda run -n {name} python -m build {HOME}; conda run -n {name} pip install {HOME}" )
@@ -39,7 +42,7 @@ def main(conda_env_file=None,install=True):
         test_dir=os.path.join(HOME, 'tests','molpol_run')
         os.chdir(test_dir)
         print(f"Will run environment {name} in test directory {test_dir}")
-        run_shell_command( f"conda run -n {name} python test.py" )
+        run_shell_command( f"export QCPAPI_HOME=${HOME}; conda run -n {name} python test.py" )
     except Exception as ex:
         raise Exception(f"Error in running test script for the new environment. Error was: {str(ex)}") from ex
     finally:    os.chdir(origin)

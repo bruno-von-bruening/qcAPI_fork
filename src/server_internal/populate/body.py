@@ -10,11 +10,10 @@ from .prepare_populate import (
 )
 
 @val_call
-def gen_prepare_records(
+def gen_prepare_records_switch(
     tracker:pop_tracker, 
     model:SQLModelMetaclass, 
-    ids:Union[List[str],Literal['all'],None], 
-    # specs:dict={},
+    ids:Union[List[str],Literal['all']], 
     json_data:dict={},
 ) -> Tuple[pop_tracker,List[dict]]:
     """ Pass the right arugments to the prepare function for UNIQUE_TAG"""
@@ -26,7 +25,8 @@ def gen_prepare_records(
         func=prep_wfn_pop
     elif model==Molecular_Polarizability:
         func=prep_molpol_pop
-    else: raise NotImplementedError(f"Did not implement prepare_records for model: {model}")
+    else: raise NotImplementedError(f"Did not implement prepare_records for model: {model.__name__}")
+
     try:
         return func(tracker=tracker, ids=ids, json=json_data)
     except Exception as ex: raise my_exception(f"Problem in preparing records for {model.__name__} with {func}:", ex)

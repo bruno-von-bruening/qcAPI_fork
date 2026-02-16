@@ -110,6 +110,12 @@ class message_tracker(BaseModel):
             self._message+=input
         else:
             self._message.append(input)
+    @validate_call
+    def add_warning(self,input:str|List[str]):
+        if isinstance(input, list):
+            self._message+=input
+        else:
+            self._message.append(input)
 
     @validate_call
     def start_timing(self):

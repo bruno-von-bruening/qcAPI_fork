@@ -25,14 +25,21 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
             try:
                 prim_key= get_primary_key_name(the_object)
                 id=entry[prim_key]
-                prev_record = session.get(the_object, id)
+                if the_object.has_unique_constraint:
+                    prev_record=the_object.check_for_unique(session,entry)
+                else:
+                    prev_record=None
+
+                if prev_record is None and id is not None:
+                    prev_record = session.get(the_object, id)
+                
                 if lead:
                     if prev_record is None:
                         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Record does not exist")
                     if prev_record.status == 1:
                         raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail="Record already converged")
             except HTTPException as ex: raise ex
-            except Exception as ex: my_exception(f"Problem in finding previous record",ex)
+            except Exception as ex: my_exception(f"Problem in finding previous record for {the_object.__name__}",ex)
 
             try:
                 if 'status' in entry.keys():
@@ -48,6 +55,16 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
                 
             if prev_record is not None:
                 try:
+                    new_id=getattr(record, get_primary_key_name(the_object))
+                    old_id=getattr(prev_record, get_primary_key_name(the_object))
+                    if new_id is None: setattr(record,get_primary_key_name(the_object),old_id)
+                    elif new_id!=old_id: raise Exception(f"Primary key of record cannot be changed (old: {old_id}, new: {new_id})") 
+
+                    # Take care of status (recognize if it should be filled by another)
+                    if hasattr(record, 'status'):
+                        if prev_record.status==RecordStatus.no_run_intended:
+                            if record.status in [RecordStatus.succeeded, RecordStatus.filled_by_another]:
+                                record.status=RecordStatus.filled_by_another
                     update_record(session, prev_record, record)
                 except Exception as ex: my_exception(f"Problem in updating record",ex)
             else:
