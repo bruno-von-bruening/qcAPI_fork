@@ -11,6 +11,8 @@ def edit(fi):
 from server_external.launch_server import make_auto_config_file
 from qcp_global_utils.shell_processes.execution import run_shell_command
 
+from typing import List
+
 config_file="config.yaml"
 if not os.path.isfile(config_file):
     from util.config import qcAPI_server_config,qcAPI_storage_info
@@ -54,9 +56,21 @@ molpol_file='../supplementary_files/molpol/molpol.yaml'
 assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
 
 def run_wrapper(cmd):
+    def break_text(lines:List[str]):
+        import textwrap
+        import shutil
+        tag=' | '
+        width = shutil.get_terminal_size().columns -len(tag)
+        text='\n'.join([
+            textwrap.fill( l.strip('\n'), width=width)
+            for l in lines
+        ]).split('\n')
+        return '\n'.join([ tag+x for x in text ])
+
     print(f"Running command: {cmd}")
-    stderr, stdout=run_shell_command(cmd)
-    print(f"Finished command successfully. STDOUT:\n{stdout}\nSTDERR:\n{stderr}")
+    stdout, stderr=run_shell_command(cmd)
+    print(f"Finished command successfully.\nSTDOUT:\n{break_text(stdout)}"+
+    f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" ))
 try:
     lead_command=f"python {shutil.which('qcp_server.py')}"
 

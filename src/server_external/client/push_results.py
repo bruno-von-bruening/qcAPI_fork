@@ -132,7 +132,10 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
             elif isinstance(v,dict):
                 return { k: drop_them(vi) for k,vi in v.items() }
             elif issubclass(type(v), SQLModel):
-                return v.model_dump()
+                if hasattr(v, 'validated'):
+                    return v.validated().model_dump()
+                else:
+                    return v.model_dump()
             else:
                 return v
         data=dict(
@@ -145,7 +148,14 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
         # Check success of request
         status_code=response.status_code
         if status_code == HTTPStatus.OK: # desired
-            print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
+
+            from receiver.get_request import get_message_and_error
+            message, error = get_message_and_error(response)
+            print(f"NORMAL RETURN" +
+                  #+(f" No message" if message is None else '') + ( f" No errors" if error is None else "" ) +
+                  (f"\n  Message={message}" if message else "") +
+                  (f"\n  Error={error}" if error else "")
+            )
             error=None
         elif status_code == HTTPStatus.NO_CONTENT:
             print(f"Record already converged:\n Will not update record and proceed to next task.")

@@ -25,7 +25,39 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
     The job may be done by another worker, then return this info in job_already_done variable"""
 
 
-    def check_job_already_done():
+    def time_diff_to_readable(t):
+        if t<60:
+            return f"{t:.1f} seconds"
+        elif t<3600:
+            return f"{t/60:.1f} minutes"
+        else:
+            return f"{t/3600:.1f} hours"
+
+
+    def am_I_on_terminal():
+        return sys.stderr.isatty()
+    
+    def make_output_print():
+        if am_I_on_terminal():
+            return lambda msg: print_flush(msg, end='\r')
+        else:
+            return lambda msg: print(msg)
+    def make_message(job_status, time_passed=None):
+        return f"JOB STATUS: {job_status} (record_type={type(record).__name__} record_id={get_primary_key(record)})" +(
+            f" | Time passed: {time_diff_to_readable(time_passed)}" if not time_passed is None else ""
+        )
+
+
+    class my_clock:
+        def __init__(self):
+            self.start=time.time()
+            self.last_checked=self.start
+        def time_passed(self):
+            return time.time()-self.start
+        def clock_last_checked(self):
+            self.last_checked=time.time()
+    
+    def check_job_already_done(clock:my_clock, force_print=False):
         response = requests.get(f"{tracker.server_address}/get_status/{type(record).__name__}/{get_primary_key(record)}?worker_id={tracker.worker_id}")
         if response.status_code != HTTPStatus.OK:
             print_flush(
@@ -34,7 +66,19 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
             job_already_done=False
         else:
             job_status = response.json()
-            print_flush("JOB STATUS: ", job_status)
+            if force_print:
+                do_print=True
+            elif on_terminal:
+                do_print=True
+            elif (time.time()-clock.clock_last_checked()-60)>0:
+                clock.clock_last_checked()
+                do_print=True
+            else: do_print=False
+
+            if do_print:
+                msg=make_message(job_status, time_passed=time.time()-clock.start)
+                print_message(msg)
+
             job_already_done = ( job_status in [RecordStatus.succeeded,RecordStatus.failed] )
         return job_already_done
         
@@ -44,13 +88,16 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
         """ Check if the job finished continously. For certain increments check if job has been done by other worker"""
         delay_rand = np.random.uniform(0.8, 1.2) * delay
         t0=time.time()
+        clock=my_clock()
+        force_print=True
         while True:
             try:
                 tracker,ret = res.get(timeout=0.1) # in sec
                 return tracker,ret, False
             except mp.TimeoutError:
                 if time.time()-t0>0:
-                    job_already_done=check_job_already_done()
+                    job_already_done=check_job_already_done(clock, force_print=force_print)
+                    force_print=False
                     t0=time.time()+delay_rand
                     if job_already_done:
                         tracker.add_message(f"Job was already done by other worker")
@@ -72,6 +119,8 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
         info='\n'.join([info_string]+ [ indent+x for x in info_lines])
         print(info)
             
+    on_terminal=am_I_on_terminal()
+    print_message=make_output_print()
     tracker,ret, job_done_by_other_worker=internal_loop(tracker)
 
     if not job_done_by_other_worker:

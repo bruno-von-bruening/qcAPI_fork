@@ -36,8 +36,10 @@ from qcp_global_utils.pydantic.pydantic import file as file_pdtc
 
 import logging
 def warn(msg):
-    print(f"[WARNING] {msg}")
+    msg=f"[WARNING] {msg}"
+    print(msg)
     logging.warning(msg)
 def info(msg):
-    print(f"[INFO] {msg}")
+    msg=f"[INFO] {msg}"
+    print(msg)
     logging.info(msg)

@@ -118,6 +118,15 @@ def get_group_tree(address: pdtc_address):
     return get_request(request_code).json()['json']
 
 
+def get_message_and_error(response):
+    message=response.json()['message']
+    error=response.json()['error']
+    if message=="": message=None
+    if isinstance(message, list) and len(message)==0: message=None
+    if error=="": error=None
+    if isinstance(error, list) and len(error)==0: error=None
+    return message, error
+
 @val_call
 def upload_file(
     srv_address: pdtc_address,
@@ -136,7 +145,14 @@ def upload_file(
 
     status_code=response.status_code
     if status_code == HTTPStatus.OK: # desired
-        print(f"Normal Return:\n  Message={response.json()['message']}\n  Error={response.json()['error']}")
+        message, error = get_message_and_error(response)
+        print(
+            f"UPLOADED FILE with basename: \'{os.path.basename(file)}\'"+ 
+            # (' No message' if message is None else '') +
+            # (' No errors' if error is None else '') +
+            (f"\n  Message={message}" if message else "") +
+            (f"\n  Error={error}" if error else "")
+        )   
         error=None
     #elif status_code == HTTPStatus.NO_CONTENT:
     #    print(f"Record already converged:\n Will not update record and proceed to next task.")

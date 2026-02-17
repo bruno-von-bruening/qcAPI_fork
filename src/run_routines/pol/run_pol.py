@@ -87,6 +87,12 @@ def compute_polarizability_psi4(
     record.status=wfn_record.status
     this_job=f"{Molecular_Polarizability.__name__}%{record.id}"
 
+    def make_new_id(old_wfn, new_method):
+        new_wfn=old_wfn.model_dump(exclude=['protocol_hash'])
+        new_wfn['method']=new_method
+        new_wfn['id']=None # will be auto assigned
+        return Wave_Function(**new_wfn).make_uid()
+
     if converged:
         try: # Inherit data from wave function to polarizability record
         
@@ -119,23 +125,36 @@ def compute_polarizability_psi4(
 
                 # Gather moments and polarizabiliteis
                 pols,moms=dict(),dict()
+                try:
+                    zero_moms_done=get_from_storage(storage_file, ('settings','properties','did_zero_moms'))
+                except Exception as ex:
+                    warn(f"Could not recover zero moments status from storage (assume the have been computed): {ex}")
+                    zero_moms_done=True
+                try:
+                    fd_moms_done=get_from_storage(storage_file, ('settings','properties','did_fd_moms'))
+                except Exception as ex:
+                    warn(f"Could not recover finite difference moments status from storage (assume the have been computed): {ex}")
+                    fd_moms_done=True
+                
                 for k in methods:
                     for tag in ['dens','eng']:
-                        key=('' if k.lower()=='main' else f"{k.upper()}_")+ f"MolPol_FinFie_through_{tag}"
+                        if not (tag=='dens' and not fd_moms_done):
+                            key=('' if k.lower()=='main' else f"{k.upper()}_")+ f"MolPol_FinFie_through_{tag}"
 
-                        pol_tens=get_pol(storage_file,key)
+                            pol_tens=get_pol(storage_file,key)
 
-                        if pol_tens:
-                            if not k in pols.keys(): pols[k]={}
-                            pols[k].update({ tag : pol_tens})
+                            if pol_tens:
+                                if not k in pols.keys(): pols[k]={}
+                                pols[k].update({ tag : pol_tens})
 
-                        key= ('results','properties',
-                              ('' if k.lower()=='main' else f"{k.upper()}_")+f"MolMom_FinFie_through_{tag}")
-                        mom=get_moments_base(storage_file, key) # at least the main energy moments should be there  
+                        if not ( tag=='dens' and not zero_moms_done):
+                            key= ('results','properties',
+                                ('' if k.lower()=='main' else f"{k.upper()}_")+f"MolMom_FinFie_through_{tag}")
+                            mom=get_moments_base(storage_file, key) # at least the main energy moments should be there  
 
-                        if mom:
-                            if not k in moms.keys(): moms[k]={}
-                            moms[k].update({ tag : mom})
+                            if mom:
+                                if not k in moms.keys(): moms[k]={}
+                                moms[k].update({ tag : mom})
             
 
 
@@ -183,7 +202,7 @@ def compute_polarizability_psi4(
                             )
                             if not method.lower()=='main':
                                 new_rec.update(
-                                    wfn_id=wfn_record.id.replace(wave_function.method.lower(), method.lower())
+                                    wfn_id=make_new_id(wfn_record, method)
                                 )
                             # if not Molecular_Polarizability.__name__ in sub_entries.keys(): sub_entries[Molecular_Polarizability.__name__]=[]
                             sub_entries[Molecular_Polarizability.__name__]+=[
@@ -195,8 +214,9 @@ def compute_polarizability_psi4(
 
             for method,v in moms.items():
                 if v is None: continue
-                id=wfn_record.id
-                id=id.replace(wave_function.method.lower(), method.lower()) if not method.lower()=='main' else id
+
+                if method.lower()=='main': id=wfn_record.id
+                else: id=make_new_id(wfn_record, method)
 
                 for k, mom_loop in v.items(): # 'eng' or 'dens'
                     if mom_loop is None: continue

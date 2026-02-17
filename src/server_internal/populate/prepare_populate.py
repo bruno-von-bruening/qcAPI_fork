@@ -203,7 +203,7 @@ def prep_wfn_pop(
         new_wfn=[]
         for the_id in selected_ids:
             for lot in lots:
-                kwargs=lot.model_dump()
+                kwargs=lot.model_dump(exclude=[Wave_Function.protocol_hash.name])
                 kwargs['conformation_id']=the_id
                 new_wfn+=[Wave_Function(**kwargs ).model_dump()]
 
