@@ -3,6 +3,9 @@ from . import *
 from qcp_orm.tables.tables import Compound_Base
 import rdkit.Chem as rdchem
 
+import logging
+logging.getLogger("pubchempy").setLevel(logging.ERROR)
+
 @val_call
 def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi_mapper:dict|None=None):
     """ Loads pubchem information and returns information object """
@@ -37,8 +40,9 @@ def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi
 
     return c
 class pubchem_handler(BaseModel):
-    isomeric_smiles:str|None=None
-    canonical_smiles:str|None=None
+    # isomeric_smiles:str|None=None
+    #canonical_smiles:str|None=None
+    connectivity_smiles:str|None=None
     iupac_name: str|None=None
     molecular_formula: str
 
@@ -55,8 +59,12 @@ class pubchem_handler(pubchem_handler):
     def __init__(self,input=None,**kwargs):
         if not input is None:
             assert isinstance(input, pcp.Compound)
-            interesting_keys=['isomeric_smiles', 'canonical_smiles', 'charge','elements','bonds','iupac_name',
-            'molecular_formula','molecular_weight','synonyms', 'cid','inchikey','inchi']
+            interesting_keys=[ 'connectivity_smiles', 'charge','elements','bonds','iupac_name',
+            'molecular_formula','molecular_weight',''
+            'synonyms', 
+            'cid','inchikey','inchi']
+            # if hasattr(input, 'synonyms'):
+            #     if input.synonyms is not None and len(input.synonyms)>0: interesting_keys+=['synonyms']
             tmp=time.time()
             kwargs=input.to_dict(properties=interesting_keys)
             #dic.update(input.to_dict(properties=['aids','synonyms','sids']))
@@ -68,7 +76,7 @@ class pubchem_handler(pubchem_handler):
         super().__init__(**kwargs)
     def to_database_entry(self):
         # Get that into shape of compound_base
-        keys=['charge','elements','bonds','molecular_formula','isomeric_smiles','inchi','inchikey','iupac_name','molecular_weight']
+        keys=['charge','elements','bonds','molecular_formula','inchi','inchikey','iupac_name','molecular_weight']
         self_di=self.model_dump()
         
         kwargs=dict(
