@@ -29,10 +29,10 @@ def conformations_url(conformations):
 def load_pubchem_data(inchi_keys:List[str], inchi_mapper:dict|None=None):
     from helper.pubchempy_handler import pubchem_handler, load_compounds_from_pubchem
     print(f"Loading {len(inchi_keys)} compounds from pubchem"); start=time.time()
-    comps=load_compounds_from_pubchem(inchikeys=inchi_keys, inchi_mapper=inchi_mapper)
+    comps=load_compounds_from_pubchem(inchikeys=inchi_keys, inchi_mapper=inchi_mapper, critical=False)
     print(f"Loading from pubchem took {time.time()-start:.2f} second")
     print(f"Repacking Compounds"); tmp=time.time()
-    comps=[ pubchem_handler(input=c).to_database_entry() for c in comps]
+    comps=[ pubchem_handler(input=c).to_database_entry() if not c is None else None for c in comps]
     print(f"Repacking took {time.time()-tmp:.2f} seconds")
     return comps
 

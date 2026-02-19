@@ -7,7 +7,7 @@ import logging
 logging.getLogger("pubchempy").setLevel(logging.ERROR)
 
 @val_call
-def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi_mapper:dict|None=None):
+def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi_mapper:dict|None=None, critical:bool=True):
     """ Loads pubchem information and returns information object """
     """ 3d or 2d info doesnt make much time difference ( test for a list of 96 was 2 secs, single took 0.3 s!) """
     num_cids=len(cids)
@@ -26,7 +26,8 @@ def load_compounds_from_pubchem(cids:List[int]=[], inchikeys:List[str]=[], inchi
         for inchi in inchikeys:
             matches=[ x for x in comp_by_inchi if x.inchikey==inchi ]
             if len(matches)==0:
-                raise Exception(f"Could not find compound" + (f"inchi={inchi_mapper[inchi]})" if ( not inchi_mapper is None and inchi in inchi_mapper.keys()) else "") + f" with inchikey={inchi} in pubchem")
+                if not critical: c+=[ None ]
+                else: raise Exception(f"Could not find compound" + (f"inchi={inchi_mapper[inchi]})" if ( not inchi_mapper is None and inchi in inchi_mapper.keys()) else "") + f" with inchikey={inchi} in pubchem")
             elif len(matches)==1:
                 c+=matches
             else:
