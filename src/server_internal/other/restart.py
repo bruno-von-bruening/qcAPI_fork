@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 import threading
 restart_flag = threading.Event()
 
-server=None
 
 class RestartRequest(Exception):
     """Silent restart trigger for supervisor loop."""
@@ -17,7 +16,7 @@ class RestartRequest(Exception):
         return self.message
 
 
-def trigger_restart():
+def trigger_restart(server):
     server.should_exit = True
     #restart_flag.set()
     print(">>> [RESTART] Restart requested by client")
@@ -26,7 +25,7 @@ def trigger_restart():
     # print("Triggering server restart...")
     # raise RestartRequest("Restart requested by client")
 
-def add_other_functions(app, SessionDep):
+def add_restart_function(app, SessionDep):
     # @app.exception_handler(RestartRequest)
     # async def restart_exception_handler(request: Request, exc: RestartRequest):
     #     # Print a neat message to server log
@@ -38,6 +37,7 @@ def add_other_functions(app, SessionDep):
         background_tasks: BackgroundTasks,
     ):
         """Raise server restart signal to main server process"""
-        background_tasks.add_task(trigger_restart)
+        server=app.state.server
+        background_tasks.add_task(trigger_restart, server)
         return {"message":"Restart signal sent to server"}
         # background_tasks.add_task(trigger_restart)
