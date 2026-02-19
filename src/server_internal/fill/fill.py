@@ -58,7 +58,7 @@ def wrapper_gen_fill(entry, session, worker_id, property, tracker, sub_entries=N
                     new_id=getattr(record, get_primary_key_name(the_object))
                     old_id=getattr(prev_record, get_primary_key_name(the_object))
                     if new_id is None: setattr(record,get_primary_key_name(the_object),old_id)
-                    elif new_id!=old_id: raise Exception(f"Primary key of record cannot be changed (old: {old_id}, new: {new_id})") 
+                    elif new_id!=old_id: raise Exception(f"Primary key of {type(record).__name__} cannot be changed (old: {old_id} (type={type(old_id)}), new: {new_id} (type={type(new_id)}))") 
 
                     # Take care of status (recognize if it should be filled by another)
                     if hasattr(record, 'status'):

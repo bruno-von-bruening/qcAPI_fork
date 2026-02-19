@@ -70,8 +70,7 @@ def prep_molpol_pop(
         if ids is None:
             ids='all'
         ancestor=Wave_Function
-        the_ids=tracker.get_ids_for_table(ancestor, ids=ids)
-        stati=tracker.session.exec(select(ancestor.status).where(ancestor.id.in_(the_ids))).all()
+        the_ids, stati=tracker.get_ids_for_table(ancestor, ids=ids, return_status=True)
     except Exception as ex: raise my_exception(f"Problem in getting available ids for {the_object.__name__} population:", ex)
 
     # Get wfn ids that already exist
@@ -175,21 +174,22 @@ def prep_wfn_pop(
                 elif len(found)>1:
                     raise Exception(f"Method {lot.method} matches multiple entries in parent method mapping: {found}")
                 else: # If only one found that generate the lower lying methods!
-                    parents=parent_methods[found[0]]
-                    for parent in parents:
-                        lot_parent=lot.copy(update=dict(
-                            method=parent,
+                    satellites=parent_methods[found[0]]
+                    for sat in satellites:
+                        lot_sat=lot.copy(update=dict(
+                            method=sat,
                             status=RecordStatus.no_run_intended
                         ))
-                        lots+=[ lot_parent ]
-                        implicit_methods+=[ parent ]
+                        implicit_methods+=[ lot_sat ]
         # Print info 
         if len(implicit_methods)>0:
-            method_counts=dict( (m, sum( [ 1 for x in lots if x.method==m ] ) ) for m in set(implicit_methods) )
+            method_kinds=set( [ m.method for m in implicit_methods ] )
+            method_counts=dict( (m, sum( [ 1 for x in implicit_methods if x.method==m ] ) ) for m in method_kinds )
             tracker.messanger.add_message(
                 f"Added {len(implicit_methods)} implicit wave functions for lower lying methods of types:\n"
                 +'\n'.join( [ f"    - {m}: {c}" for m,c in method_counts.items() ] ) 
             )
+            lots+=implicit_methods
     except Exception as ex: 
         raise Exception(ex) from ex
         tracker.messanger.add_warning(f"Problem in generating implicit wave functions for lower lying methods: {str(ex)}")

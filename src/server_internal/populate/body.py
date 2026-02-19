@@ -28,7 +28,14 @@ def gen_prepare_records_switch(
     else: raise NotImplementedError(f"Did not implement prepare_records for model: {model.__name__}")
 
     try:
-        return func(tracker=tracker, ids=ids, json=json_data)
+        tracker.messanger.start_timing()
+        tracker,result = func(tracker=tracker, ids=ids, json=json_data)
+        timing=tracker.messanger.stop_timing(f"prepare_records for {model.__name__} with {func.__name__}")
+        time_threshold=0.5
+        if timing>time_threshold:
+            tracker.messanger.add_message(f"Preparing records for {model.__name__} with {func.__name__} took {timing:.2f} [s] (will not show below {time_threshold} [s])")
+        return tracker, result
+
     except Exception as ex: raise my_exception(f"Problem in preparing records for {model.__name__} with {func}:", ex)
 
 @val_call

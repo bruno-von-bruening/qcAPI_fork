@@ -70,7 +70,7 @@ def wait_for_job_completion(tracker:Tracker, record:SQLModel, res, delay) ->Tupl
                 do_print=True
             elif on_terminal:
                 do_print=True
-            elif (time.time()-clock.clock_last_checked()-60)>0:
+            elif (time.time()-clock.last_checked-60)>0:
                 clock.clock_last_checked()
                 do_print=True
             else: do_print=False
