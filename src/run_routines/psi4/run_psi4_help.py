@@ -143,7 +143,9 @@ def compute_core(
             warn(f"No memory specified, using default ({mem_per_thread_GB} GB per thread): {mem} GB")
 
 
-        run_shell_command(cmd, [ config_file ], dict(exc=True, **extra_cmdln_opts))
+        ret=run_shell_command(cmd, [ config_file ], dict(exc=True, **extra_cmdln_opts))
+        if ret.get('returncode', 0)!=0:
+            tracker.add_error(ret.get('stderr',[]))
     except Exception as ex: my_exception(f"Problem in running psi4 job:", ex)
 
     return record, tracker

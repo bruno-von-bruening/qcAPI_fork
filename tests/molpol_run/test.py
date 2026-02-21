@@ -68,7 +68,8 @@ def run_wrapper(cmd):
         return '\n'.join([ tag+x for x in text ])
 
     print(f"Running command: {cmd}")
-    stdout, stderr=run_shell_command(cmd)
+    ret=run_shell_command(cmd)
+    stdout,stderr=[ ret[x] for x in ['stdout','stderr'] ]
     print(f"Finished command successfully.\nSTDOUT:\n{break_text(stdout)}"+
     f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" ))
 try:

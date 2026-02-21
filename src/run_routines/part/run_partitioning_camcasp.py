@@ -169,7 +169,7 @@ def prepare_input(jobname,method,camcasp_path:directory, fchk_file:temporary_fil
 
     # Setup camcasp
     cmd=f"{executable} {job_tag} --setup --ifexists 'delete'"
-    stdout,stderr = run_shell_command(cmd)
+    ret = run_shell_command(cmd)
     sitenames=f"{job_tag}/{job_tag}.sites"
     assert os.path.isfile(sitenames),f"Expected file {sitenames} after generating CamCASP setup directory"
 

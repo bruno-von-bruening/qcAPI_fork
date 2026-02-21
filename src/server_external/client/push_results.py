@@ -51,15 +51,14 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
     import socket
     socket.gethostname()
     run_data_model=get_object_for_tag(f"{the_model.__name__}_Run_Summary")
-    track_data=tracker.model_dump()
-    walltime_worker=track_data.pop('elapsed_time')
-    track_data['walltime_worker']=walltime_worker
+    track_data=tracker.model_dump(for_database=True)
+    # walltime_worker=track_data.pop('elapsed_time')
+    # track_data['walltime_worker']=walltime_worker
     
     run_data=run_data_model(
         **track_data,
+        **results.run_data.resource_usage,
         id=get_primary_key(record),
-        num_cores=tracker.num_threads,
-        memory=tracker.memory_GB,
     )
 
     results.sub_entries.update({

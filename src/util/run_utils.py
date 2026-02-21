@@ -83,21 +83,31 @@ class Tracker(Tracker_data):
     def __init__(self, *args, **kwargs):
         time_start=time.time()
         super().__init__(*args, **kwargs, time_start=time_start)
-    def model_dump(self,**kwargs):
-        if self.time_end is None:
-            self.time_end=time.time()
-        dic=super().model_dump(**kwargs)
-        dic.update({'elapsed_time':self.time_end-self.time_start})
-        dic.pop('time_end',None)
-        dic.pop('time_start',None)
-        return dic
+    def model_dump(self,for_database=False,**kwargs):
+        if not for_database:
+            return super().model_dump(**kwargs)
+        else:
+            if self.time_end is None:
+                self.time_end=time.time()
+            kwargs={}
+            kwargs.update( (k,getattr(self,k)) for k in ['messages', 'warnings', 'errors'] )
+            return dict(
+                **kwargs,
+                total_time=self.time_end-self.time_start,
+                num_threads=self.num_threads,
+                memory=self.memory_GB,
+            )
 
     def add_message(self, x):
         self.messages.append(x)
     def add_warning(self, x):
         self.warnings.append(x)
     def add_error(self, x):
-        self.errors.append(str(x))
+        if isinstance(x, list):
+            for e in x:
+                self.errors.append(str(e))
+        else:
+            self.errors.append(str(x))
     @property
     def no_error(self):
         return len(self.errors)<1

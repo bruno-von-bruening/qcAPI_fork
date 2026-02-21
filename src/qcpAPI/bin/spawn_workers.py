@@ -20,7 +20,7 @@ def the_function(cmd, worker_id, worker_tag="local_worker", directory:pdtc_direc
         stem= os.path.join(directory, stem) 
     stdout_file=f"{stem}.out"
     stderr_file=f"{stem}.err"
-    stdout, stderr= run_shell_command(cmd, stdout_file=stdout_file, stderr_file=stderr_file)
+    ret=run_shell_command(cmd, stdout_file=stdout_file, stderr_file=stderr_file)
 
 @validate_call
 def main_core(config_file:pdtc_file, target_dir:pdtc_directory, prop:str,

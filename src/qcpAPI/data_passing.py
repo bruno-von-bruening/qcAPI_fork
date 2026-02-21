@@ -16,6 +16,7 @@ class my_run_data(BaseModel):
                             #     Union[pdtc_file|pdtc_directory ] 
                             # ] |None=None
     files: Dict[str,pdtc_file] = {}
+    resource_usage: dict = {} # not essential, but nice to have
 class job_results(BaseModel):
     run_info: dict={} # not essential
     run_data: my_run_data

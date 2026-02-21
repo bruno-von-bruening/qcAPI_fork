@@ -57,6 +57,57 @@ def get_pol(storage_file,key) -> polarizability_tensor|None:
         raise Exception(f"Could not generate \'{tag}\' polarizability tensor: {ex}") from ex
     
 
+from typing import Generator, Any
+
+def get_resource_data_from_storage(tracker,storage_file: pdtc_file, critical=False) -> dict:
+    try:
+        data = get_from_storage(storage_file, ('about_the_run', 'resource_usage'))
+    except Exception as ex:
+        raise Exception(f"Could not get resource usage data from storage file {storage_file}: {str(ex)}") from ex
+
+    def my_get(key: str | Tuple[str]):
+        # Make a recursive get that can handle nested keys
+        def rec(dat, keys):
+            if not isinstance(dat, dict):
+                return None
+            val = dat.get(keys[0], None)
+            if len(keys) > 1:
+                if not isinstance(val, dict):
+                    return None
+                val = rec(val, keys[1:])
+            return val
+        keys = [key] if isinstance(key, str) else list(key)
+        return rec(data, keys) if data else None
+
+    return dict(
+        # Time for this calculation
+        production_time   = my_get('real_time'),
+        clocked_time      = my_get('clocked_time'),
+
+        # Time ratios
+        frac_idle         = my_get(('time_ratios', 'idle')),
+        frac_serial       = my_get(('time_ratios', 'serial')),
+        frac_parallel     = my_get(('time_ratios', 'parallel')),
+
+        # Max CPU loads
+        load_user_max     = my_get(('max_loads', 'cpu_user')),
+        load_system_max   = my_get(('max_loads', 'cpu_system')),
+        load_total_max    = my_get(('max_loads', 'cpu_total')),
+
+        # Average CPU loads
+        load_user_avr     = my_get(('avr_loads', 'serial', 'user')),   # no direct avr_loads total user → use serial+parallel sum if needed
+        load_system_avr   = my_get(('avr_loads', 'serial', 'system')),
+        load_total_avr    = my_get(('avr_loads', 'serial', 'total')),
+
+        # Memory
+        mem_use_max       = my_get('peak_memory'),
+        mem_use_avr       = my_get('avr_memory'),
+
+        # Disk
+        disk_use_max      = my_get(('disk_usage', 'disk_max_in_GB')),
+        disk_use_avr      = my_get(('disk_usage', 'disk_avr_in_GB')),
+    )
+
 
 @val_call
 def compute_polarizability_psi4(
@@ -233,6 +284,12 @@ def compute_polarizability_psi4(
     else:
         tensor_main=None
         center=None
+
+    try:
+        resource_info=get_resource_data_from_storage(tracker, storage_file)
+        run_data.resource_usage=resource_info
+    except Exception as ex:
+        tracker.add_warning(f"Could not recover resource usage data from storage file {storage_file}: {str(ex)}")
 
     try:
         
