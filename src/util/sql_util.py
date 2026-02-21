@@ -42,20 +42,28 @@ def get_primary_key(the_object:Union[SQLModel,SQLModelMetaclass]):
 
 # Get  all ids
 @val_call
-def  get_ids_for_table(session: session_meta, the_object:SQLModelMetaclass, filtered_ids:str|List[str|int]='all'):
+def  get_ids_for_table(session: session_meta, the_object:SQLModelMetaclass, filtered_ids:str|List[str|int]='all', return_status:bool=False):
     """ Get ids of a given object and filter for given ids in case ids have been provided """
     # Get available keys
     prim_key=get_primary_key_name(the_object)
-    all_objects=session.exec( select(the_object)).all()
-    all_ids=[ getattr(x,prim_key) for x in all_objects]
-    
+
+    if return_status:
+        assert hasattr(the_object, 'status'), f"Expected object {the_object.__name__} to have attribute \'status\' for return_status=True"
+    items=[ get_primary_key(the_object) ]+([ getattr(the_object, 'status') ] if return_status else [])
+    statement=select( *items )
+    id_status_pairs=session.exec( statement).all()
+
     if isinstance(filtered_ids,str):
         if filtered_ids=='all':
-            the_ids=all_ids
+            pass
         else: raise Exception(f"Unkown key for conformations_ids: \'{filtered_ids}\'")
     else:
-        the_ids=[ the_id for the_id in all_ids if the_id in filtered_ids ]
-    return the_ids
+        id_status_pairs=[ (the_id, *status) for the_id,*status in id_status_pairs if the_id in filtered_ids ]
+
+    if not return_status:
+        return  id_status_pairs
+    else:
+        return tuple([ x[0] for x in id_status_pairs]), tuple([x[1] for x in id_status_pairs])
 
 def filter_db_query(object, filter_args: my_dict, only_ids:bool=False):
     """ Generate sqlmodel query

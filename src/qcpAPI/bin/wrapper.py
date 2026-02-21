@@ -35,10 +35,14 @@ def get_property_args(pre_args:Namespace) -> str:
     return pre_args.property
 
 @val_call
-def process_client_args(pre_args:Namespace, require_config=False) -> pdtc_address|tuple[pdtc_address, pdtc_file]:
+def process_client_args(
+    pre_args:Namespace, require_config=False, server_running=True
+) -> str|tuple[str, pdtc_file]:
+    from util.http_util import check_address
     if require_config:
         conf=qcAPI_server_config(pre_args.config)
         address=conf.address
+        check_address(address, negate=not server_running)
         return address, pre_args.config
     else:
         if pre_args.config is not None:
@@ -48,4 +52,6 @@ def process_client_args(pre_args:Namespace, require_config=False) -> pdtc_addres
         elif pre_args.address is not None:
             address=pre_args.address
         else: raise Exception(f"Either --config or --address must be provided!") # But should not be possible due to mutually exclusive group
+
+        check_address(address, negate=not server_running)
         return address

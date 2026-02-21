@@ -1,4 +1,5 @@
 from . import *
+from util.import_helper import *
 
 import rdkit.Chem as rdchem
 from rdkit.Chem import rdDetermineBonds, rdmolops
@@ -36,7 +37,7 @@ from qcp_objects.objects.properties import geometry
 
 
 @val_call
-def auto_inchi_hidden(coordinates:List[Tuple[float,float,float]]|geometry, atom_types:List[str], charge=0):
+def auto_inchi_hidden(coordinates:List[Tuple[float,float,float]]|geometry, atom_types:List[str], charge:int=0):
     """ Needs to be in anstrom!"""
     #https://www.rdkit.org/docs/source/rdkit.Chem.inchi.html
     mol_block=f"{len(coordinates)}\n\n"
@@ -78,7 +79,7 @@ def auto_inchi_hidden(coordinates:List[Tuple[float,float,float]]|geometry, atom_
 def auto_inchi(
     coordinates: List[Tuple[float, float, float]] = None,
     atom_types: List[str] = None,
-    charge: int = 0,
+    charge: int|None = None,
     geom: geometry = None,
 ):
     """
@@ -87,8 +88,10 @@ def auto_inchi(
     """
     if geom is not None:
         geom.units.LENGTH = 'ANGSTROM'
+        assert charge is None or charge==geom.charge, f"Charge do not agree {charge} {geom.charge}"
         return auto_inchi_hidden(geom.coordinates, geom.atom_types, geom.charge)
     elif coordinates is not None and atom_types is not None:
+        assert charge is not None, f"Provide charge explicitly when coordinates are provided"
         return auto_inchi_hidden(coordinates, atom_types, charge)
     else:
         raise ValueError("Provide either a geometry object or both coordinates and atom_types.")

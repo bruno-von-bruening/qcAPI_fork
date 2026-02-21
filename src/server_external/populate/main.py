@@ -128,6 +128,8 @@ def main(
                 class conf_data(myBaseModel):
                     inchikey: str='auto'
                     geometry: str # Supposed to be a file
+                    charge: int|None=None
+                    multiplicity: int|None=None
                     _geometry: geom_geom|None=None
                     def __init__(self, source_file=None, **data):
                         if data.get('geometry'):
@@ -151,7 +153,14 @@ def main(
                     @property
                     def processed_geometry(self):
                         if self._geometry is None:
-                            self._geometry=geom_geom(self.geometry)
+                            if self.charge is None:
+                                self.charge=0
+                                warn(f"Setting default charge 0 for {self.geometry}")
+                            if self.multiplicity is None:
+                                self.multiplicity=1
+                                warn(f"Setting default multiplicity 1 for {self.geometry}")
+
+                            self._geometry=geom_geom(self.geometry, charge=self.charge, multiplicity=self.multiplicity)
                         self._geometry.units.LENGTH='BOHR'
                         return self._geometry
 
@@ -166,7 +175,9 @@ def main(
                     rec_ref+=[ conf.to_conf_model() ]
                 except Exception as ex:
                     raise Exception(f"Could not generate record for {rec}: {ex}")
-                inchikey_to_inchi.update( dict([ tuple(list(auto_inchi(geom=conf.processed_geometry))[::-1]) ])  ) # needs to be reveresed
+                inchikey_to_inchi.update( dict([ tuple([
+                    conf.processed_inchikey, auto_inchi(geom=conf.processed_geometry)[0]
+                    ]) ])  ) # needs to be reveresed
 
         # inchis=[ r.compound_id for r in rec_ref ]
         from receiver.get_request import get_row

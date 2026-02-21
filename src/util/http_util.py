@@ -10,13 +10,18 @@ def check_address(address):
 
 
 @val_call
-def check_server_responsiveness(address:str, timemout:float|int=6):
+def check_server_responsiveness(address:str, timemout:float|int=6, negate=False):
+    """ If negate I actually expect the command to succeed """
     try:
         response=requests.get(address, timeout=timemout)
     except Exception as ex:
-        raise Exception(f"Could not reach server under address {address}: {ex}")
+        if not negate:
+            raise Exception(f"Could not reach server under address {address}: {ex}")
+        return
+    if response.ok and negate:
+        raise Exception(f"Server under address {address} should not be running already!")
 @val_call
-def check_address(address:str):
+def check_address(address:str, negate=False):
     """ An addresss should have the from http://<hostname>:<port>/ (default port would be 80 but for the moment we will not use that)
     http is implicit and can be defaulted to
     """
@@ -24,7 +29,7 @@ def check_address(address:str):
     if not address.startswith('http://'):
         address=f"http://{address}"
 
-    check_server_responsiveness(address)
+    check_server_responsiveness(address,negate=negate)
 
     return address 
 

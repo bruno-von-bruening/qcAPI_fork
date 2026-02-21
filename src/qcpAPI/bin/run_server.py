@@ -3,29 +3,26 @@
 from . import *
 from server_external.launch_server import main as main_internal, make_auto_config_file, DEFAULT_CONFIG_FILE
 
-def main(argv=None):
-    argv = argv if argv is not None else sys.argv[1:]
+from .wrapper import add_client_args, add_property_arg, process_argv, process_client_args, get_property_args
 
+@val_call
+@process_argv
+def main(argv:List[str]|Namespace):
     description=None
     epilog=None
     prog=None
     par=argparse.ArgumentParser(prog=prog, description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,)
+
+    par=add_client_args(par)
+
     adar=par.add_argument
-    adar(
-        '--config', type=str, help=f"Config file in yaml format", required=False
-        )
     adar(
         '--edit','-e', action='store_true', help=f"Edit the config file with the default editor (if --config is not provided, will edit the auto-generated config file)", default=False
     )
-    # adar(
-    #     '--host', type=str, help=f"IP of host", default='0.0.0.0'
-    #     )
-    # adar(
-    #     '--port', type=int, help=f"Port", default=8000
-    #     )
+    
     # Parse arguments
     args=par.parse_args(argv)
-    config_file=args.config
+    address, config_file=process_client_args(args, require_config=True, server_running=False)
     edit=args.edit
     # host=args.host
     # port=args.port

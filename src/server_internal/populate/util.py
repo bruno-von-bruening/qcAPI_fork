@@ -53,21 +53,32 @@ class pop_tracker(myBaseModel):
     messanger :message_tracker_dum = message_tracker()
     counter : counter_dum = counter()
     id_tracker : track_ids=track_ids()
-    def get_ids_for_table(self,the_object:SQLModelMetaclass, ids:List[ str|int ]|str='all'):
+    def get_ids_for_table(self,the_object:SQLModelMetaclass, ids:List[ str|int ]|str='all', return_status:bool=False
+    
+    )-> Union[ List[ str|int ] | Tuple[ List[ str|int ], List[ int ] ] ]:
         """ Get all the ids available (possible filtered) usually just return all """
         self.messanger.start_timing()
-        found_ids=get_ids_for_table(self.session,the_object, ids) 
+        ret = get_ids_for_table(self.session, the_object, ids, return_status=return_status)
+        if return_status:
+            found_ids, status_lists = ret
+        else:            found_ids = ret; status_lists = None
+
         if isinstance(ids, list):
-            self.id_tracker.prerequisites_not_met += [ x for x in  ids if x not in found_ids ]
+            self.id_tracker.prerequisites_not_met += [x for x in ids if x not in found_ids]
         self.messanger.stop_timing(f"Filter ids for {the_object.__name__}")
 
-        messanges=[]
-        for k,v in self.id_tracker.model_dump().items():
-            if len(v)>0:
-                messanges+= [ f"{k}: {len(v)}" ]
-        if len(messanges)>0:
+        messanges = []
+        for k, v in self.id_tracker.model_dump().items():
+            if len(v) > 0:
+                messanges += [f"{k}: {len(v)}"]
+        if len(messanges) > 0:
             self.messanger.add_message( f"Problems in findings ids for {the_object.__name__}: " + '; '.join(messanges) )
-        return found_ids
+
+        if return_status:
+            return found_ids, status_lists
+        else:
+            assert status_lists is None, f"Expected no status lists but got {status_lists}"
+            return found_ids
     def build_tree(self, the_objects:List[SQLModelMetaclass]=Field(min_length=2)):
         """ Builds tree for object"""
         tree=get_connections(self.session,the_objects)

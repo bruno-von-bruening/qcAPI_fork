@@ -78,7 +78,8 @@ def make_app_functions(app, SessionDep, storage_info):
 
     info_functions(app, SessionDep)
 
-    #add_other_functions(app, SessionDep)
+    from server_internal.other.restart import add_restart_function
+    add_restart_function(app, SessionDep)
 
 
     return app
@@ -272,6 +273,7 @@ def main(config_file):
 
         server = Server(config=conf)
 
+        app.state.server = server
         server.run_in_thread()
     except Exception as ex:
         raise Exception(f"Error starting server: {ex}")
