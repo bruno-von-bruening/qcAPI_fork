@@ -13,7 +13,7 @@ def main(argv:List[str]|Namespace):
     prog=None
     par=argparse.ArgumentParser(prog=prog, description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,)
 
-    par=add_client_args(par)
+    par=add_client_args(par, require_config=False)
 
     adar=par.add_argument
     adar(
@@ -22,7 +22,7 @@ def main(argv:List[str]|Namespace):
     
     # Parse arguments
     args=par.parse_args(argv)
-    address, config_file=process_client_args(args, require_config=True, server_running=False)
+    address, config_file=process_client_args(args, require_config=False, server_running=False)
     edit=args.edit
     # host=args.host
     # port=args.port

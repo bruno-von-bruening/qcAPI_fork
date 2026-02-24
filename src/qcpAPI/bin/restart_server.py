@@ -30,6 +30,6 @@ def main(argv:Namespace|List[str]):
     add_client_args(par)
 
     args=par.parse_args(argv)
-    server_address=process_client_args(args)
+    server_address, config_file=process_client_args(args)
     
     main_restart(server_address)

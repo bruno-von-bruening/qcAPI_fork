@@ -22,7 +22,7 @@ from argparse import ArgumentParser, Namespace
 
 def add_client_args(par:ArgumentParser, require_config=False):
     if not require_config:
-        mex=par.add_mutually_exclusive_group(required=True)
+        mex=par.add_mutually_exclusive_group(required=False)
         mex.add_argument( f"--config", "-c", type=str, help="Client yaml file to use" )
         mex.add_argument( f"--address", "-a", type=str, help="Address of the server in URL:PORT format (could also be read from client yaml file!)" )
     else:
@@ -37,7 +37,7 @@ def get_property_args(pre_args:Namespace) -> str:
 @val_call
 def process_client_args(
     pre_args:Namespace, require_config=False, server_running=True
-) -> str|tuple[str, pdtc_file]:
+) -> tuple[str,None]|tuple[str, pdtc_file]|tuple[None,None]:
     from util.http_util import check_address
     if require_config:
         conf=qcAPI_server_config(pre_args.config)
@@ -49,9 +49,13 @@ def process_client_args(
             #from qcp_global_utils.environment.file_handling import load_json_or_yaml
             conf=qcAPI_server_config(pre_args.config)
             address=conf.address
+            conf=pre_args.config
         elif pre_args.address is not None:
             address=pre_args.address
-        else: raise Exception(f"Either --config or --address must be provided!") # But should not be possible due to mutually exclusive group
+            conf=None
+        else:
+            return pre_args.address,None
+        # else: raise Exception(f"Either --config or --address must be provided!") # But should not be possible due to mutually exclusive group
 
         check_address(address, negate=not server_running)
-        return address
+        return address,conf

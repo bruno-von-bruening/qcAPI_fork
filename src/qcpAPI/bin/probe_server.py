@@ -33,7 +33,7 @@ def main(argv):
     )
 
     args = parser.parse_args(argv)
-    address = process_client_args(args)
+    address, config_file = process_client_args(args)
     property=get_property_args(args)
     delay = args.worker_delay * 60
     property = args.property

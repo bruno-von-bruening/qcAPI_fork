@@ -16,7 +16,7 @@ def main(argv:List[str]|Namespace):
     description='Populate a given qcpAPI table with entries'
     par=ArgumentParser(description=description)
 
-    par=add_client_args(par)
+    par=add_client_args(par, require_config=True)
     par=add_property_arg(par)
     add=par.add_argument
 
