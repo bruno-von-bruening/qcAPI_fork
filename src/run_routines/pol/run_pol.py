@@ -144,16 +144,29 @@ def compute_polarizability_psi4(
         new_wfn['id']=None # will be auto assigned
         return Wave_Function(**new_wfn).make_uid()
 
+
+    try: # Inherit data from wave function to polarizability record (without this object there will be no data to recover!)
+        storage_file=run_data.files['storage_file']
+    except Exception as ex:
+        if converged:
+            tracker.add_error(f"Fatal Could not find storage file in run data files {run_data.files}: {str(ex)}")
+            converged=False
+        storage_file=None
+    
+    # Get info about resource usage
+    if not storage_file is None:
+        try:
+            resource_info=get_resource_data_from_storage(tracker, storage_file)
+            run_data.resource_usage=resource_info
+        except Exception as ex:
+            tracker.add_warning(f"Could not recover resource usage data from storage file {storage_file}: {str(ex)}")
+
+    # Extract the actual data of the object
     if converged:
         try: # Inherit data from wave function to polarizability record
-        
-            storage_file=run_data.files['storage_file']
             center=get_center_from_storage(storage_file)
-
             tracker, di=get_fchk_file(tracker,storage_file, id=wfn_record.id)
             files_for_entries.update( **di )
-            
-
             
             if record.approach == record.allowed_approaches.linear_response.value:
                 key="MolPol_LinRsp"
@@ -285,11 +298,6 @@ def compute_polarizability_psi4(
         tensor_main=None
         center=None
 
-    try:
-        resource_info=get_resource_data_from_storage(tracker, storage_file)
-        run_data.resource_usage=resource_info
-    except Exception as ex:
-        tracker.add_warning(f"Could not recover resource usage data from storage file {storage_file}: {str(ex)}")
 
     try:
         
