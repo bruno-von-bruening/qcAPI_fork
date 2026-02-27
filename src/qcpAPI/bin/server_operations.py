@@ -133,7 +133,7 @@ def main_core(argv):
     
     #
     args=par.parse_args(argv)
-    address=process_client_args(args)
+    address,config_file=process_client_args(args)
     prop=get_property_args(args)
     mode=args.MODE 
     the_filters=args.filters
