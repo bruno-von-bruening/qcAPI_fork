@@ -54,7 +54,7 @@ def get_pol(storage_file,key) -> polarizability_tensor|None:
         pol_tensor=polarizability_tensor(pol_data)
         return pol_tensor
     except Exception as ex: 
-        raise Exception(f"Could not generate \'{tag}\' polarizability tensor: {ex}") from ex
+        raise Exception(f"Could not generate polarizability tensor: {ex}") from ex
     
 
 from typing import Generator, Any

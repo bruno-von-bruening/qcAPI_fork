@@ -29,6 +29,7 @@ def config_base(
         freeze_core=dat.frozen_core
         reference=dat.reference
         cd_thres=dat.cd_thres
+        df_basis=dat.df_basis
         if dat.fno_thres: # not zero or none
             do_fno=True
             fno_thres=dat.fno_thres
@@ -49,7 +50,7 @@ def config_base(
         method=dict(
             method_tag=method,
             basis_set=basis,
-            scf_type=scf_type,
+            scf_type='_'.join([scf_type]+([df_basis] if scf_type.lower()=='df' else [])),
             freeze_core=freeze_core,
             reference=reference,
             fno=do_fno,
