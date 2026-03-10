@@ -30,6 +30,7 @@ def config_base(
         reference=dat.reference
         cd_thres=dat.cd_thres
         df_basis=dat.df_basis
+        dft_opts=dat.dft_settings
         if dat.fno_thres: # not zero or none
             do_fno=True
             fno_thres=dat.fno_thres
@@ -38,7 +39,7 @@ def config_base(
             fno_thres=0
 
 
-    except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.specs}", ex)
+    except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.protocol}", ex)
     
     return dict(
         geom=dict(
@@ -48,6 +49,7 @@ def config_base(
             xyz_file=xyz_file,
         ),
         method=dict(
+            **( dict(dft_opts=dft_opts.model_dump()) if dft_opts else {} ),
             method_tag=method,
             basis_set=basis,
             scf_type='_'.join([scf_type]+([df_basis] if scf_type.lower()=='df' else [])),

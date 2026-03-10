@@ -112,3 +112,13 @@
       #   protocol: 
       #     type: df
       #     frozen_core: true
+- method: pbe
+  basis: aug-pcseg-2
+  protocol:
+    type: df
+    df_basis: def2-qzvpp
+    dft_settings:
+      radial_points: 100
+      spherical_points: 590
+      radial_scheme:  TREUTLER
+      spherical_scheme: LEBEDEV
