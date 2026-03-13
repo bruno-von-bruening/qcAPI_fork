@@ -168,6 +168,8 @@ def prep_wfn_pop(
         implicit_methods=[]
         for lot in lots:
             if any([lot.method.lower().startswith(x) for x in ['mp','cc']]):
+                if lot.method.lower().startswith('mpw'): # DFT functional not MP
+                    continue
                 found=[ x for x in parent_methods.keys() if lot.method.lower()==x ]
                 if len(found)==0:
                     raise Exception(f"Method {lot.method} not recognized as a method with lower lying methods. But not among available mapping: {list(parent_methods.keys())}")
