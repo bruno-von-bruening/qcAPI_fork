@@ -33,7 +33,7 @@ def get_moments_base(storage_file:pdtc_file, path:Tuple[str], critical=False) ->
     return mom
 
 def get_moments_from_density(storage_file:pdtc_file):
-    route=('results','properties','MolMom')
+    route=('results','properties','MolMom_from_dens')
     return get_moments_base(storage_file, route)
 def get_moments_from_energy(storage_file:pdtc_file):
     route=('results','properties','MolMom_FinFie_through_eng')
@@ -211,14 +211,20 @@ def compute_polarizability_psi4(
                                 if not k in pols.keys(): pols[k]={}
                                 pols[k].update({ tag : pol_tens})
 
-                        if not ( tag=='dens' and not zero_moms_done):
-                            key= ('results','properties',
-                                ('' if k.lower()=='main' else f"{k.upper()}_")+f"MolMom_FinFie_through_{tag}")
-                            mom=get_moments_base(storage_file, key) # at least the main energy moments should be there  
+                        mom=None
+                        if tag=='eng':
+                            if not ( tag=='dens' and not zero_moms_done):
+                                key= ('results','properties',
+                                    ('' if k.lower()=='main' else f"{k.upper()}_")+f"MolMom_FinFie_through_{tag}")
+                                mom=get_moments_base(storage_file, key) # at least the main energy moments should be there  
 
-                            if mom:
-                                if not k in moms.keys(): moms[k]={}
-                                moms[k].update({ tag : mom})
+                        elif tag=='dens' and zero_moms_done:
+                            if k.lower()=='main':
+                                key= ('results','properties','MolMom_from_dens')
+                                mom=get_moments_base(storage_file, key) # at least the main density moments should be there
+                        if mom:
+                            if not k in moms.keys(): moms[k]={}
+                            moms[k].update({ tag : mom})
             
 
 
