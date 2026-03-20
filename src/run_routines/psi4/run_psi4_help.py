@@ -31,6 +31,7 @@ def config_base(
         cd_thres=dat.cd_thres
         df_basis=dat.df_basis
         dft_opts=dat.dft_settings
+        convergence=dat.convergence
         if dat.fno_thres: # not zero or none
             do_fno=True
             fno_thres=dat.fno_thres
@@ -50,6 +51,7 @@ def config_base(
         ),
         method=dict(
             **( dict(dft_opts=dft_opts.model_dump()) if dft_opts else {} ),
+            **( dict(convergence=convergence.model_dump()) if convergence else {} ),
             method_tag=method,
             basis_set=basis,
             scf_type='_'.join([scf_type]+([df_basis] if scf_type.lower()=='df' else [])),

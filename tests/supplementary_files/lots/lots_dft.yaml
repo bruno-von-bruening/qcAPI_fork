@@ -1,0 +1,14 @@
+- method: pbe
+  basis: pc-4
+  protocol:
+    type: df
+    df_basis: def2-qzvpp
+    dft_settings:
+      radial_points: 75
+      angular_points: 302
+      radial_scheme:  TREUTLER
+      angular_scheme: LEBEDEV
+    conv_settings:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10

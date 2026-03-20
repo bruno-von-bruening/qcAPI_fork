@@ -1,124 +1,78 @@
-# - method: hf
-#   basis: cc-pvdz
-#   protocol: 
-#     type: pk
-#     frozen_core: false
-# - method: hf
-#   basis: cc-pvdz
-#   protocol: 
-#     type: df
-#     frozen_core: true
-# - method: mp2
-#   basis: cc-pvdz
-#   protocol: 
-#     type: conv
-#     frozen_core: false
-# - method: mp2
-#   basis: cc-pvdz
-#   protocol: 
-#     type: df
-#     frozen_core: true
-#2# - method: hf
-#2#   basis: cc-pvdz
-#2#   protocol: 
-#2#     type: df
-#2#     frozen_core: true
-#2# - method: mp2
-#2#   basis: cc-pvdz
-#2#   protocol: 
-#2#     type: df
-#2#     frozen_core: true
-#2# - method: mp2
-#2#   basis: d-aug-cc-pvdz
-#2#   protocol: 
-#2#     type: df
-#2#     frozen_core: true
-#2# - method: mp2
-#2#   basis: cc-pvdz
-#2#   protocol: 
-#2#     type: conv
-#2#     frozen_core: false
-#2# - method: mp2
-#2#   basis: d-aug-cc-pvdz
-#2#   protocol: 
-#2#     type: conv
-#2#     frozen_core: false
-- method: ccsd(t)
+ ## - method: pbe0-grac
+ ##    basis: aug-pcseg-2
+ ##    protocol:
+ ##      type: df
+ ##      df_basis: def2-qzvpp
+ ##      dft_settings:
+ ##        radial_points: 100
+ ##        spherical_points: 590
+ ##        radial_scheme:  TREUTLER
+ ##        spherical_scheme: LEBEDEV
+- method: pbe0-grac
   basis: d-aug-cc-pvdz
-  protocol: 
-    type: conv
-    frozen_core: false
-- method: ccsd(t)
-  basis: d-aug-cc-pvdz
-  protocol: 
-    type: cd
-    frozen_core: true
-    fno_thres: 1.e-6
-    cd_thres: 1.e-8
-- method: ccsd(t)
-  basis: d-aug-cc-pvdz
-  protocol: 
-    type: df
-    frozen_core: true
-    fno_thres: 1.e-6
-    df_basis: aug-cc-pvdz-ri
-      # - method: ccsd(t)
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: ccsd(t)
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: conv
-      #     frozen_core: false
-      # - method: ccsd(t)
-      #   basis: d-aug-cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: ccsd
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: conv
-      #     frozen_core: false
-      # - method: ccsd
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: ccsd(t)
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: conv
-      #     frozen_core: false
-      # - method: ccsd(t)
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: ccsd(t)
-      #   basis: d-aug-cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: pbe0-grac
-      #   basis: d-aug-cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-      # - method: pbe0-grac
-      #   basis: cc-pvdz
-      #   protocol: 
-      #     type: df
-      #     frozen_core: true
-- method: pbe
-  basis: aug-pcseg-2
   protocol:
     type: df
-    df_basis: def2-qzvpp
+    df_basis: aug-cc-pvqz-ri
     dft_settings:
       radial_points: 100
       spherical_points: 590
       radial_scheme:  TREUTLER
       spherical_scheme: LEBEDEV
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: mp2
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: df
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: mp2
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: conv
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: ccsd
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: df
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: ccsd
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: conv
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: ccsd(t)
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: df
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
+- method: ccsd(t)
+  basis: d-aug-cc-pcvdz
+  protocol:
+    type: conv
+    df_basis: aug-cc-pvdz-ri
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10
