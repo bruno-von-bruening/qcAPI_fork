@@ -60,6 +60,7 @@ def config_base(
             fno=do_fno,
             fno_thres=fno_thres,
             cd_thres=cd_thres,
+            do_moments=False,
         ),
     )
 
@@ -85,6 +86,7 @@ def job_settings(job_tag:job_opts, record:SQLModel):
             job_settings=dict(
                 delta_dip=model.finfie_stepsize_dip,
                 delta_qad=model.finfie_stepsize_qad,
+                do_moments=False,
             )
         )
     elif job_tag==job_opts.MOLPOL_LINEAR_RESPONSE:
