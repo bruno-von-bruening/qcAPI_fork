@@ -43,6 +43,7 @@ def config_base(
     except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.protocol}", ex)
     
     return dict(
+        do_moments=False,
         geom=dict(
             ac_shift=None,
             charge=0,
@@ -60,7 +61,6 @@ def config_base(
             fno=do_fno,
             fno_thres=fno_thres,
             cd_thres=cd_thres,
-            do_moments=False,
         ),
     )
 
