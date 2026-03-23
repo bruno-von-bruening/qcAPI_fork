@@ -8,7 +8,7 @@
  ##        spherical_points: 590
  ##        radial_scheme:  TREUTLER
  ##        spherical_scheme: LEBEDEV
-- method: pbe0-grac
+- method: hf # pbe0-grac
   basis: d-aug-cc-pvdz
   protocol:
     type: df
@@ -22,57 +22,57 @@
       e_convergence: 1.e-10
       r_convergence: 1.e-10
       d_convergence: 1.e-10
-- method: mp2
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: df
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
-- method: mp2
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: conv
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
-- method: ccsd
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: df
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
-- method: ccsd
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: conv
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
-- method: ccsd(t)
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: df
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
-- method: ccsd(t)
-  basis: d-aug-cc-pcvdz
-  protocol:
-    type: conv
-    df_basis: aug-cc-pvdz-ri
-    convergence:
-      e_convergence: 1.e-10
-      r_convergence: 1.e-10
-      d_convergence: 1.e-10
+        # - method: mp2
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: df
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
+        # - method: mp2
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: conv
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
+        # - method: ccsd
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: df
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
+        # - method: ccsd
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: conv
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
+        # - method: ccsd(t)
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: df
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
+        # - method: ccsd(t)
+        #   basis: d-aug-cc-pcvdz
+        #   protocol:
+        #     type: conv
+        #     df_basis: aug-cc-pvdz-ri
+        #     convergence:
+        #       e_convergence: 1.e-10
+        #       r_convergence: 1.e-10
+        #       d_convergence: 1.e-10
