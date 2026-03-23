@@ -268,7 +268,8 @@ def compute_polarizability_psi4(
                                 induced_ranks=' '.join([str(x) for x in tensor_side.induced_ranks]),
                                 field_ranks=' '.join([str(x) for x in tensor_side.field_ranks]),
                                 status=record.status,
-                                specs_hash=None,
+                                specs_hash=type(record)._default,
+                                # Do not provide spes hash it should be newly generated!
                             )
                             if not method.lower()=='main':
                                 new_rec.update(
@@ -290,9 +291,10 @@ def compute_polarizability_psi4(
 
                 for k, mom_loop in v.items(): # 'eng' or 'dens'
                     if mom_loop is None: continue
+                    ev_kind=(Molecular_Multipoles.eval_kind.density if k=='dens' else Molecular_Multipoles.eval_kind.energy)
+                    specs=record.specs_model_ff(**json.loads(record.specs)).model_dump(exclude=['eval_through'])
                     the_mom=Molecular_Multipoles.from_object(mom_loop, wfn_id=id,
-                        evaluated_through=(Molecular_Multipoles.__eval_kind__.density if k=='dens' else Molecular_Multipoles.__eval_kind__.energy),
-                                            side_result_from=this_job
+                        evaluated_through=ev_kind, side_result_from=this_job, specs=specs
                     )
                     sub_entries[Molecular_Multipoles.__name__]+=[ the_mom ]
 
