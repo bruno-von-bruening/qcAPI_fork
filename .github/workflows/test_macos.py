@@ -2,9 +2,9 @@ name: macOS Python + Conda CI
 
 on:
   workflow_dispatch:  # manual runs
-push:
-branches: [ main ]
-pull_request:
+  push:
+    branches: [ main , CI_explore ]
+  pull_request:
 
 jobs:
 test-macos:
