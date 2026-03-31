@@ -39,7 +39,7 @@ jobs:
 
           - name: install conda package for cloning with HTTPS + PAT for CI
             shell: bash -el {0}
-            run: cd install && bash install_clone_run_psi4_ci.sh 
+            run: cd install && bash clone_run_psi4_ci.sh 
 
           - name: Run test script
             shell: bash -el {0}
