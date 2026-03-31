@@ -14,15 +14,23 @@ from util.config import qcAPI_server_config,qcAPI_storage_info
 
 from typing import List
 
+QCPAPI_HOME=os.path.join( os.path.dirname(os.path.realpath(__file__)), '..', '..' )
+assert os.path.isdir(QCPAPI_HOME), f"Not a directory: {QCPAPI_HOME}"
+os.environ['QCPAPI_HOME']=os.path.realpath(QCPAPI_HOME)
+
+test_dir=os.path.join(os.environ['QCPAPI_HOME'],'tests')
+assert os.path.isdir(test_dir), f"Not a directory: {test_dir}"
+
 config_file_default='config.yaml'
 
-def gen_auto_config_file(config_file=config_file_default):
+def gen_auto_config_file(config_file=config_file_default, edit=True):
     auto_config=make_auto_config_file(host='localhost', port=8101)
     shutil.move(auto_config,config_file)
     conf=yaml.safe_load(open(config_file))
     conf['database_file']=f"test_molpol.db"
     yaml.safe_dump(conf, open(auto_config,'w'))
-    edit(auto_config)
+    if edit:
+        edit(auto_config)
 
     conf=yaml.safe_load(open(auto_config))
     conf=qcAPI_server_config(**conf, source=os.path.realpath(config_file)).model_dump(exclude=['source','environment','TAG'])
@@ -52,18 +60,18 @@ def run_wrapper(cmd):
     f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" ))
 
 def main(config_file):
-    conf_file='../supplementary_files/conformations/h2.yaml'
+    conf_file=os.path.join(test_dir,'supplementary_files','conformations','h2.yaml')
     assert os.path.isfile(conf_file), f"Not a file: {conf_file}"
 
-    lots_file_small='../supplementary_files/lots/lots_dummy_wfn_set.yaml'
+    lots_file_small=os.path.join(test_dir,'supplementary_files','lots','lots_dummy_wfn_set.yaml')
     assert os.path.isfile(lots_file_small), f"Not a file: {lots_file_small}"
 
-    lots_wider_file='../supplementary_files/lots/lots_wider_sampling.yaml'
+    lots_wider_file=os.path.join(test_dir,'supplementary_files','lots','lots_wider_sampling.yaml')
     assert os.path.isfile(lots_wider_file), f"Not a file: {lots_wider_file}"
 
     lots_file=lots_wider_file
 
-    molpol_file='../supplementary_files/molpol/molpol.yaml'
+    molpol_file=os.path.join(test_dir,'supplementary_files','molpol','molpol.yaml')
     assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
     proc=start_server(config_file)
     try:
@@ -90,16 +98,16 @@ if __name__=="__main__":
     import argparse as ap
     parser=ap.ArgumentParser(description="Test the molpol run")
     parser.add_argument('--config', '-c', type=str, default=config_file_default, help="Path to config file. If not provided, will be generated automatically under config.yaml")
-    parser.add_argument('--edit', '-e', action='store_true', help="Edit the config file after generation")
+    parser.add_argument('--edit', '-e', action='store_true', help="Edit the config file after generation", default=False)
     args=parser.parse_args()
+    if args.edit:
+        edit(args.config)
 
     if not os.path.isfile(args.config):
         print(f"Config file {args.config} not found. Generating automatically.")
-        gen_auto_config_file()
+        gen_auto_config_file(edit=args.edit)
     else:
         print(f"Using provided config file: {args.config}")
-    if args.edit:
-        edit(args.config)
 
     if not os.path.isdir('scratch'): os.mkdir('scratch')
     if not os.path.isdir('storage'): os.mkdir('storage')

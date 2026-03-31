@@ -1,0 +1,46 @@
+name: macOS Python + Conda CI
+
+on:
+  workflow_dispatch:  # manual runs
+  push:
+    branches: [ main , CI_explore ]
+  pull_request:
+
+
+jobs:
+    test-macos:
+        runs-on: macos-14
+        # env:
+        #   QCPAPI_HOME: ${{ github.workspace }}
+
+        steps:
+          - name: Checkout repo
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 1
+
+          - name: Build env file with HTTPS + PAT for CI
+            shell: bash
+            run: |
+              sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/qcpAPI_env.yaml > install/qcpAPI_env_ci.yaml
+          - name: Authenticate git for private dependencies
+            shell: bash
+            run: |
+              git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
+
+          - name: Install Miniconda
+            uses: conda-incubator/setup-miniconda@v3
+            with:
+              auto-update-conda: true
+              activate-environment: test_env
+              environment-file: install/qcpAPI_env_ci.yaml
+
+          - name: Install your package into environment
+            shell: bash -el {0}
+            run: pip install .
+
+          - name: Run test script
+            shell: bash -el {0}
+            run: |
+              cd tests/molpol_run
+              python test.py
