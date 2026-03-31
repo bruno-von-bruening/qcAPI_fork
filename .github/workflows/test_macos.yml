@@ -37,9 +37,9 @@ jobs:
               activate-environment: qcpAPI
               environment-file: install/qcpAPI_env_ci.yaml
 
-          # - name: Install qcpAPI package into environment
-          #   shell: bash -el {0}
-          #   run: pip install .
+          - name: Install qcpAPI package into environment
+            shell: bash -el {0}
+            run: pip install .
 
           - name: Install conda environment for run_psi4 with HTTPS + PAT for CI
             shell: bash -el {0}
