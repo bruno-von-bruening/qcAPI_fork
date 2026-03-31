@@ -19,7 +19,8 @@ jobs:
 
           - name: Export QCPAPI_HOME
             shell: bash
-            run: export QCPAPI_HOME=$(pwd) 
+            run: |
+              export QCPAPI_HOME=$(pwd) 
 
           - name: Build env file with HTTPS + PAT for CI
             shell: bash
@@ -37,12 +38,11 @@ jobs:
               activate-environment: test_env
               environment-file: install/qcpAPI_env_through-token.yaml
 
-
-          - name: Show environment info
-            shell: bash -el {0}
-            run: |
-              python --version
-              conda list
+                # - name: Show environment info
+                #   shell: bash -el {0}
+                #   run: |
+                #     python --version
+                #     conda list
 
           - name: Install your package into environment
             shell: bash -el {0}
