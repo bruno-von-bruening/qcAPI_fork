@@ -54,10 +54,14 @@ def run_wrapper(cmd):
         return '\n'.join([ tag+x for x in text ])
 
     print(f"Running command: {cmd}")
-    ret=run_shell_command(cmd)
+    ret=run_shell_command(cmd, uncritical=True)
     stdout,stderr=[ ret[x] for x in ['stdout','stderr'] ]
-    print(f"Finished command successfully.\nSTDOUT:\n{break_text(stdout)}"+
-    f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" ))
+    out=f"STDOUT:\n{break_text(stdout)}"+
+    f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" )
+    if ret['returncode']!=0:
+        raise Exception(f"Command '{cmd}' failed with return code {ret['returncode']}. Output:\n{out}")
+    else:
+        print(f"Command '{cmd}' executed successfully. Output:\n{out}")
 
 def main(config_file):
     conf_file=os.path.join(test_dir,'supplementary_files','conformations','h2.yaml')
