@@ -10,8 +10,8 @@ on:
 jobs:
     test-macos:
         runs-on: macos-14
-        env:
-          QCPAPI_HOME: ${{ github.workspace }}
+        # env:
+        #   QCPAPI_HOME: ${{ github.workspace }}
 
         steps:
           - name: Checkout repo
