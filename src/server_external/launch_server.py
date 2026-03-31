@@ -11,6 +11,8 @@ from sqlalchemy.orm import load_only
 from fastapi.encoders import jsonable_encoder
 from http import HTTPStatus
 
+from util.import_helper import *
+
 from orm_import.qcAPI_database import (
     #Status,
     Worker,
@@ -46,12 +48,21 @@ def make_auto_config_file(host:str|None, port:int|None):
         storage_root_directory=f"{os.getcwd()}/storage",
     )
     def find_setup():
-        supposed_path=os.path.join( os.environ['QCPAPI_HOME'], 'install','env_setup.yaml' )
-        if os.path.isfile(supposed_path):
-            imports=supposed_path
+        valid_path=False
+        if not 'QCPAPI_HOME' in os.environ.keys():
+            warn("QCPAPI_HOME enviornment variable not set, cannot find setup file for server. Will try to continue with default value but might fail if setup file is not there")
+            path='<find_me>'
         else:
-            warn(f"Could not find setup under default path {supposed_path}")
-            imports='find_me'
+            path=os.environ.get('QCPAPI_HOME',None)
+            if not os.path.isdir(path):
+                warn(f"QCPAPI_HOME enviornment variable is set to {path} but it is not a valid directory. Will try to continue with default value but might fail if setup file is not there")
+                path='<find_me>'
+            else:
+                valid_path=True
+
+        imports=os.path.join( path, 'install','env_setup.yaml' )
+        if not os.path.isfile(imports) and valid_path:
+            warn(f"Could not find setup under default path {imports}")
         return imports
     config=qcAPI_server_config.construct(
         database_file="<make_me>",

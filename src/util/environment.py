@@ -14,4 +14,4 @@ def get_enviornment_variable(variable_name:str, critical:bool=True) -> str:
             return None
     else:
         return os.environ[variable_name]
-QCAPI_HOME=get_enviornment_variable('QCPAPI_HOME')
+# QCAPI_HOME=get_enviornment_variable('QCPAPI_HOME')
