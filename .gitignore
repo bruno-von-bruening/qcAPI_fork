@@ -9,6 +9,7 @@ dist/
 timer.dat
 install/env_config.yaml
 install/environment_for_server_config.yaml
+install/run_psi4*/
 
 
 **/dummy_config.yaml
@@ -19,3 +20,4 @@ tests/molpol_run/*
 src/qcpAPI/_version.py
 tests/package_docu
 
+.venv/

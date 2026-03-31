@@ -15,7 +15,7 @@ classifiers = [
 server_external= ["*.ico"] # add favicon icon that lives under server_internal subfolder
 
 [tool.setuptools]
-script-files = ["bin/qcp_server.py", 'bin/qcp_export_envo.py']
+script-files = ["bin/qcp_server.py", 'bin/qcp_export_envo.py','bin/qcp_export_gitclone.py']
 
 [tool.setuptools_scm]
 # version_scheme = "post-release"

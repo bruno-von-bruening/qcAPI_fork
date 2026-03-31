@@ -11,6 +11,8 @@ from pydantic import (
 
 val_call=validate_call(config=dict(arbitrary_types_allowed=True, validate_return=True))
 
+from .logging import *
+
 import sys, os, re, yaml, json, glob, shutil
 from functools import partial
 import time, datetime
@@ -22,7 +24,7 @@ from qcp_global_utils.pydantic.pydantic import file as pdtc_file, directory as p
 from qcp_global_utils.environment.file_handling import load_json_or_yaml
 
 
-from util.environment import run_shell_command, temporary_file, compress_file
+from util.environment import temporary_file, compress_file
 from sqlmodel.main import SQLModelMetaclass as sqlmodel_cl_meta
 from sqlmodel.main import SQLModelMetaclass
 from sqlmodel import SQLModel
@@ -33,13 +35,3 @@ from qcp_global_utils.shell_processes.execution import run_shell_command
 from qcp_global_utils.environment.conda_env import get_python_from_conda_env
 
 from qcp_global_utils.pydantic.pydantic import file as file_pdtc
-
-import logging
-def warn(msg):
-    msg=f"[WARNING] {msg}"
-    print(msg)
-    logging.warning(msg)
-def info(msg):
-    msg=f"[INFO] {msg}"
-    print(msg)
-    logging.info(msg)

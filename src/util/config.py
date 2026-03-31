@@ -78,7 +78,7 @@ def process_imports(config,imports):
         return config
     except Exception as ex: my_exception(f"Problem in importing:", ex)
 
-from qcp_global_utils.environment.conda_env import get_current_conda_env
+from qcp_global_utils.environment.conda_env import get_current_conda_env, get_conda_base
 class env_entry(BaseModel):
     python_env: str
     script: List[str]
@@ -90,6 +90,34 @@ class env_entry(BaseModel):
         super().__init__(*args, **kwargs)        
         if self.python_env=='default':
             self.python_env=get_current_conda_env()
+    
+    @property
+    @val_call
+    def script_fullpath(self) -> pdtc_file:
+        script_path=os.path.join(*self.script)
+
+        try:
+            conda_env=self.python_env
+            base=get_conda_base()
+            home=os.path.join(base, 'envs', conda_env) 
+            assert os.path.isdir(home), f"Could not find home directory {home} for conda environment {conda_env} with base {base}"
+        except Exception as ex: raise Exception(f"Could not find conda environment {self.python_env} with base {get_conda_base()}", ex)
+
+        found=False
+        for path in [ os.path.join(home, 'bin', script_path), os.path.join(home,'bin', script_path) ]:
+            if os.path.isfile(path):
+                found=True
+                break
+        if not found:
+            raise Exception(f"Could not find script {script_path} in conda environment {self.python_env} with home {home}")
+        return path
+
+
+
+
+
+    
+
 
 class config_base(BaseModel):
     TAG: str|None=None

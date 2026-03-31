@@ -19,10 +19,12 @@ jobs:
             with:
               fetch-depth: 1
 
-          - name: Build env file with HTTPS + PAT for CI
+          - name: Build env files with HTTPS + PAT for CI
             shell: bash
             run: |
               sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/qcpAPI_env.yaml > install/qcpAPI_env_ci.yaml
+              sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/clone_run_psi4_env.yaml > install/clone_run_psi4_ci.yaml
+
           - name: Authenticate git for private dependencies
             shell: bash
             run: |
@@ -35,9 +37,9 @@ jobs:
               activate-environment: test_env
               environment-file: install/qcpAPI_env_ci.yaml
 
-          - name: Install your package into environment
+          - name: install conda package for cloning with HTTPS + PAT for CI
             shell: bash -el {0}
-            run: pip install .
+            run: cd install && bash install_clone_run_psi4_ci.sh 
 
           - name: Run test script
             shell: bash -el {0}
