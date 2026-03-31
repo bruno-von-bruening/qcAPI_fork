@@ -17,10 +17,13 @@ jobs:
             with:
               fetch-depth: 1
 
-          - name: Prepare env file and authenticate git for CI
+          - name: Build env file with HTTPS + PAT for CI
             shell: bash
             run: |
               sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/qcpAPI_env.yaml > install/qcpAPI_env_ci.yaml
+          - name: Authenticate git for private dependencies
+            shell: bash
+            run: |
               git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
 
           - name: Install Miniconda
@@ -28,7 +31,7 @@ jobs:
             with:
               auto-update-conda: true
               activate-environment: test_env
-              environment-file: install/qcpAPI_env_ci.yaml
+              environment-file: install/qcpAPI_env_through-token.yaml
 
           - name: Show environment info
             shell: bash -el {0}
