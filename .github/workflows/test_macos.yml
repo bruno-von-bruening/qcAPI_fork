@@ -33,7 +33,7 @@ jobs:
             with:
               auto-update-conda: true
               activate-environment: test_env
-              environment-file: install/qcpAPI_env_through-token.yaml
+              environment-file: install/qcpAPI_env_ci.yaml
 
           - name: Install your package into environment
             shell: bash -el {0}
