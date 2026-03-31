@@ -11,7 +11,7 @@ from sqlalchemy.orm import load_only
 from fastapi.encoders import jsonable_encoder
 from http import HTTPStatus
 
-from . import *
+from util.import_helper import *
 
 from orm_import.qcAPI_database import (
     #Status,
@@ -43,26 +43,31 @@ from util.config import load_server_config, qcAPI_server_config, qcAPI_storage_i
 import os
 from orm_import.database_declaration import Meta
 
+from util.environment import get_qcpAPI_home
+
 DEFAULT_CONFIG_FILE="auto_config.yaml"
-def make_auto_config_file(host:str|None, port:int|None):
-    store=qcAPI_storage_info(
-        storage_root_directory=f"{os.getcwd()}/storage",
-    )
+def make_auto_config_file(host:str|None, port:int|None, **kwargs):
+
     def find_setup():
-        supposed_path=os.path.join( os.environ['QCPAPI_HOME'], 'install','env_setup.yaml' )
-        if os.path.isfile(supposed_path):
-            imports=supposed_path
-        else:
-            warn(f"Could not find setup under default path {supposed_path}")
-            imports='find_me'
+        valid_path=False
+        path=get_qcpAPI_home()
+        imports=os.path.join( path, 'install','env_setup.yaml' )
+        if not os.path.isdir(path):
+            path='<find_me>'
+        elif not os.path.isfile(imports) and valid_path:
+            warn(f"Could not find setup under default path {imports}")
         return imports
+    if not 'storage_info' in kwargs:
+        kwargs['storage_info']=qcAPI_storage_info(
+            storage_root_directory=f"{os.getcwd()}/storage",
+        )
+    if not 'database_file' in kwargs:
+        kwargs['database_file']=f"test_database.db"
     config=qcAPI_server_config.construct(
-        database_file="<make_me>",
-        storage_info=store,
         host=host,
         port=port,
+        **kwargs,
         imports=find_setup(),
-        
     )
     with open(DEFAULT_CONFIG_FILE, 'w') as f:
         yaml.safe_dump(config.model_dump(), f)

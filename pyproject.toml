@@ -1,7 +1,6 @@
 [project]
 name = "qcpAPI"
-# version = "0.2.0"
-dynamic=[ 'version' ] # Sources last tag to be defined (e.g. v1.2.3 and bumps it up to e.g. 1.2.3.<branch>+g<commit>), see build-system section below
+version = "0.3.1"
 description = ''
 readme = "README.md"
 requires-python = ">=3.8"
