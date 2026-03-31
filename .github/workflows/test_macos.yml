@@ -46,7 +46,7 @@ jobs:
             run: | 
               cd install && bash clone_run_psi4_ci.sh && cd run_psi4*/ 
               sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/run_psi4_env.yaml > install/run_psi4_env_ci.yaml
-              conda env update -f install/run_psi4_env_ci.yaml -n run_psi4
+              conda env update -f install/run_psi4_env_ci.yaml -n run_psi4_newpar
 
           - name: Run test script
             shell: bash -el {0}
