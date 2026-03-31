@@ -42,6 +42,8 @@ from server_internal.get.info import info_functions
 from util.config import load_server_config, qcAPI_server_config, qcAPI_storage_info
 import os
 
+from util.environment import get_qcpAPI_home
+
 DEFAULT_CONFIG_FILE="auto_config.yaml"
 def make_auto_config_file(host:str|None, port:int|None):
     store=qcAPI_storage_info(
@@ -49,19 +51,11 @@ def make_auto_config_file(host:str|None, port:int|None):
     )
     def find_setup():
         valid_path=False
-        if not 'QCPAPI_HOME' in os.environ.keys():
-            warn("QCPAPI_HOME enviornment variable not set, cannot find setup file for server. Will try to continue with default value but might fail if setup file is not there")
-            path='<find_me>'
-        else:
-            path=os.environ.get('QCPAPI_HOME',None)
-            if not os.path.isdir(path):
-                warn(f"QCPAPI_HOME enviornment variable is set to {path} but it is not a valid directory. Will try to continue with default value but might fail if setup file is not there")
-                path='<find_me>'
-            else:
-                valid_path=True
-
+        path=get_qcpAPI_home()
         imports=os.path.join( path, 'install','env_setup.yaml' )
-        if not os.path.isfile(imports) and valid_path:
+        if not os.path.isdir(path):
+            path='<find_me>'
+        elif not os.path.isfile(imports) and valid_path:
             warn(f"Could not find setup under default path {imports}")
         return imports
     config=qcAPI_server_config.construct(
