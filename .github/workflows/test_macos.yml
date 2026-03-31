@@ -3,7 +3,7 @@ name: macOS Python + Conda CI
 on:
   workflow_dispatch:  # manual runs
   push:
-    branches: [ main , CI_explore ]
+    #  branches: [ main , CI_explore_2 ]
   pull_request:
 
 
