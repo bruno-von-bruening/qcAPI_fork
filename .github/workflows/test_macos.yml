@@ -23,7 +23,7 @@ jobs:
             shell: bash
             run: |
               sed 's#git+ssh://git@github.com/#git+https://github.com/#g' install/qcpAPI_env.yaml > install/qcpAPI_env_ci.yaml
-              sed 's#git@github.com/#https://github.com/#g' install/clone_run_psi4.sh > install/clone_run_psi4_ci.sh
+              sed 's#git@github.com:#https://github.com/#g' install/clone_run_psi4.sh > install/clone_run_psi4_ci.sh
 
           - name: Authenticate git for private dependencies
             shell: bash
