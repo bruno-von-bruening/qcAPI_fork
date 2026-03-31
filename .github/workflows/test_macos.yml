@@ -34,12 +34,19 @@ jobs:
             uses: conda-incubator/setup-miniconda@v3
             with:
               auto-update-conda: true
-              activate-environment: ""
+              activate-environment: qcpAPI
               environment-file: install/qcpAPI_env_ci.yaml
+
+          - name: Install qcpAPI package into environment
+            shell: bash -el {0}
+            run: pip install .
 
           - name: Install conda environment for run_psi4 with HTTPS + PAT for CI
             shell: bash -el {0}
-            run: cd install && bash clone_run_psi4_ci.sh
+            run: | 
+              cd install && bash clone_run_psi4_ci.sh && cd run_psi4*/ 
+              sed -i 's#git+ssh://git@github.com/#git+https://github.com/#g' install/run_psi4_env.yaml
+              conda env update -f install/run_psi4_env.yaml -n run_psi4
 
           - name: Run test script
             shell: bash -el {0}

@@ -4,4 +4,4 @@
 set -euo pipefail
 
 git clone git@github.com:bruno-von-bruening/run_psi4.git run_psi4_7854eccc4 && git -C run_psi4_7854eccc4/ checkout 7854eccc4
-cd run_psi4_7854eccc4/ && conda env update -f install/run_psi4_env.yaml -n run_psi4
+# cd run_psi4_7854eccc4/ && conda env update -f install/run_psi4_env.yaml -n run_psi4
