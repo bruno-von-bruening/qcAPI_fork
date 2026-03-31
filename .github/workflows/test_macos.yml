@@ -6,11 +6,16 @@ on:
     branches: [ main , CI_explore ]
   pull_request:
 
+
 jobs:
     test-macos:
         runs-on: macos-14
 
         steps:
+          - name: Authenticate git for private dependencies
+            shell: bash
+            run: |
+              git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
           - name: Checkout repo
             uses: actions/checkout@v4
 
