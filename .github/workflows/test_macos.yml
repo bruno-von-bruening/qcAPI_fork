@@ -12,10 +12,10 @@ jobs:
         runs-on: macos-14
 
         steps:
-          - name: Authenticate git for private dependencies
-            shell: bash
-            run: |
-              git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
+          # - name: Authenticate git for private dependencies
+          #   shell: bash
+          #   run: |
+          #     git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
           - name: Checkout repo
             uses: actions/checkout@v4
 
@@ -23,28 +23,21 @@ jobs:
             uses: conda-incubator/setup-miniconda@v3
             with:
               auto-update-conda: true
-              python-version: 3.11
-              activate-environment: myenv  # optional: auto-activate after creation
+              activate-environment: test_env
+              environment-file: install/qcpAPI_env.yaml
 
-          - name: Create conda environment from YAML
-            run: conda env create -f install/qcpAPI_env.yaml -n test_env
-
-          - name: Activate environment
-            shell: bash
+          - name: Show environment info
+            shell: bash -el {0}
             run: |
-              conda activate test_env
               python --version
               conda list
 
           - name: Install your package into environment
-            shell: bash
-            run: |
-              conda activate test_env
-              pip install .
+            shell: bash -el {0}
+            run: pip install .
 
           - name: Run test script
-            shell: bash
+            shell: bash -el {0}
             run: |
-              conda activate test_env
               cd tests/molpol_run
               python test.py
