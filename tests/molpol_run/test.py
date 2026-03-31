@@ -56,8 +56,8 @@ def run_wrapper(cmd):
     print(f"Running command: {cmd}")
     ret=run_shell_command(cmd, uncritical=True)
     stdout,stderr=[ ret[x] for x in ['stdout','stderr'] ]
-    out=f"STDOUT:\n{break_text(stdout)}"+
-    f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" )
+    out=f"STDOUT:\n{break_text(stdout)}"
+    out+=f"\nSTDERR:" + (f"\n{break_text(stderr)}" if len(stderr)>0 else f" Nothing on record" )
     if ret['returncode']!=0:
         raise Exception(f"Command '{cmd}' failed with return code {ret['returncode']}. Output:\n{out}")
     else:
