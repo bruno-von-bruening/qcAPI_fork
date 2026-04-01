@@ -47,46 +47,88 @@ def get_python_exc_and_script(config_file:file, tag)->Tuple[file,file]:
 
     return python_exc, script_exc
 
+from contextlib import contextmanager
+@contextmanager
+def cd(path):
+    origin = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(origin)
+
 @val_call
-def pack_run_directory(working_directory:directory, run_directory: List[pdtc_directory]|pdtc_directory, the_model: sqlmodel_cl_meta, id:str|int, worker_id:str) -> pdtc_file:
+def pack_run_directory(
+    working_directory:directory, 
+    to_store: List[pdtc_directory|pdtc_file]|pdtc_directory|pdtc_file, 
+    the_model: sqlmodel_cl_meta, 
+    id:str|int, 
+    worker_id:str
+) -> pdtc_file:
+    """ 
+    Copies one or more directories or files into a tar archives and compresses it.
+    As an intermediate step, copy all files to a container directory which is next to working_directory
+    """
+
+    # Check the run direcotry 
+    if isinstance(to_store, str):
+        to_store=[ to_store ]
+    # all to store should be located within run directory!
+    for x in to_store:
+        assert os.path.realpath(x).startswith(os.path.realpath(working_directory)), f"Not within working directory {x}"
     
-    # Check that the working direcotry is the 
-    # This is not really elegant but a check is better than deleting something undesired
-    if isinstance(run_directory, str):
-        assert os.path.realpath(run_directory)==os.path.realpath(working_directory)
-    else:
-        for x in run_directory:
-            assert any([ y(os.path.join(working_directory,x)) for y in [os.path.isdir,os.path.isfile]]) , f"Not a file {x}"
-        run_directory=[ os.path.join(working_directory,x) for x in run_directory]
+    # check if the working directory is in to_store if yes then drop files specified at sublevel
+    inside_other_directory=lambda x,full_list: any( os.path.realpath(x).startswith(os.path.realpath(os.path.join(working_directory,y))) for y in full_list if y!=x )
+    for x in to_store:
+        if inside_other_directory(x,to_store):
+            warn(f"Directory {x} is within another directory specified in to_store. Dropping {x} from to_store since it will be included in the tar file by the parent directory.") 
+            to_store.remove(x)
+    to_store=list(set(to_store)) # remove duplicates if any
 
-    the_tar=os.path.realpath(f"{the_model.__name__}_{id}_WID-{worker_id}")
-    if os.path.realpath(the_tar).startswith(os.path.realpath(run_directory)):
-        raise Exception(f"Refusing to pack run directory since the target {the_tar} is within the run directory {run_directory}")
-    if os.path.realpath(the_tar)==os.path.dirname(os.path.realpath(run_directory)) or os.path.realpath(the_tar)==os.path.realpath(run_directory):
-        raise Exception(f"Refusing to pack run directory since the target tar name {the_tar} is the same as the run directory {run_directory}")
-    if os.path.isdir(the_tar): run_shell_command(f"rm -r {the_tar}")
+    store_dir_name=os.path.realpath(f"{the_model.__name__}_{id}_WID-{worker_id}_STORAGE")
+    store_dir=os.path.join( os.path.dirname(working_directory), store_dir_name )
 
-    if isinstance(run_directory,str):
+    upper_level=os.path.dirname(os.path.realpath(store_dir))
+    strip_upper_level=lambda x: os.path.relpath(os.path.realpath(x), upper_level)
+    store_dir=strip_upper_level(store_dir)
+    to_store=[ strip_upper_level(x) for x in to_store ]
+
+    with cd(upper_level):
         try:
-            run_shell_command(f"cp -r {run_directory} {the_tar}")
+            # Remove the directory if it exists!
+            if os.path.exists(store_dir):
+                warn(f"Storage directory {store_dir} already exists. Removing it to avoid problems.")
+                run_shell_command(f"rm -r {store_dir}")
+
+            if not ( len(to_store)==1 or not os.path.isdir(to_store[0]) ):
+                os.mkdir(store_dir)
+            
+            cmd=f"cp -r {' '.join(to_store)} {store_dir}"
+            try: 
+                run_shell_command(cmd)
+            except Exception as ex:
+                raise Exception(f"Could not copy run directory: {ex}") from ex
         except Exception as ex:
-            raise Exception(f"Could not copy run directory: {ex}") from ex
-        pack_files=run_directory
-    else:
-        if  len(run_directory)>0:
-            os.mkdir(the_tar)
-            run_shell_command( f"cp -r {' '.join(run_directory)} {the_tar}")
-        else:
-            raise Exception(f"Expected at least on run directory, got: {run_directory}")
+            raise Exception(f"Location was {upper_level} paths are relative to it. {ex}") from ex
+        
+        # now the assert store_dir is there and pack it
+        assert os.path.isdir(store_dir), f"Expected to see directory {os.path.realpath(store_dir)} but does not exist"
+        the_tar=f"{os.path.basename(store_dir)}.tar"
+        compressed_file=f"{the_tar}.xz"
+        # Pack
+        try:
+            run_shell_command(f"tar --create --file={the_tar} {store_dir} --remove-files")
+        except Exception as ex:
+            raise Exception(f"Problem in creating tar file {the_tar} from directory {store_dir}: {ex}") from ex
+        # compress
+        try:
+            run_shell_command(f"xz {the_tar}")
+            assert os.path.isfile(compressed_file), f"Expected to see file {os.path.realpath(compressed_file)} but does not exist"
+        except Exception as ex:
+             raise Exception(f"Problem in compressing run directory {the_tar}: {ex}") from ex
+        compress_file=os.path.realpath(compressed_file)
+
+    return compress_file
 
 
-    os.chdir( os.path.dirname(the_tar) )
-    try:     
-        local_tar=os.path.basename(the_tar)
-        run_shell_command(f"tar --create --file={local_tar}.tar {local_tar} --remove-files")
-        run_shell_command(f"xz {local_tar}.tar")
-        compressed_file=f"{local_tar}.tar.xz"
-        assert os.path.isfile(compressed_file), f"Expected to see file {os.path.realpath(compressed_file)} but does not exist"
-    except Exception as ex:
-        warn(f"Problem in compressing run directory {the_tar}: {ex}. Proceeding by returning uncompressed directory.")
-    return os.path.realpath(compressed_file)
+    

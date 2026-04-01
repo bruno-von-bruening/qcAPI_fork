@@ -1,50 +1,49 @@
-# qcAPI
-
-Distribute quantum chemistry calculations over different machines following a simple client/server model (REST API).
+# Molecular Quantum Chemical Properties (qcpAPI)
+Manage quantum chemical calculations with focus on molecular propertiesm, in particular, distributed properties like
+atomic multipoles and polarizabilities.
+Runs calculations through a client/server model (REST API) centered around a SQLite database.
 
 **Warning**: This is a work in progress and no security measures for the API have been implemented yet.
 
 ## Installation
 
-
 Install dependencies via the provided conda environment:
 ```bash
-  conda env create -f qcAPI_env.yml
-  conda activate qcAPI
+  conda env create -f install/qcAPI_env.yaml
+  python -m build && pip install . # 
 ```
-We will need many subpackages to run this script (density_operations, ):
-```bash
-  git clone "<path_to_script>"
-  conda env create -f "<tag>_env.yaml"
-  conda activate "<env>"
+This will generate a conda environment name 'qcpAPI' (You might change that by providing an custom name via '-n')
 
-  # Manage paths and compile f90
-  python install/setup.py 
-
-  # Install pip
-  python -m pip install --upgrade build  
-  python -m build; python -m pip install .
+If calculations ought to be run you might setup further environments. You might want to install the 
+run_psi4 project. Since this is shipped separately a separate install is necessary. The specific version to run with
+this version of qcpAPI is defined in the bash script `install/clone_run_psi4.sh`.
+```
+cd install
+bash install/clone_run_psi4.sh
+cd run_psi4_* # hash included in the environment
+conda env create -f install/run_psi4_env.yaml
+python -m build && pip install
 ```
 
-Confirm that the libraries have the right version:
+Since there are some global definition defined in this script (`install/env_setup` defines names of environment to run)
+the script should know the path of the top-level. Add the following to the shell you want to run with.
 ```
-    # in install/
-    conda activate qcpAPI
-    python version_check.py
+export QCPAPI_HOME=<path-to-top-level-directory>
 ```
 
 ## Usage example
-The server will operate through the ```qcp_server.py``` executable which gets available when activating the conda environment.
-The different operations are provided as positional arguments following the script. Consult the ````--help``` option to learn more about passing arguments.
+All server operation will be instigated through the ```qcp_server.py``` executable which gets available when activating the conda environment (as path variable deactivate and activate the environment if it does not appear immediately after install).
+The different operations are provided as positional arguments following the script ```qcp_server.py```. Consult the ````--help``` option to learn more about passing arguments.
 
 ### Starting the server
-First we need to define a config file in yaml format. -> TALK more about that.
+First server will have to be launched with options controlled through a ```config.yaml``` file that is provided by the user.
 
 With the configs setup the server can be started as:
 ```bash
-  qcp_server.py run --config <config_file>
+  qcp_server.py run -e # This will generate a example of the config the server need in the following and opens editor
+  mv auto_config.yaml config.yaml # move this example 
+  qcp_server.py run -c config.yaml
 ```
-The server will create a SQLITE database which name is given in the `config.yaml` file and distribute calculations to clients that connect to it.
 
 ### Populating the server
 The population script is called through
@@ -54,10 +53,6 @@ The population script is called through
 where the properties to add to the database is defined by the ```property``` keyword. 
 The script will then create entries for the tables associated to the property and either fill based on provided files or implicitly by inheriting information from existing tables (e.g. a wave functions can inherit molecular or distributed properties).
 
-The initial inchikeys and conformations needs to be provided within files.
-**Talk About how these files need to look like***
-
-After population there will be new records in the database which are listed as *pending* if they need to be processed by a worker.
 
 ### Spawning workers
 ```bash

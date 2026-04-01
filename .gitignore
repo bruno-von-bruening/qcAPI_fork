@@ -11,6 +11,9 @@ install/env_config.yaml
 install/environment_for_server_config.yaml
 install/run_psi4*/
 
+**/package_versions.yaml
+**/test_*_env.yaml
+
 
 **/dummy_config.yaml
 **/sandbox/
@@ -21,3 +24,4 @@ src/qcpAPI/_version.py
 tests/package_docu
 
 .venv/
+
