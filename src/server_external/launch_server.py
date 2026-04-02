@@ -52,11 +52,14 @@ def make_auto_config_file(host:str|None, port:int|None, **kwargs):
     def find_setup():
         valid_path=False
         path=get_qcpAPI_home()
-        imports=os.path.join( path, 'install','env_setup.yaml' )
-        if not os.path.isdir(path):
-            path='<find_me>'
-        elif not os.path.isfile(imports) and valid_path:
-            warn(f"Could not find setup under default path {imports}")
+        sub_path=('install','env_setup.yaml')
+        if not path is None:
+            imports=os.path.join( path, *sub_path )
+            if not os.path.isfile(imports) and valid_path:
+                warn(f"Could not find setup under default path {imports}")
+                imports=f"< fix this : {imports} >"
+        else:
+            imports=os.path.join('<find_me>',*sub_path)
         return imports
     if not 'storage_info' in kwargs:
         kwargs['storage_info']=qcAPI_storage_info(
