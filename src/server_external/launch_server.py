@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import List
 
 from fastapi import FastAPI, HTTPException, Request,Depends
+import contextlib # allows to run e.g. with calling server trough a with statment.
 from sqlmodel import SQLModel, func, col, select,delete, Session,create_engine,update
 from sqlalchemy.orm import load_only
 from fastapi.encoders import jsonable_encoder
@@ -198,35 +199,16 @@ def app_setup(db_file, storage_info):
     return app
     
 
-def main(config_file):
-    """ Starts the server """
-
-    config=load_server_config(config_file)
+import uvicorn
+@contextlib.contextmanager
+def start_server(config:pdtc_file|qcAPI_server_config): # -> uvicorn.Server:
+    if isinstance(config, str):
+        try:
+            config=load_server_config(config)
+        except Exception as ex:
+            raise Exception(f"Could not load config from file {config}: {ex}") from ex
     sqlite_file_name=config.database_file
     storage_info=config.storage_info
-
-    def start_server():
-
-        import uvicorn
-        import threading
-        thread = threading.Thread(target=uvicorn.run, args=(app,), kwargs={"port": config.port, "host": config.host})
-        thread.start()
-        try:
-            while not self.started:
-                time.sleep(0.001)
-            yield
-        finally:
-            uvicorn.should_exit = True
-            thread.join()
-
-    def restart_server():
-        # POSSIBLE: track how many restarts have been done and avoid infinite loops
-        print("Restarting server... (will be replace current process if succesful)")
-        try:
-            os.execv(sys.executable, [sys.executable] + sys.argv)
-        except Exception as ex:
-            raise Exception(f"Error restarting server: {ex}")
-
     try:
         import uvicorn
         from uvicorn import Config
@@ -242,40 +224,70 @@ def main(config_file):
         conf = Config(app=app, host=config.host, port=config.port, log_level="info")
 
         class Server(uvicorn.Server):
-            @contextlib.contextmanager
-            def run_in_thread(self) -> Generator:
-                import threading, time, errno
-
-                self._run_exception = None   # store exception from self.run()
-                self._bind_error   = None    # flag for address-in-use
+            def run_in_thread(self):
+                import threading, time
 
                 def _runner():
                     self.run()
 
-                thread = threading.Thread(target=_runner)
+                thread = threading.Thread(target=_runner, daemon=True)
                 thread.start()
 
-                import signal
-                def kill_server():
-                    os.kill(os.getpid(), signal.SIGTERM)
+                deadline = time.time() + 10
+                while not self.started:
+                    if not thread.is_alive():
+                        raise RuntimeError("Server thread died before becoming ready.")
+                    if time.time() > deadline:
+                        raise RuntimeError("Timed out waiting for server to start.")
+                    time.sleep(0.05)
 
-                time.sleep(0.5)  # give server time to start and possibly fail
-                while True:
-                    if not self.started:
-                        thread.join()
-                        break
-
-                    if self.should_exit:
-                        thread.join()
-                        time.sleep(0.5)
-                        restart_server()
-                        break
-
-                    time.sleep(0.1)
+                return thread
 
         server = Server(config=conf)
 
         app.state.server = server
-        server.run_in_thread()
+        thread = server.run_in_thread()
+        try:
+            yield thread
+        finally:
+            print("Stopping server...")
+            server.should_exit = True
+            thread.join(timeout=5)
+
+            # If still alive -> force it
+            if thread.is_alive():
+                print("Force stopping server...")
+                server.force_exit = True
+                thread.join()
     except Exception as ex:
         raise Exception(f"Error starting server: {ex}")
+
+# @val_call
+def main(config:pdtc_file|qcAPI_server_config): # -> uvicorn.Server:
+    """ Starts the server """
+    import time
+    with start_server(config):
+        while True:
+            time.sleep(1)
+
+    # def start_server():
+
+    #     import threading
+    #     thread = threading.Thread(target=uvicorn.run, args=(app,), kwargs={"port": config.port, "host": config.host})
+    #     thread.start()
+    #     try:
+    #         while not self.started:
+    #             time.sleep(0.001)
+    #         yield
+    #     finally:
+    #         uvicorn.should_exit = True
+    #         thread.join()
+
+    # def restart_server():
+    #     # POSSIBLE: track how many restarts have been done and avoid infinite loops
+    #     print("Restarting server... (will be replace current process if succesful)")
+    #     try:
+    #         os.execv(sys.executable, [sys.executable] + sys.argv)
+    #     except Exception as ex:
+    #         raise Exception(f"Error restarting server: {ex}")
+
