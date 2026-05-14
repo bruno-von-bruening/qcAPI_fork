@@ -1,0 +1,12 @@
+- method: ccsd
+  basis:  d-aug-cc-pvdz-wc3rfnh
+  do_moments: False
+  protocol:
+    type: df
+    df_basis: aug-cc-pvdz-ri-wc3rfnh
+    frozen_core: false
+    reference: RHF
+    convergence:
+      e_convergence: 1.e-10
+      r_convergence: 1.e-10
+      d_convergence: 1.e-10

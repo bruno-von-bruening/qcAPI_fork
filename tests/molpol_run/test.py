@@ -61,9 +61,13 @@ def main(config_file):
     lots_wider_file='../supplementary_files/lots/lots_wider_sampling.yaml'
     assert os.path.isfile(lots_wider_file), f"Not a file: {lots_wider_file}"
 
-    lots_file=lots_wider_file
+    lots_cc_hyb_df_file='../supplementary_files/lots/cc_hyb-bs_df.yaml'
+    assert os.path.isfile(lots_wider_file), f"Not a file: {lots_cc_hyb_df_file}"
 
-    molpol_file='../supplementary_files/molpol/molpol.yaml'
+    lots_file=lots_wider_file
+    lots_file=lots_cc_hyb_df_file
+
+    molpol_file='../supplementary_files/molpol/molpol_ff.yaml'
     assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
     proc=start_server(config_file)
     try:
