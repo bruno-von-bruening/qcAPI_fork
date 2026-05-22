@@ -6,9 +6,9 @@ on:
       reason:
         description: 'This run should take about 4 minutes. OK?'
         required: false
-  push:
+  # push:
     #  branches: [ main , CI_explore_2 ]
-  pull_request:
+  #pull_request:
 
 
 jobs:
