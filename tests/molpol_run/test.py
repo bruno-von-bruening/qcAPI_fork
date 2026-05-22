@@ -79,7 +79,7 @@ def main(config_file):
     lots_file=lots_wider_file
     lots_file=lots_cc_hyb_df_file
 
-    molpol_file=os.path.join(test_dir,'supplementary_files','molpol','molpol.yaml')
+    molpol_file=os.path.join(test_dir,'supplementary_files','molpol','molpol_ff.yaml')
 
     assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
     proc=start_server(config_file)
