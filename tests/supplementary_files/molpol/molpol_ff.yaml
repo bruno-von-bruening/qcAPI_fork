@@ -1,0 +1,6 @@
+ids: 'all'
+records:
+  - approach: FinFie
+    specs:
+      finfie_stepsize_dip: 1.e-3
+      finfie_stepsize_qad: 1.e-4
