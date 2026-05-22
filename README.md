@@ -87,4 +87,4 @@ Assuming port 8080 has been bound at local machine we can reach the server via "
 # CI tests
 One tests that checks if after pushing the molecular polarizabilities could be produced when installing through conda
 environment file. Currently run by hand (could implement it on commit, which requires a bit more work to make sure the
-new environment (not the old is checked)).
+new environment (not the old is checked)). They only get triggered if [run-tests] substring is found in commit message.
