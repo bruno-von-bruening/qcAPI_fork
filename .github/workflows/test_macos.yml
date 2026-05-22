@@ -6,13 +6,14 @@ on:
       reason:
         description: 'This run should take about 4 minutes. OK?'
         required: false
-  # push:
-    #  branches: [ main , CI_explore_2 ]
+  push:
+    #  branches: [ CI_explore_2 ]
   #pull_request:
 
 
 jobs:
     test-macos:
+        if: contains(github.event.head_commit.message, '[run-tests]')
         runs-on: macos-14
         # env:
         #   QCPAPI_HOME: ${{ github.workspace }}
