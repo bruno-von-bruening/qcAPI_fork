@@ -2,6 +2,10 @@ name: macOS Python + Conda CI
 
 on:
   workflow_dispatch:  # manual runs
+    inputs:
+      reason:
+        description: 'This run should take about 4 minutes. OK?'
+        required: false
   push:
     #  branches: [ main , CI_explore_2 ]
   pull_request:
