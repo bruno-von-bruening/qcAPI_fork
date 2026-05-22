@@ -121,6 +121,6 @@ if __name__=="__main__":
     if os.path.isfile(db_file):
         os.remove(db_file)
         print(f"Removed old database file: {db_file}")
-    run_shell_command(f"rm -r scratch/* || true")
+    run_shell_command(f"rm -r scratch/* -f || true")
 
     main(args.config)
