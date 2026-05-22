@@ -117,7 +117,7 @@ def pack_run_directory(
         compressed_file=f"{the_tar}.xz"
         # Pack
         try:
-            run_shell_command(f"tar --create --remove-files --file={the_tar} {store_dir}")
+            run_shell_command(f"tar --create --file={the_tar} {store_dir} && rm -rf {store_dir}")
         except Exception as ex:
             raise Exception(f"Problem in creating tar file {the_tar} from directory {store_dir}: {ex}") from ex
         # compress
