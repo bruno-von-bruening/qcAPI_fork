@@ -19,17 +19,22 @@ def main(argv:List[str]|Namespace):
     adar(
         '--edit','-e', action='store_true', help=f"Edit the config file with the default editor (if --config is not provided, will edit the auto-generated config file)", default=False
     )
+    adar(
+        '--run','-r', action='store_true', help=f"If edit is provided then run the server after editing", default=False
+    )
     
     # Parse arguments
     args=par.parse_args(argv)
     address, config_file=process_client_args(args, require_config=False, server_running=False)
     edit=args.edit
+    do_run=args.run
     # host=args.host
     # port=args.port
 
     def my_exit(msg):
         print(msg)
         sys.exit(1)
+    if not edit and run: my_exit(f"Run flag is only to be provided if edit flag is set to!")
 
     if config_file is not None:
         if os.path.realpath(config_file)==os.path.realpath(DEFAULT_CONFIG_FILE):
@@ -44,7 +49,14 @@ def main(argv:List[str]|Namespace):
                 EDITOR='vim'
                 warn(f"No default editor found in environment variable $EDITOR. Defaulting to {EDITOR}.")
             call([EDITOR, config_file])
-        my_exit(f"No config file provided. Created a template config file at {config_file}. Please edit it and run again.")
+        config_name='config.yaml'
+        if os.path.isfile(config_name):
+            my_exit(f"File with name {config_name} exists. Dumping info under {config_file}")
+        else:
+            shutil.move(config_file, config_name)
+            config_file=config_name
+        if not do_run:
+            my_exit(f"No config file provided. Created a template config file at {config_file}. Please edit it and run again.")
 
     main_internal(config_file)
 
