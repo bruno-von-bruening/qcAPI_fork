@@ -18,7 +18,7 @@ dependencies:
     - psutil
     - rdkit
     - setuptools
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@08c07f03b
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@b1309d414
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@cc8554349
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@d32cfc3db
     - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@1e2a8d58f
     - ..
