@@ -28,7 +28,7 @@ jobs:
           - name: Authenticate git for private dependencies
             shell: bash
             run: |
-              git config --global url."https://${{ secrets.GH_PAT }}:@github.com/".insteadOf "https://github.com/"
+              git config --global url."https://${{ secrets.GH_PAT2 }}:@github.com/".insteadOf "https://github.com/"
 
           - name: Install Miniconda
             uses: conda-incubator/setup-miniconda@v3
