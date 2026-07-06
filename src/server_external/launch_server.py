@@ -66,7 +66,7 @@ def make_auto_config_file(host:str|None, port:int|None, **kwargs):
             storage_root_directory=f"{os.getcwd()}/storage",
         )
     if not 'database_file' in kwargs:
-        kwargs['database_file']=f"test_database.db"
+        kwargs['database_file']=f"{os.path.basename(os.getcwd())}.db"
     config=qcAPI_server_config.construct(
         host=host,
         port=port,

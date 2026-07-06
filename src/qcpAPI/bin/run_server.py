@@ -34,7 +34,7 @@ def main(argv:List[str]|Namespace):
     def my_exit(msg):
         print(msg)
         sys.exit(1)
-    if not edit and run: my_exit(f"Run flag is only to be provided if edit flag is set to!")
+    if not edit and do_run: my_exit(f"Run flag is only to be provided if edit flag is set to!")
 
     if config_file is not None:
         if os.path.realpath(config_file)==os.path.realpath(DEFAULT_CONFIG_FILE):

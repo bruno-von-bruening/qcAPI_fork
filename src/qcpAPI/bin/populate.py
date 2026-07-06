@@ -20,7 +20,7 @@ def main(argv:List[str]|Namespace):
     par=add_property_arg(par)
     add=par.add_argument
 
-    add('--files', type=str, nargs='+', help='Filenames of the pickled configurations', default=[])
+    add('--files','-f', type=str, nargs='+', help='Filenames of the pickled configurations', default=[])
     add('--method','-m', type=str, default=None ,help='Method to use')
     add('--basis','-b', type=str, default=None,help='Basis to use')
     add('--test', action='store_true',help='test (less than 50 entries)')

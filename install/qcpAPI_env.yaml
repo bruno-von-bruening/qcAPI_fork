@@ -11,6 +11,7 @@ dependencies:
   - build
   - pip
   - pip:
+    - pytest
     - setuptools-scm
     - fastapi[standard]
     - sqlmodel
@@ -18,7 +19,7 @@ dependencies:
     - psutil
     - rdkit
     - setuptools
-    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@4e53544bd
+    - git+ssh://git@github.com/bruno-von-bruening/qcp_global_utils.git@c4c802fa5
     - git+ssh://git@github.com/bruno-von-bruening/qcp_objects.git@d32cfc3db
     - git+ssh://git@github.com/bruno-von-bruening/qcp_orm.git@1e2a8d58f
     - ..
