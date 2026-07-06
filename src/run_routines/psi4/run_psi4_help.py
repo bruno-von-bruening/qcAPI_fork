@@ -3,6 +3,7 @@ from qcp_objects.objects.properties import geometry
 from orm_import.database_declaration import FCHK_File
 from .psi4_helper import job_opts
 from qcp_versioning.foreign_version import get_foreign_version
+from qcp_versioning.helper import Version
 
 # make config
 def config_base(
@@ -111,12 +112,16 @@ def compute_core(
     extra_cmdln_opts: dict,
 ):
 
+    assert code.code=='run_psi4', f"Expected code \'run_psi4\', got: {code.code}"
     try:
         local_version_run_psi4=get_foreign_version(python_exc, "run_psi4")
-        assert code.code=='run_psi4', f"Expected code \'run_psi4\', got: {code.code}"
-        assert local_version_run_psi4==code.version_hash, f"Version hash mismatch for run_psi4: local {local_version_run_psi4} vs. provided {code.version_hash}"
+        local_version_run_psi4=Version(local_version_run_psi4)
+        origin=Version(code.version_hash)
+        dis=local_version_run_psi4.disagreements(origin)
+        if len(dis)!=0:
+            raise Exception(f"run_psi4 version hash mismatch: {dis}")
     except Exception as ex:
-        raise Exception(f"Version mismatch for run_psi4: {ex}")
+        raise my_exception(f"Version mismatch for run_psi4:",ex)
 
     config=config_base(tracker, geom, record)
     config.update( machine_settings(tracker) )

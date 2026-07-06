@@ -1,7 +1,7 @@
 
 from . import *
 
-from util.http_util import pdtc_address
+from util.http_util import pdtc_address, pdtc_address_tollerant
 from util.requests import get_request
 from util.sql_util import get_primary_key, SQLModelMetaclass
 from orm_import.utils import get_object_for_tag
@@ -129,7 +129,7 @@ def get_message_and_error(response):
 
 @val_call
 def upload_file(
-    srv_address: pdtc_address,
+    srv_address: pdtc_address_tollerant, # will try to get response from server but if serve busy terminates
     table: SQLModelMetaclass,
     id: str|int,
     file: pdtc_file,
@@ -141,28 +141,35 @@ def upload_file(
     # Post the files
     with open(file,'rb') as rd:
         files={"file": (rd.name, rd, "multipart/form-data")}
-        response=requests.post(url=url, files=files)
+        try:
+            response=requests.post(url=url, files=files)
+            error=None
+        except requests.exceptions.Timeout as ex:
+            error=f"Timeout of posting file {files}."
+            
 
-    status_code=response.status_code
-    if status_code == HTTPStatus.OK: # desired
-        message, error = get_message_and_error(response)
-        print(
-            f"UPLOADED FILE with basename: \'{os.path.basename(file)}\'"+ 
-            # (' No message' if message is None else '') +
-            # (' No errors' if error is None else '') +
-            (f"\n  Message={message}" if message else "") +
-            (f"\n  Error={error}" if error else "")
-        )   
-        error=None
-    #elif status_code == HTTPStatus.NO_CONTENT:
-    #    print(f"Record already converged:\n Will not update record and proceed to next task.")
-    #    error=None
-    elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
-        error=f"Error in processing"
-    elif status_code == HTTPStatus.UNPROCESSABLE_ENTITY: # error in function definition
-        error= f"Bad communication with function (check function argument)"
-    else:
-        error= f"Undescribed error"
+    if not error:
+        status_code=response.status_code
+        if status_code == HTTPStatus.OK: # desired
+            message, error = get_message_and_error(response)
+            print(
+                f"UPLOADED FILE with basename: \'{os.path.basename(file)}\'"+ 
+                # (' No message' if message is None else '') +
+                # (' No errors' if error is None else '') +
+                (f"\n  Message={message}" if message else "") +
+                (f"\n  Error={error}" if error else "")
+            )   
+            error=None
+        #elif status_code == HTTPStatus.NO_CONTENT:
+        #    print(f"Record already converged:\n Will not update record and proceed to next task.")
+        #    error=None
+        elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
+            error=f"Error in processing"
+        elif status_code == HTTPStatus.UNPROCESSABLE_ENTITY: # error in function definition
+            error= f"Bad communication with function (check function argument)"
+        else:
+            error= f"Undescribed error"
+
     if not error is None:
         raise Exception(f"Error updating record ({url}) with code {status_code}: {error}\n{response.text}")
     elif delete_old:

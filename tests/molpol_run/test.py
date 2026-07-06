@@ -82,7 +82,10 @@ def main(config_file):
     molpol_file=os.path.join(test_dir,'supplementary_files','molpol','molpol.yaml')
 
     assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
-    proc=start_server(config_file)
+    try:
+        proc=start_server(config_file)
+    except Exception as ex:
+        raise Exception(f"Could not start server (with config file \'{config_file}\')") from ex
     try:
         lead_command=f"python {shutil.which('qcp_server.py')}"
 

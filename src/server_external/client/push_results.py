@@ -143,7 +143,10 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
                           for k,v in results.sub_entries.items()
             ),
         )
-        response = requests.put(request, json=data )
+        try:
+            response = requests.put(request, json=data )
+        except requests.exceptions.Timeout as ex:
+            raise Exception(f"Timeout of upload entry with request {request}: {ex}")
         # Check success of request
         status_code=response.status_code
         if status_code == HTTPStatus.OK: # desired
