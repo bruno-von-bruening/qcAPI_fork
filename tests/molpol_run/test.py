@@ -40,7 +40,6 @@ def gen_auto_config_file(config_file=config_file_default, edit=True):
     print(f"Dropped automatic config under {config_file}")
     return config_file
 
-
 def run_wrapper(cmd):
     def break_text(lines:List[str]):
         import textwrap
@@ -63,25 +62,39 @@ def run_wrapper(cmd):
     else:
         print(f"Command '{cmd}' executed successfully. Output:\n{out}")
 
+config_base_opts=dict(
+        h=dict(
+            conf=('supplementary_files','conformations','h.yaml'),
+            lots=('supplementary_files','lots','hf_cc-pvdz_rohf.yaml'),
+            molpol=('supplementary_files','molpol','molpol_ff.yaml'),
+        )
+)
+config_base=config_base_opts['h']
+
+
+
 def main(config_file):
-    conf_file=os.path.join(test_dir,'supplementary_files','conformations','h2.yaml')
+    conf_file=os.path.join(test_dir,*config_base['conf'])
     assert os.path.isfile(conf_file), f"Not a file: {conf_file}"
 
-    lots_file_small=os.path.join(test_dir,'supplementary_files','lots','lots_dummy_wfn_set.yaml')
-    assert os.path.isfile(lots_file_small), f"Not a file: {lots_file_small}"
+    lots_file=os.path.join(test_dir,*config_base['lots'])
+    assert os.path.isfile(conf_file), f"Not a file: {conf_file}"
 
-    lots_wider_file=os.path.join(test_dir,'supplementary_files','lots','lots_wider_sampling.yaml')
-    assert os.path.isfile(lots_wider_file), f"Not a file: {lots_wider_file}"
-
-    lots_cc_hyb_df_file='../supplementary_files/lots/cc_hyb-bs_df.yaml'
-    assert os.path.isfile(lots_wider_file), f"Not a file: {lots_cc_hyb_df_file}"
-
-    lots_file=lots_wider_file
-    lots_file=lots_cc_hyb_df_file
-
-    molpol_file=os.path.join(test_dir,'supplementary_files','molpol','molpol_ff.yaml')
-
+    molpol_file=os.path.join(test_dir,*config_base['molpol'])
     assert os.path.isfile(molpol_file), f"Not a file: {molpol_file}"
+
+    # lots_file_small=os.path.join(test_dir,*config_base['lots'])
+    # assert os.path.isfile(lots_file_small), f"Not a file: {lots_file_small}"
+
+    # lots_wider_file=os.path.join(test_dir,'supplementary_files','lots','lots_wider_sampling.yaml')
+    # assert os.path.isfile(lots_wider_file), f"Not a file: {lots_wider_file}"
+
+    # lots_cc_hyb_df_file='../supplementary_files/lots/cc_hyb-bs_df.yaml'
+    # assert os.path.isfile(lots_wider_file), f"Not a file: {lots_cc_hyb_df_file}"
+# 
+#     lots_file=lots_wider_file
+#     lots_file=lots_cc_hyb_df_file
+
     try:
         proc=start_server(config_file)
     except Exception as ex:

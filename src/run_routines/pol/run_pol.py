@@ -294,14 +294,11 @@ def compute_polarizability_psi4(
                     ev_kind=(Molecular_Multipoles.eval_kind.density if k=='dens' else Molecular_Multipoles.eval_kind.energy)
                     specs=record.specs_model_ff(**json.loads(record.specs)).model_dump(exclude=['eval_through'])
 
-                    try: # If the Polarizabilities are not symmetric within a threshold this will raise an error! (catch that!)
-                        the_mom=Molecular_Multipoles.from_object(mom_loop, wfn_id=id,
-                            evaluated_through=ev_kind, side_result_from=this_job, specs=specs
-                        )
-                        sub_entries[Molecular_Multipoles.__name__]+=[ the_mom ]
-                    except Exception as ex:
-                        tracker.add_error(f"Could not generate Molecular_Multipoles object for method {method} and tag {k}: {ex}")
-                        record.status=RecordStatus.failed
+                    #### CATCH ERROR HERE!
+                    the_mom=Molecular_Multipoles.from_object(mom_loop, wfn_id=id,
+                        evaluated_through=ev_kind, side_result_from=this_job, specs=specs
+                    )
+                    sub_entries[Molecular_Multipoles.__name__]+=[ the_mom ]
 
 
         except Exception as ex:

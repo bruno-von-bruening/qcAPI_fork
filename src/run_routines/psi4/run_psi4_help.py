@@ -42,15 +42,19 @@ def config_base(
 
 
     except Exception as ex: my_exception(f"Problem in parsing wave function specs: {record.protocol}", ex)
+
+    try:
+        geom= dict(
+            ac_shift=None,
+            charge=geom.charge,
+            multiplicity=geom.multiplicity,
+            xyz_file=xyz_file,
+        )
+    except Exception as ex: my_exception(f"Could not get data from geometry:\n{geom}",ex)
     
     return dict(
         do_moments=False,
-        geom=dict(
-            ac_shift=None,
-            charge=0,
-            multiplicity=1,
-            xyz_file=xyz_file,
-        ),
+        geom=geom,
         method=dict(
             **( dict(dft_opts=dft_opts.model_dump()) if dft_opts else {} ),
             **( dict(convergence=convergence.model_dump()) if convergence else {} ),
