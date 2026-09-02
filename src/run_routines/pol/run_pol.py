@@ -251,7 +251,8 @@ def compute_polarizability_psi4(
                     for k, tensor_loop in v.items(): # 'eng' or 'dens'
                         if tensor_loop is None: continue
                         if k==main_key and method.lower()=='main':
-                            old_specs.eval_through=(spec_model.allowed_eval_from.energy if main_key=='eng' else spec_model.allowed_eval_from.density)
+                            old_specs.eval_through=(spec_model.allowed_eval_from.energy if main_key=='eng' else
+                                                    spec_model.allowed_eval_from.multipoles)
                             record.specs=json.dumps( old_specs.model_dump() )
                             tensor_main=tensor_loop
                         else:
