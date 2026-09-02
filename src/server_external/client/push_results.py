@@ -113,8 +113,11 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
     try: # Try and if fails then clean up
 
         # Upload the data for storage
-        model=get_object_for_tag(f"{the_model.__name__}_Run_Files")
-        upload_file( serv_adr, model, id, the_file, delete_old=True)
+        try:
+            model=get_object_for_tag(f"{the_model.__name__}_Run_Files")
+            upload_file( serv_adr, model, id, the_file, delete_old=True)
+        except Exception as ex:
+            raise Exception(f"Could not upload the RUN FILES: {ex}") from ex
 
         # Push files will allways be the same array and files will not be changed
         #the_push=partial(push_file_from_tag, files)
@@ -123,7 +126,10 @@ def process_job_results(tracker:Tracker,results:job_results, serv_adr, worker_id
                 if isinstance(file, SQLModel):
                     id=get_primary_key(file)
                     file=file.realpath
-                upload_file(serv_adr,get_object_for_tag(tag) if isinstance(tag, str) else tag, id,file)
+                try:
+                    upload_file(serv_adr,get_object_for_tag(tag) if isinstance(tag, str) else tag, id,file)
+                except Exception as ex:
+                    raise Exception(f"Could not upload the file (\'{file}\'): {ex}") from ex
         # Upload the lead record
         def drop_them(v:dict|List[dict]|SQLModel|List[SQLModel]):
             if isinstance(v,list):
